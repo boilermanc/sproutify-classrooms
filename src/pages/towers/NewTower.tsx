@@ -10,12 +10,13 @@ import { useAppStore, TowerPortConfig } from "@/context/AppStore";
 export default function NewTower() {
   const navigate = useNavigate();
   const { dispatch } = useAppStore();
+  const [portsStr, setPortsStr] = useState("20");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement & { name: { value: string }; ports: { value: string } };
+    const form = e.currentTarget as HTMLFormElement & { name: { value: string } };
     const name = form.name.value.trim();
-    const ports = Number(form.ports.value) as TowerPortConfig;
+    const ports = Number(portsStr) as TowerPortConfig;
     if (!name || !ports) return;
     dispatch({ type: "ADD_TOWER", payload: { name, ports } });
     navigate("/app/towers");
@@ -35,7 +36,7 @@ export default function NewTower() {
             </div>
             <div className="space-y-2">
               <Label>Port configuration</Label>
-              <Select name="ports" defaultValue="20">
+              <Select value={portsStr} onValueChange={setPortsStr}>
                 <SelectTrigger id="ports"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="20">20 ports</SelectItem>
