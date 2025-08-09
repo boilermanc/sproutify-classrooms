@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Sprout, Gauge, Trophy } from "lucide-react";
+import { Sprout, Gauge, Trophy, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/app", icon: Gauge },
   { title: "Towers", url: "/app/towers", icon: Sprout },
+  { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },
 ];
 

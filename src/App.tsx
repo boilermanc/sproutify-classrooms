@@ -15,6 +15,7 @@ import TowerDetail from "@/pages/towers/TowerDetail";
 import Leaderboard from "@/pages/leaderboard/Leaderboard";
 import { AppStoreProvider } from "@/context/AppStore";
 import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
+import PlantCatalog from "@/pages/catalog/PlantCatalog";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="new" element={<NewTower />} />
               <Route path=":id" element={<TowerDetail />} />
             </Route>
+            <Route path="catalog" element={<PlantCatalog />} />
             <Route path="leaderboard" element={<Leaderboard />} />
           </Route>
 

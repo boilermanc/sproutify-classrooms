@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useAppStore, newPlant, newHarvest, newPest } from "@/context/AppStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +16,10 @@ export default function TowerDetail() {
   const [ph, setPh] = useState<number | undefined>(tower?.vitals.ph);
   const [ec, setEc] = useState<number | undefined>(tower?.vitals.ec);
   const [light, setLight] = useState<number | undefined>(tower?.vitals.lightHours);
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") ?? "vitals";
 
   if (!tower) return <div>Not found</div>;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -26,7 +27,7 @@ export default function TowerDetail() {
         <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
       </div>
 
-      <Tabs defaultValue="vitals">
+      <Tabs defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="vitals">Vitals</TabsTrigger>
           <TabsTrigger value="plants">Plants</TabsTrigger>
@@ -88,7 +89,14 @@ function PlantsTab({ towerId }: { towerId: string }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader><CardTitle>Add Plant</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Add Plant</CardTitle>
+            <Button asChild variant="link" size="sm">
+              <Link to={`/app/catalog?addTo=${towerId}`}>Add from catalog</Link>
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Name</Label>
