@@ -24,6 +24,7 @@ export type Plant = {
   name: string;
   seededAt?: string;
   plantedAt?: string;
+  quantity?: number; // number of seedlings planted
   growthRate?: number; // cm/week or similar
   harvestDate?: string;
   harvestWeightGrams?: number;
@@ -172,6 +173,7 @@ export function newPlant(partial?: Partial<Plant>): Plant {
   return {
     id: nanoid(),
     name: "",
+    quantity: 1,
     ...partial,
   };
 }

@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAppStore, newPlant } from "@/context/AppStore";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
@@ -34,6 +36,9 @@ export default function PlantCatalog() {
 
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [selectedTower, setSelectedTower] = useState<string | undefined>(addToTowerId);
+  const [seededAt, setSeededAt] = useState<string>("");
+  const [plantedAt, setPlantedAt] = useState<string>("");
+  const [quantity, setQuantity] = useState<number>(1);
 
   const canonical = typeof window !== "undefined" ? `${window.location.origin}/app/catalog` : "/app/catalog";
 
@@ -41,9 +46,11 @@ export default function PlantCatalog() {
 
   const onConfirm = (plantName: string) => {
     if (!selectedTower) return;
-    dispatch({ type: "ADD_PLANT", payload: { towerId: selectedTower, plant: newPlant({ name: plantName }) } });
+    dispatch({ type: "ADD_PLANT", payload: { towerId: selectedTower, plant: newPlant({ name: plantName, seededAt, plantedAt, quantity }) } });
     setOpenFor(null);
-    // After adding, send user to that tower's Plants tab
+    setSeededAt("");
+    setPlantedAt("");
+    setQuantity(1);
     navigate(`/app/towers/${selectedTower}?tab=plants`);
   };
 
@@ -94,8 +101,22 @@ export default function PlantCatalog() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid md:grid-cols-3 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label>Seeded at</Label>
+                      <Input type="date" value={seededAt} onChange={(e)=> setSeededAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Planted at</Label>
+                      <Input type="date" value={plantedAt} onChange={(e)=> setPlantedAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Quantity</Label>
+                      <Input inputMode="numeric" value={quantity} onChange={(e)=> setQuantity(Number(e.target.value))} />
+                    </div>
+                  </div>
                   <DialogFooter>
-                    <Button variant="ghost" onClick={()=> setOpenFor(null)}>Cancel</Button>
+                    <Button variant="ghost" onClick={()=> { setOpenFor(null); setSeededAt(""); setPlantedAt(""); setQuantity(1); }}>Cancel</Button>
                     <Button onClick={()=> onConfirm(p.name)} disabled={!selectedTower}>Add</Button>
                   </DialogFooter>
                 </DialogContent>

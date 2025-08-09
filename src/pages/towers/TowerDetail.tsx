@@ -111,6 +111,10 @@ function PlantsTab({ towerId }: { towerId: string }) {
             <Input type="date" value={plant.plantedAt ?? ""} onChange={(e)=>setPlant({ ...plant, plantedAt: e.target.value })} />
           </div>
           <div className="space-y-2">
+            <Label>Quantity</Label>
+            <Input inputMode="numeric" value={plant.quantity ?? 1} onChange={(e)=>setPlant({ ...plant, quantity: Number(e.target.value) })} />
+          </div>
+          <div className="space-y-2">
             <Label>Growth rate (cm/week)</Label>
             <Input inputMode="decimal" value={plant.growthRate ?? ""} onChange={(e)=>setPlant({ ...plant, growthRate: Number(e.target.value) })} />
           </div>
@@ -138,10 +142,11 @@ function PlantsTab({ towerId }: { towerId: string }) {
           <div className="space-y-2">
             {tower.plants.length === 0 && <div className="text-sm text-muted-foreground">No plants yet.</div>}
             {tower.plants.map((p)=> (
-              <div key={p.id} className="grid md:grid-cols-6 gap-2 p-3 border rounded-md">
+              <div key={p.id} className="grid md:grid-cols-7 gap-2 p-3 border rounded-md">
                 <div><span className="text-xs text-muted-foreground">Name</span><div>{p.name}</div></div>
                 <div><span className="text-xs text-muted-foreground">Seeded</span><div>{p.seededAt ?? "-"}</div></div>
                 <div><span className="text-xs text-muted-foreground">Planted</span><div>{p.plantedAt ?? "-"}</div></div>
+                <div><span className="text-xs text-muted-foreground">Qty</span><div>{p.quantity ?? 1}</div></div>
                 <div><span className="text-xs text-muted-foreground">Harvest</span><div>{p.harvestDate ?? "-"}</div></div>
                 <div><span className="text-xs text-muted-foreground">Weight</span><div>{p.harvestWeightGrams ?? "-"} g</div></div>
                 <div><span className="text-xs text-muted-foreground">Outcome</span><div>{p.outcome ?? "-"}</div></div>
