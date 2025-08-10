@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Sprout, Gauge, Trophy, BookOpen } from "lucide-react";
+import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,9 +14,11 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/app", icon: Gauge },
+  { title: "Classrooms", url: "/app/classrooms", icon: Users },
   { title: "Towers", url: "/app/towers", icon: Sprout },
   { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },
+  { title: "Help", url: "/app/help", icon: HelpCircle },
 ];
 
 export function AppSidebar() {

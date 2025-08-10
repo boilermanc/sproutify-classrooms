@@ -16,6 +16,9 @@ import Leaderboard from "@/pages/leaderboard/Leaderboard";
 import { AppStoreProvider } from "@/context/AppStore";
 import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
 import PlantCatalog from "@/pages/catalog/PlantCatalog";
+import Classrooms from "@/pages/classrooms/Classrooms";
+import Kiosk from "@/pages/kiosk/Kiosk";
+import HelpCenter from "@/pages/help/HelpCenter";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +45,9 @@ const App = () => (
             </Route>
             <Route path="catalog" element={<PlantCatalog />} />
             <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="classrooms" element={<Classrooms />} />
+            <Route path="kiosk" element={<Kiosk />} />
+            <Route path="help" element={<HelpCenter />} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
