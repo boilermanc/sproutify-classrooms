@@ -41,6 +41,47 @@ export type Database = {
         }
         Relationships: []
       }
+      harvests: {
+        Row: {
+          created_at: string
+          destination: string | null
+          harvested_at: string
+          id: string
+          notes: string | null
+          teacher_id: string
+          tower_id: string
+          weight_grams: number
+        }
+        Insert: {
+          created_at?: string
+          destination?: string | null
+          harvested_at?: string
+          id?: string
+          notes?: string | null
+          teacher_id: string
+          tower_id: string
+          weight_grams: number
+        }
+        Update: {
+          created_at?: string
+          destination?: string | null
+          harvested_at?: string
+          id?: string
+          notes?: string | null
+          teacher_id?: string
+          tower_id?: string
+          weight_grams?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvests_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       join_codes: {
         Row: {
           classroom_id: string
@@ -69,6 +110,50 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pest_logs: {
+        Row: {
+          action: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          observed_at: string
+          pest: string
+          severity: number | null
+          teacher_id: string
+          tower_id: string
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          observed_at?: string
+          pest: string
+          severity?: number | null
+          teacher_id: string
+          tower_id: string
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          observed_at?: string
+          pest?: string
+          severity?: number | null
+          teacher_id?: string
+          tower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pest_logs_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
             referencedColumns: ["id"]
           },
         ]
@@ -112,23 +197,110 @@ export type Database = {
         }
         Relationships: []
       }
+      plantings: {
+        Row: {
+          catalog_id: string | null
+          created_at: string
+          expected_harvest_date: string | null
+          growth_rate: string | null
+          id: string
+          name: string
+          outcome: string | null
+          planted_at: string | null
+          port_number: number | null
+          quantity: number
+          seeded_at: string | null
+          status: string
+          teacher_id: string
+          tower_id: string
+          updated_at: string
+        }
+        Insert: {
+          catalog_id?: string | null
+          created_at?: string
+          expected_harvest_date?: string | null
+          growth_rate?: string | null
+          id?: string
+          name: string
+          outcome?: string | null
+          planted_at?: string | null
+          port_number?: number | null
+          quantity?: number
+          seeded_at?: string | null
+          status?: string
+          teacher_id: string
+          tower_id: string
+          updated_at?: string
+        }
+        Update: {
+          catalog_id?: string | null
+          created_at?: string
+          expected_harvest_date?: string | null
+          growth_rate?: string | null
+          id?: string
+          name?: string
+          outcome?: string | null
+          planted_at?: string | null
+          port_number?: number | null
+          quantity?: number
+          seeded_at?: string | null
+          status?: string
+          teacher_id?: string
+          tower_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantings_catalog_id_fkey"
+            columns: ["catalog_id"]
+            isOneToOne: false
+            referencedRelation: "plant_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantings_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          district: string | null
           full_name: string | null
           id: string
+          phone: string | null
+          school_name: string | null
+          settings: Json
+          timezone: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          district?: string | null
           full_name?: string | null
           id: string
+          phone?: string | null
+          school_name?: string | null
+          settings?: Json
+          timezone?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          district?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          school_name?: string | null
+          settings?: Json
+          timezone?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -165,6 +337,74 @@ export type Database = {
           },
         ]
       }
+      tower_vitals: {
+        Row: {
+          created_at: string
+          ec: number | null
+          id: string
+          light_lux: number | null
+          ph: number | null
+          recorded_at: string
+          teacher_id: string
+          tower_id: string
+        }
+        Insert: {
+          created_at?: string
+          ec?: number | null
+          id?: string
+          light_lux?: number | null
+          ph?: number | null
+          recorded_at?: string
+          teacher_id: string
+          tower_id: string
+        }
+        Update: {
+          created_at?: string
+          ec?: number | null
+          id?: string
+          light_lux?: number | null
+          ph?: number | null
+          recorded_at?: string
+          teacher_id?: string
+          tower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tower_vitals_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      towers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          ports: number
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          ports: number
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          ports?: number
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -185,6 +425,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      waste_logs: {
+        Row: {
+          created_at: string
+          grams: number
+          id: string
+          logged_at: string
+          notes: string | null
+          teacher_id: string
+          tower_id: string
+        }
+        Insert: {
+          created_at?: string
+          grams: number
+          id?: string
+          logged_at?: string
+          notes?: string | null
+          teacher_id: string
+          tower_id: string
+        }
+        Update: {
+          created_at?: string
+          grams?: number
+          id?: string
+          logged_at?: string
+          notes?: string | null
+          teacher_id?: string
+          tower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waste_logs_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
