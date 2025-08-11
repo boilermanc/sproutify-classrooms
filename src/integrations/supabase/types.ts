@@ -274,6 +274,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          school_image_url: string | null
           school_name: string | null
           settings: Json
           timezone: string | null
@@ -286,6 +287,7 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          school_image_url?: string | null
           school_name?: string | null
           settings?: Json
           timezone?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          school_image_url?: string | null
           school_name?: string | null
           settings?: Json
           timezone?: string | null
@@ -333,6 +336,47 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tower_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          file_path: string
+          id: string
+          student_name: string | null
+          taken_at: string
+          teacher_id: string
+          tower_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          file_path: string
+          id?: string
+          student_name?: string | null
+          taken_at?: string
+          teacher_id: string
+          tower_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          file_path?: string
+          id?: string
+          student_name?: string | null
+          taken_at?: string
+          teacher_id?: string
+          tower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tower_photos_tower_id_fkey"
+            columns: ["tower_id"]
+            isOneToOne: false
+            referencedRelation: "towers"
             referencedColumns: ["id"]
           },
         ]

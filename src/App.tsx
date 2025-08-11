@@ -19,6 +19,7 @@ import PlantCatalog from "@/pages/catalog/PlantCatalog";
 import Classrooms from "@/pages/classrooms/Classrooms";
 import Kiosk from "@/pages/kiosk/Kiosk";
 import HelpCenter from "@/pages/help/HelpCenter";
+import Profile from "@/pages/profile/Profile";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import TowerPhotosTab from "./TowerPhotosTab";
 
 export default function TowerDetail() {
   const { id } = useParams();
@@ -34,6 +35,7 @@ export default function TowerDetail() {
           <TabsTrigger value="pests">Pests</TabsTrigger>
           <TabsTrigger value="harvests">Harvests</TabsTrigger>
           <TabsTrigger value="waste">Waste</TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vitals" className="mt-4">
@@ -42,11 +44,11 @@ export default function TowerDetail() {
             <CardContent className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>pH</Label>
-                <Input inputMode="decimal" value={ph ?? ""} onChange={(e)=>setPh(Number(e.target.value))} placeholder="e.g. 5.8" />
+                <Input type="number" step="0.01" value={ph ?? ""} onChange={(e)=>setPh(e.target.value === "" ? undefined : parseFloat(e.target.value))} placeholder="e.g. 5.8" />
               </div>
               <div className="space-y-2">
                 <Label>EC (mS/cm)</Label>
-                <Input inputMode="decimal" value={ec ?? ""} onChange={(e)=>setEc(Number(e.target.value))} placeholder="e.g. 1.6" />
+                <Input type="number" step="0.01" value={ec ?? ""} onChange={(e)=>setEc(e.target.value === "" ? undefined : parseFloat(e.target.value))} placeholder="e.g. 1.6" />
               </div>
               <div className="space-y-2">
                 <Label>Light hours/day</Label>
@@ -75,6 +77,10 @@ export default function TowerDetail() {
 
         <TabsContent value="waste" className="mt-4">
           <WasteTab towerId={tower.id} />
+        </TabsContent>
+
+        <TabsContent value="photos" className="mt-4">
+          <TowerPhotosTab towerId={tower.id} />
         </TabsContent>
       </Tabs>
     </div>
