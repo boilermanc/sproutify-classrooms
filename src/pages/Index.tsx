@@ -17,7 +17,7 @@ const Index = () => {
           <img 
             src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
             alt="Sproutify School Logo" 
-            className="w-32 h-32 mb-6"
+            className="h-24 object-contain mb-6"
           />
           <p className="text-lg text-muted-foreground mb-8">
             A simple, student‑friendly way to track vertical tower growing in the classroom. Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
