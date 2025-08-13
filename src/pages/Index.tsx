@@ -14,9 +14,16 @@ const Index = () => {
       <GradientBackground className="absolute inset-0" />
       <main className="relative container mx-auto px-6 py-24">
         <div className="max-w-3xl">
-          <h1 className="text-5xl font-extrabold leading-tight tracking-tight mb-6">
-            Sproutify School
-          </h1>
+          <div className="flex items-center gap-4 mb-6">
+            <img 
+              src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
+              alt="Sproutify School Logo" 
+              className="w-16 h-16"
+            />
+            <h1 className="text-5xl font-extrabold leading-tight tracking-tight">
+              Sproutify School
+            </h1>
+          </div>
           <p className="text-lg text-muted-foreground mb-8">
             A simple, student‑friendly way to track vertical tower growing in the classroom. Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
           </p>
