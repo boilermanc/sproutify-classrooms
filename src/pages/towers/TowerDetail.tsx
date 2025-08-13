@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import TowerPhotosTab from "./TowerPhotosTab";
+import { ColorNumberInput } from "@/components/ui/color-number-input";
+import { SEO } from "@/components/SEO";
 
 export default function TowerDetail() {
   const { id } = useParams();
@@ -22,7 +24,12 @@ export default function TowerDetail() {
 
   if (!tower) return <div>Not found</div>;
   return (
-    <div className="space-y-4">
+    <>
+      <SEO 
+        title={`${tower.name} - Tower Details`}
+        description={`Monitor vitals, plants, and harvests for ${tower.name}. Track pH, EC, lighting, and manage your hydroponic tower garden.`}
+      />
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{tower.name}</h1>
         <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
@@ -42,14 +49,20 @@ export default function TowerDetail() {
           <Card>
             <CardHeader><CardTitle>pH / EC / Lighting</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>pH</Label>
-                <Input type="number" step="0.01" value={ph ?? ""} onChange={(e)=>setPh(e.target.value === "" ? undefined : parseFloat(e.target.value))} placeholder="e.g. 5.8" />
-              </div>
-              <div className="space-y-2">
-                <Label>EC (mS/cm)</Label>
-                <Input type="number" step="0.01" value={ec ?? ""} onChange={(e)=>setEc(e.target.value === "" ? undefined : parseFloat(e.target.value))} placeholder="e.g. 1.6" />
-              </div>
+              <ColorNumberInput
+                type="ph"
+                label="pH"
+                value={ph}
+                onChange={setPh}
+                placeholder="e.g. 6.5"
+              />
+              <ColorNumberInput
+                type="ec"
+                label="EC (mS/cm)"
+                value={ec}
+                onChange={setEc}
+                placeholder="e.g. 1.6"
+              />
               <div className="space-y-2">
                 <Label>Light hours/day</Label>
                 <Input inputMode="numeric" value={light ?? ""} onChange={(e)=>setLight(Number(e.target.value))} placeholder="e.g. 12" />
@@ -83,7 +96,8 @@ export default function TowerDetail() {
           <TowerPhotosTab towerId={tower.id} />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 }
 
