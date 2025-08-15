@@ -30,24 +30,37 @@ export default function TowerDetail() {
     
     try {
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
+      if (!user.user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to save tower vitals.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      const { error } = await supabase.from('tower_vitals').insert({
-        tower_id: id,
-        teacher_id: user.user.id,
-        ph: ph || null,
-        ec: ec || null,
-        light_lux: light ? Math.round(light * 1000) : null // Convert hours to approximate lux
-      });
+      // Check if this is a valid UUID (for database towers) or local tower
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+      
+      if (isUUID) {
+        // Save to database for real towers
+        const { error } = await supabase.from('tower_vitals').insert({
+          tower_id: id,
+          teacher_id: user.user.id,
+          ph: ph || null,
+          ec: ec || null,
+          light_lux: light ? Math.round(light * 1000) : null // Convert hours to approximate lux
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
-      // Update local state
+      // Always update local state (for demo towers or real towers)
       dispatch({ type: "UPDATE_VITALS", payload: { id: tower.id, ph, ec, lightHours: light } });
       
       toast({
         title: "Vitals saved",
-        description: "Tower vitals have been recorded successfully."
+        description: isUUID ? "Tower vitals have been recorded successfully." : "Demo tower vitals saved locally."
       });
     } catch (error) {
       console.error('Error saving vitals:', error);
