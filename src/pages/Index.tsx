@@ -1,18 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
 import { GradientBackground } from "@/components/GradientBackground";
+import { Footer } from "@/components/Footer";
 import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background relative flex items-center">
+    <div className="min-h-screen bg-background relative flex flex-col">
       <SEO
         title="Sproutify School | Classroom Tower Tracker"
         description="Manage classroom vertical tower gardens: track vitals, pests, plants, and harvests with friendly dashboards."
         canonical="/"
       />
       <GradientBackground className="absolute inset-0" />
-      <main className="relative container mx-auto px-6 py-24">
+      <main className="relative container mx-auto px-6 py-24 flex-1 flex items-center">
         <div className="max-w-3xl">
           <img 
             src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
@@ -32,6 +33,7 @@ const Index = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

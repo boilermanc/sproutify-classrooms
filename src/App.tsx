@@ -20,6 +20,10 @@ import Classrooms from "@/pages/classrooms/Classrooms";
 import Kiosk from "@/pages/kiosk/Kiosk";
 import HelpCenter from "@/pages/help/HelpCenter";
 import Profile from "@/pages/profile/Profile";
+import TermsOfService from "@/pages/legal/TermsOfService";
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import CookiePolicy from "@/pages/legal/CookiePolicy";
+import Accessibility from "@/pages/legal/Accessibility";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +40,11 @@ const App = () => (
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
           </Route>
+
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="/accessibility" element={<Accessibility />} />
 
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
