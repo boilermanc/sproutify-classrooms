@@ -1,5 +1,5 @@
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAppStore, newPlant, newHarvest, newPest } from "@/context/AppStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,17 +10,54 @@ import { Textarea } from "@/components/ui/textarea";
 import TowerPhotosTab from "./TowerPhotosTab";
 import { ColorNumberInput } from "@/components/ui/color-number-input";
 import { SEO } from "@/components/SEO";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TowerDetail() {
   const { id } = useParams();
   const { state, dispatch } = useAppStore();
   const tower = useMemo(() => state.towers.find((t) => t.id === id), [state.towers, id]);
+  const { toast } = useToast();
 
   const [ph, setPh] = useState<number | undefined>(tower?.vitals.ph);
   const [ec, setEc] = useState<number | undefined>(tower?.vitals.ec);
   const [light, setLight] = useState<number | undefined>(tower?.vitals.lightHours);
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "vitals";
+
+  const saveVitals = async () => {
+    if (!tower || !id) return;
+    
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from('tower_vitals').insert({
+        tower_id: id,
+        teacher_id: user.user.id,
+        ph: ph || null,
+        ec: ec || null,
+        light_lux: light ? Math.round(light * 1000) : null // Convert hours to approximate lux
+      });
+
+      if (error) throw error;
+
+      // Update local state
+      dispatch({ type: "UPDATE_VITALS", payload: { id: tower.id, ph, ec, lightHours: light } });
+      
+      toast({
+        title: "Vitals saved",
+        description: "Tower vitals have been recorded successfully."
+      });
+    } catch (error) {
+      console.error('Error saving vitals:', error);
+      toast({
+        title: "Error saving vitals",
+        description: "Failed to save tower vitals. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (!tower) return <div>Not found</div>;
   return (
@@ -43,6 +80,7 @@ export default function TowerDetail() {
           <TabsTrigger value="harvests">Harvests</TabsTrigger>
           <TabsTrigger value="waste">Waste</TabsTrigger>
           <TabsTrigger value="photos">Photos</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vitals" className="mt-4">
@@ -68,7 +106,7 @@ export default function TowerDetail() {
                 <Input inputMode="numeric" value={light ?? ""} onChange={(e)=>setLight(Number(e.target.value))} placeholder="e.g. 12" />
               </div>
               <div className="md:col-span-3">
-                <Button onClick={()=>dispatch({ type: "UPDATE_VITALS", payload: { id: tower.id, ph, ec, lightHours: light } })}>
+                <Button onClick={saveVitals}>
                   Save vitals
                 </Button>
               </div>
@@ -94,6 +132,10 @@ export default function TowerDetail() {
 
         <TabsContent value="photos" className="mt-4">
           <TowerPhotosTab towerId={tower.id} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <HistoryTab towerId={tower.id} />
         </TabsContent>
       </Tabs>
       </div>
@@ -286,5 +328,163 @@ function WasteTab({ towerId }: { towerId: string }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function HistoryTab({ towerId }: { towerId: string }) {
+  const [vitalsData, setVitalsData] = useState<any[]>([]);
+  const [harvestsData, setHarvestsData] = useState<any[]>([]);
+  const [pestsData, setPestsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user.user) return;
+
+        // Fetch vitals data
+        const { data: vitals } = await supabase
+          .from('tower_vitals')
+          .select('*')
+          .eq('tower_id', towerId)
+          .eq('teacher_id', user.user.id)
+          .order('recorded_at', { ascending: false })
+          .limit(50);
+
+        // Fetch harvests data
+        const { data: harvests } = await supabase
+          .from('harvests')
+          .select('*')
+          .eq('tower_id', towerId)
+          .eq('teacher_id', user.user.id)
+          .order('harvested_at', { ascending: false })
+          .limit(50);
+
+        // Fetch pest logs
+        const { data: pests } = await supabase
+          .from('pest_logs')
+          .select('*')
+          .eq('tower_id', towerId)
+          .eq('teacher_id', user.user.id)
+          .order('observed_at', { ascending: false })
+          .limit(50);
+
+        setVitalsData(vitals || []);
+        setHarvestsData(harvests || []);
+        setPestsData(pests || []);
+      } catch (error) {
+        console.error('Error fetching historical data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [towerId]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">Loading historical data...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Vitals History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vitals History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {vitalsData.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No vitals data recorded yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {vitalsData.map((vital) => (
+                <div key={vital.id} className="grid grid-cols-4 gap-4 p-3 border rounded-md">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Date</div>
+                    <div>{new Date(vital.recorded_at).toLocaleDateString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">pH</div>
+                    <div>{vital.ph || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">EC</div>
+                    <div>{vital.ec || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Light (lux)</div>
+                    <div>{vital.light_lux || "-"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Harvests History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Harvest History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {harvestsData.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No harvests recorded yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {harvestsData.map((harvest) => (
+                <div key={harvest.id} className="grid grid-cols-3 gap-4 p-3 border rounded-md">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Date</div>
+                    <div>{new Date(harvest.harvested_at).toLocaleDateString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Weight</div>
+                    <div>{harvest.weight_grams} g</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Destination</div>
+                    <div>{harvest.destination || "-"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pest Logs History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pest Log History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pestsData.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No pest observations recorded yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {pestsData.map((pest) => (
+                <div key={pest.id} className="p-3 border rounded-md">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {new Date(pest.observed_at).toLocaleDateString()}
+                  </div>
+                  <div className="font-medium">{pest.pest}</div>
+                  {pest.notes && <div className="text-sm text-muted-foreground">{pest.notes}</div>}
+                  {pest.action && <div className="text-sm">Action: {pest.action}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
