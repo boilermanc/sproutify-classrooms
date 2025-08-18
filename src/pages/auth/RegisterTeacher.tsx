@@ -1,4 +1,3 @@
-// REGISTER PAGE v12
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -10,77 +9,77 @@ import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function RegisterTeacher() {
-  console.log("REGISTER PAGE v12 loaded");
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [lastName, setLastName]   = useState("");
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [confirm, setConfirm]     = useState("");
   const [schoolName, setSchoolName] = useState("");
+  const [loading, setLoading]     = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-    if (signUpError || !signUpData?.user) {
-      toast({ title: "Signup failed", description: signUpError?.message ?? "No user returned", variant: "destructive" });
+    if (password !== confirm) {
+      toast({ title: "Passwords don’t match", description: "Please confirm your password.", variant: "destructive" });
       return;
     }
 
-    const userId = signUpData.user.id;
-
-    const { data: existingSchools, error: schoolLookupError } = await supabase
-      .from("schools")
-      .select("id")
-      .eq("name", schoolName)
-      .limit(1);
-
-    if (schoolLookupError) {
-      toast({ title: "School lookup failed", description: schoolLookupError.message, variant: "destructive" });
-      return;
-    }
-
-    let schoolId: string;
-    if (existingSchools && existingSchools.length > 0) {
-      schoolId = existingSchools[0].id;
-    } else {
-      const { data: newSchool, error: schoolInsertError } = await supabase
-        .from("schools")
-        .insert({ name: schoolName })
-        .select()
-        .single();
-
-      if (schoolInsertError || !newSchool) {
-        toast({ title: "School creation failed", description: schoolInsertError?.message ?? "Insert failed", variant: "destructive" });
-        return;
+    setLoading(true);
+    try {
+      // 1) Create auth user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError || !signUpData?.user) {
+        throw new Error(signUpError?.message ?? "Sign up failed");
       }
-      schoolId = newSchool.id;
-    }
+      const userId = signUpData.user.id;
 
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: userId,
-      first_name: firstName,
-      last_name: lastName,
-      school_id: schoolId,
-    });
-    if (profileError) {
-      toast({ title: "Profile creation failed", description: profileError.message, variant: "destructive" });
-      return;
-    }
+      // 2) Upsert/find school
+      const { data: existingSchools, error: schoolLookupError } = await supabase
+        .from("schools")
+        .select("id")
+        .eq("name", schoolName)
+        .limit(1);
+      if (schoolLookupError) throw new Error(schoolLookupError.message);
 
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: "teacher",
-    });
-    if (roleError) {
-      toast({ title: "Role assignment failed", description: roleError.message, variant: "destructive" });
-      return;
-    }
+      let schoolId: string;
+      if (existingSchools && existingSchools.length > 0) {
+        schoolId = existingSchools[0].id;
+      } else {
+        const { data: newSchool, error: schoolInsertError } = await supabase
+          .from("schools")
+          .insert({ name: schoolName })
+          .select()
+          .single();
+        if (schoolInsertError || !newSchool) throw new Error(schoolInsertError?.message ?? "School insert failed");
+        schoolId = newSchool.id;
+      }
 
-    toast({ title: "Account created!", description: "Check your email to confirm your account." });
-    navigate("/app");
+      // 3) Profile
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id: userId,
+        first_name: firstName,
+        last_name: lastName,
+        school_id: schoolId,
+      });
+      if (profileError) throw new Error(profileError.message);
+
+      // 4) Role
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: userId,
+        role: "teacher",
+      });
+      if (roleError) throw new Error(roleError.message);
+
+      toast({ title: "Account created", description: "Check your email to confirm your account." });
+      navigate("/app");
+    } catch (err: any) {
+      toast({ title: "Signup failed", description: err.message ?? "Something went wrong", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,7 +87,7 @@ export default function RegisterTeacher() {
       <SEO title="Register | Sproutify School" description="Teacher sign up for Sproutify School." canonical="/auth/register" />
       <Card>
         <CardHeader>
-          <CardTitle>Teacher Registration (v12)</CardTitle>
+          <CardTitle>Teacher Registration</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -109,12 +108,20 @@ export default function RegisterTeacher() {
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input id="confirm" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="school-name">School name</Label>
               <Input id="school-name" required placeholder="Springfield Elementary" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full">Create account</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating..." : "Create account"}
+            </Button>
           </form>
-          <p className="text-sm text-muted-foreground mt-4">Student accounts will be created by teachers to protect privacy.</p>
+          <p className="text-sm text-muted-foreground mt-4">
+            Student accounts will be created by teachers to protect privacy.
+          </p>
         </CardContent>
       </Card>
     </div>
