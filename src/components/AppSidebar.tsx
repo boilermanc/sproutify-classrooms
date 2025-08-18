@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle, User } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle, User, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +11,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const items = [
   { title: "Dashboard", url: "/app", icon: Gauge },
@@ -25,12 +27,23 @@ const items = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50";
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({ title: "Signed out" });
+    navigate("/auth/login");
+  };
+
   return (
     <Sidebar collapsible="icon" className={collapsed ? "w-14" : "w-60"}>
-      <SidebarContent>
+      {/* Make the content a flex column that fills height */}
+      <SidebarContent className="flex h-full flex-col">
+        {/* Top nav group */}
         <SidebarGroup>
           <SidebarGroupLabel>Sproutify School</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -45,6 +58,23 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Spacer pushes the next group to the bottom */}
+        <div className="mt-auto" />
+
+        {/* Bottom pinned logout */}
+        <SidebarGroup className="pb-2">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {!collapsed && <span>Logout</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
