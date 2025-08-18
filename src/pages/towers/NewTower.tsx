@@ -5,21 +5,75 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useAppStore, TowerPortConfig } from "@/context/AppStore";
+import { supabase } from "@/lib/supabase"; // Adjust import path as needed
 
 export default function NewTower() {
   const navigate = useNavigate();
   const { dispatch } = useAppStore();
   const [portsStr, setPortsStr] = useState("20");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement & { name: { value: string } };
     const name = form.name.value.trim();
     const ports = Number(portsStr) as TowerPortConfig;
+    
     if (!name || !ports) return;
-    dispatch({ type: "ADD_TOWER", payload: { name, ports } });
-    navigate("/app/towers");
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        throw new Error("Authentication required");
+      }
+
+      if (!user) {
+        throw new Error("You must be logged in to create a tower");
+      }
+
+      // Insert tower into Supabase
+      const { data: tower, error: insertError } = await supabase
+        .from('towers')
+        .insert({
+          name: name,
+          ports: ports,
+          teacher_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // Update local state with the created tower (including the database ID)
+      dispatch({ 
+        type: "ADD_TOWER", 
+        payload: { 
+          id: tower.id, // Use the ID from the database
+          name: tower.name, 
+          ports: tower.ports 
+        } 
+      });
+
+      // Navigate to towers list
+      navigate("/app/towers");
+      
+    } catch (err) {
+      console.error('Error creating tower:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create tower');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -32,12 +86,20 @@ export default function NewTower() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Tower name</Label>
-              <Input id="name" name="name" placeholder="e.g. Room 204 Tower A" required />
+              <Input 
+                id="name" 
+                name="name" 
+                placeholder="e.g. Room 204 Tower A" 
+                required 
+                disabled={isSubmitting}
+              />
             </div>
             <div className="space-y-2">
               <Label>Port configuration</Label>
-              <Select value={portsStr} onValueChange={setPortsStr}>
-                <SelectTrigger id="ports"><SelectValue placeholder="Select" /></SelectTrigger>
+              <Select value={portsStr} onValueChange={setPortsStr} disabled={isSubmitting}>
+                <SelectTrigger id="ports">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="20">20 ports</SelectItem>
                   <SelectItem value="28">28 ports</SelectItem>
@@ -45,7 +107,24 @@ export default function NewTower() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit">Create Tower</Button>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Tower...
+                </>
+              ) : (
+                "Create Tower"
+              )}
+            </Button>
           </form>
         </CardContent>
       </Card>
