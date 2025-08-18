@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useUser } from "@supabase/auth-helpers-react";
 import { useParams } from "react-router-dom";
 
 export function HarvestsTab() {
