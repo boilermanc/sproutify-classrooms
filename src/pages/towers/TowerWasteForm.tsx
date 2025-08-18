@@ -1,5 +1,3 @@
-// src/pages/towers/TowerWasteForm.tsx
-
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,10 +29,14 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
 
   useEffect(() => {
     const fetchPlantings = async () => {
+      if (!teacherId) return; // Guard clause in case prop isn't ready
+
+      // 1. The important change: adding .eq("teacher_id", teacherId)
       const { data, error } = await supabase
         .from("plantings")
         .select("name, quantity")
         .eq("tower_id", towerId)
+        .eq("teacher_id", teacherId) // This ensures we only fetch plants for the logged-in teacher
         .eq("status", "active");
 
       if (error) {
@@ -46,7 +48,7 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
     };
 
     fetchPlantings();
-  }, [towerId, toast]);
+  }, [towerId, teacherId, toast]); // 2. Add teacherId to the dependency array
 
   const handlePlantSelect = (plantName: string) => {
     setSelectedPlantName(plantName);
@@ -59,7 +61,7 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
   const handleSubmit = async () => {
     if (!selectedPlantName || plantQuantity <= 0 || grams <= 0) return;
 
-    // Insert into the 'waste_logs' table
+    // This part was already correct, using the teacherId prop
     const { error } = await supabase.from("waste_logs").insert({
       teacher_id: teacherId,
       tower_id: towerId,
