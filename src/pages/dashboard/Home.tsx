@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -27,28 +28,21 @@ export default function DashboardHome() {
           throw new Error("Authentication required");
         }
 
-        // Fetch all counts in parallel
         const [towersResult, plantsResult, harvestsResult] = await Promise.all([
-          // Count towers
           supabase
             .from('towers')
             .select('id', { count: 'exact', head: true })
             .eq('teacher_id', user.id),
-          
-          // Count plantings
           supabase
             .from('plantings')
             .select('id', { count: 'exact', head: true })
             .eq('teacher_id', user.id),
-          
-          // Count harvests
           supabase
             .from('harvests')
             .select('id', { count: 'exact', head: true })
             .eq('teacher_id', user.id)
         ]);
 
-        // Check for errors
         if (towersResult.error) throw towersResult.error;
         if (plantsResult.error) throw plantsResult.error;
         if (harvestsResult.error) throw harvestsResult.error;
@@ -108,10 +102,12 @@ export default function DashboardHome() {
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <Card>
-        <CardHeader><CardTitle>Total Towers</CardTitle></CardHeader>
-        <CardContent className="text-3xl font-bold">{stats.towers}</CardContent>
-      </Card>
+      <Link to="/app/towers" className="hover:opacity-90 transition-opacity">
+        <Card>
+          <CardHeader><CardTitle>Total Towers</CardTitle></CardHeader>
+          <CardContent className="text-3xl font-bold">{stats.towers}</CardContent>
+        </Card>
+      </Link>
       <Card>
         <CardHeader><CardTitle>Plants</CardTitle></CardHeader>
         <CardContent className="text-3xl font-bold">{stats.plants}</CardContent>
