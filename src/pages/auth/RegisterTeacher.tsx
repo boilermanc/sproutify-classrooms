@@ -23,7 +23,7 @@ export default function RegisterTeacher() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
-      toast({ title: "Passwords don’t match", description: "Please confirm your password.", variant: "destructive" });
+      toast({ title: "Passwords don't match", description: "Please confirm your password.", variant: "destructive" });
       return;
     }
 
@@ -57,12 +57,14 @@ export default function RegisterTeacher() {
         schoolId = newSchool.id;
       }
 
-      // 3) Profile
-      const { error: profileError } = await supabase.from("profiles").insert({
+      // 3) Profile - Use UPSERT to handle existing records
+      const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
         first_name: firstName,
         last_name: lastName,
         school_id: schoolId,
+      }, {
+        onConflict: 'id'
       });
       if (profileError) throw new Error(profileError.message);
 
