@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useAppStore, TowerPortConfig } from "@/context/AppStore";
-import { supabase } from "@/lib/supabase"; // Adjust import path as needed
+import { supabase } from "@/integrations/supabase/client";
 
 export default function NewTower() {
   const navigate = useNavigate();
