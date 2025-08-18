@@ -1,4 +1,4 @@
- import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,7 @@ import { ColorNumberInput } from "@/components/ui/color-number-input";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import TowerHarvestForm from "@/pages/towers/TowerHarvestForm";
 
 type Tower = {
   id: string;
@@ -41,39 +42,35 @@ export default function TowerDetail() {
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [ph, setPh] = useState<number | undefined>();
   const [ec, setEc] = useState<number | undefined>();
   const [light, setLight] = useState<number | undefined>();
-  
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "vitals";
+
+  const [plantRefreshKey, setPlantRefreshKey] = useState(0);
+  const refreshPlants = () => setPlantRefreshKey(key => key + 1);
 
   // Fetch tower data
   useEffect(() => {
     const fetchTower = async () => {
       if (!id) return;
-      
       try {
         setLoading(true);
         setError(null);
-
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           throw new Error("Authentication required");
         }
-
         const { data: towerData, error: fetchError } = await supabase
           .from('towers')
           .select('id, name, ports, teacher_id')
           .eq('id', id)
           .eq('teacher_id', user.id)
           .single();
-
         if (fetchError) {
           throw fetchError;
         }
-
         setTower(towerData);
       } catch (err) {
         console.error('Error fetching tower:', err);
@@ -82,24 +79,17 @@ export default function TowerDetail() {
         setLoading(false);
       }
     };
-
     fetchTower();
   }, [id]);
 
   const saveVitals = async () => {
     if (!tower || !id) return;
-    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to save tower vitals.",
-          variant: "destructive"
-        });
+        toast({ title: "Authentication required", description: "Please log in to save tower vitals.", variant: "destructive" });
         return;
       }
-
       const { error } = await supabase.from('tower_vitals').insert({
         tower_id: id,
         teacher_id: user.id,
@@ -107,26 +97,15 @@ export default function TowerDetail() {
         ec: ec || null,
         light_lux: light ? Math.round(light * 1000) : null
       });
-
       if (error) throw error;
-      
-      toast({
-        title: "Vitals saved",
-        description: "Tower vitals have been recorded successfully."
-      });
-
+      toast({ title: "Vitals saved", description: "Tower vitals have been recorded successfully." });
       // Clear the form
       setPh(undefined);
       setEc(undefined);
       setLight(undefined);
-      
     } catch (error) {
       console.error('Error saving vitals:', error);
-      toast({
-        title: "Error saving vitals",
-        description: "Failed to save tower vitals. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Error saving vitals", description: "Failed to save tower vitals. Please try again.", variant: "destructive" });
     }
   };
 
@@ -155,18 +134,20 @@ export default function TowerDetail() {
     );
   }
 
+  const towerId = tower.id;
+  const teacherId = tower.teacher_id;
+
   return (
     <>
-      <SEO 
-        title={${tower.name} - Tower Details}
-        description={Monitor vitals, plants, and harvests for ${tower.name}. Track pH, EC, lighting, and manage your hydroponic tower garden.}
+      <SEO
+        title={`${tower.name} - Tower Details`}
+        description={`Monitor vitals, plants, and harvests for ${tower.name}. Track pH, EC, lighting, and manage your hydroponic tower garden.`}
       />
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tower.name}</h1>
           <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
         </div>
-
         <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="vitals">Vitals</TabsTrigger>
@@ -177,58 +158,41 @@ export default function TowerDetail() {
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
-
           <TabsContent value="vitals" className="mt-4">
             <Card>
               <CardHeader><CardTitle>pH / EC / Lighting</CardTitle></CardHeader>
               <CardContent className="grid md:grid-cols-3 gap-4">
-                <ColorNumberInput
-                  type="ph"
-                  label="pH"
-                  value={ph}
-                  onChange={setPh}
-                  placeholder="e.g. 6.5"
-                />
-                <ColorNumberInput
-                  type="ec"
-                  label="EC (mS/cm)"
-                  value={ec}
-                  onChange={setEc}
-                  placeholder="e.g. 1.6"
-                />
+                <ColorNumberInput type="ph" label="pH" value={ph} onChange={setPh} placeholder="e.g. 6.5" />
+                <ColorNumberInput type="ec" label="EC (mS/cm)" value={ec} onChange={setEc} placeholder="e.g. 1.6" />
                 <div className="space-y-2">
                   <Label>Light hours/day</Label>
-                  <Input inputMode="numeric" value={light ?? ""} onChange={(e)=>setLight(Number(e.target.value))} placeholder="e.g. 12" />
+                  <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.target.value))} placeholder="e.g. 12" />
                 </div>
                 <div className="md:col-span-3">
-                  <Button onClick={saveVitals}>
-                    Save vitals
-                  </Button>
+                  <Button onClick={saveVitals}> Save vitals </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
           <TabsContent value="plants" className="mt-4">
-            <PlantsTab towerId={tower.id} />
+            <PlantsTab towerId={tower.id} refreshKey={plantRefreshKey} />
           </TabsContent>
-
           <TabsContent value="pests" className="mt-4">
             <PestsTab towerId={tower.id} />
           </TabsContent>
-
           <TabsContent value="harvests" className="mt-4">
-            <HarvestsTab towerId={tower.id} />
+            <TowerHarvestForm
+              towerId={towerId}
+              teacherId={teacherId}
+              onHarvested={refreshPlants}
+            />
           </TabsContent>
-
           <TabsContent value="waste" className="mt-4">
             <WasteTab towerId={tower.id} />
           </TabsContent>
-
           <TabsContent value="photos" className="mt-4">
             <TowerPhotosTab towerId={tower.id} />
           </TabsContent>
-
           <TabsContent value="history" className="mt-4">
             <HistoryTab towerId={tower.id} />
           </TabsContent>
@@ -238,7 +202,7 @@ export default function TowerDetail() {
   );
 }
 
-function PlantsTab({ towerId }: { towerId: string }) {
+function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: number }) {
   const { toast } = useToast();
   const [plantings, setPlantings] = useState<Planting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,46 +224,33 @@ function PlantsTab({ towerId }: { towerId: string }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
         const { data, error } = await supabase
           .from('plantings')
           .select('*')
           .eq('tower_id', towerId)
           .eq('teacher_id', user.id)
           .order('created_at', { ascending: false });
-
         if (error) throw error;
         setPlantings(data || []);
       } catch (error) {
         console.error('Error fetching plantings:', error);
-        toast({
-          title: "Error loading plants",
-          description: "Failed to load plantings data.",
-          variant: "destructive"
-        });
+        toast({ title: "Error loading plants", description: "Failed to load plantings data.", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     };
-
     fetchPlantings();
-  }, [towerId, toast]);
+  }, [towerId, toast, refreshKey]);
 
   const addPlanting = async () => {
     if (!name.trim()) return;
-
     try {
       setSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to add plants.",
-          variant: "destructive"
-        });
+        toast({ title: "Authentication required", description: "Please log in to add plants.", variant: "destructive" });
         return;
       }
-
       const { data, error } = await supabase
         .from('plantings')
         .insert({
@@ -318,9 +269,7 @@ function PlantsTab({ towerId }: { towerId: string }) {
         .single();
 
       if (error) throw error;
-
       setPlantings(prev => [data, ...prev]);
-      
       // Clear form
       setName("");
       setQuantity(1);
@@ -330,18 +279,10 @@ function PlantsTab({ towerId }: { towerId: string }) {
       setHarvestDate("");
       setOutcome("");
       setPortNumber(undefined);
-
-      toast({
-        title: "Plant added",
-        description: "Plant has been added to the tower successfully."
-      });
+      toast({ title: "Plant added", description: "Plant has been added to the tower successfully." });
     } catch (error) {
       console.error('Error adding planting:', error);
-      toast({
-        title: "Error adding plant",
-        description: "Failed to add plant. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Error adding plant", description: "Failed to add plant. Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -368,49 +309,48 @@ function PlantsTab({ towerId }: { towerId: string }) {
           <div className="flex items-center justify-between">
             <CardTitle>Add Plant</CardTitle>
             <Button asChild variant="link" size="sm">
-              <Link to={/app/catalog?addTo=${towerId}}>Add from catalog</Link>
+              <Link to={`/app/catalog?addTo=${towerId}`}>Add from catalog</Link>
             </Button>
           </div>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Name</Label>
-            <Input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Lettuce" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Lettuce" />
           </div>
           <div className="space-y-2">
             <Label>Port number</Label>
-            <Input inputMode="numeric" value={portNumber ?? ""} onChange={(e)=>setPortNumber(Number(e.target.value) || undefined)} placeholder="1-32" />
+            <Input inputMode="numeric" value={portNumber ?? ""} onChange={(e) => setPortNumber(Number(e.target.value) || undefined)} placeholder="1-32" />
           </div>
           <div className="space-y-2">
             <Label>Quantity</Label>
-            <Input inputMode="numeric" value={quantity} onChange={(e)=>setQuantity(Number(e.target.value))} />
+            <Input inputMode="numeric" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
           </div>
           <div className="space-y-2">
             <Label>Seeded at</Label>
-            <Input type="date" value={seededAt} onChange={(e)=>setSeededAt(e.target.value)} />
+            <Input type="date" value={seededAt} onChange={(e) => setSeededAt(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Planted at</Label>
-            <Input type="date" value={plantedAt} onChange={(e)=>setPlantedAt(e.target.value)} />
+            <Input type="date" value={plantedAt} onChange={(e) => setPlantedAt(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Expected harvest</Label>
-            <Input type="date" value={harvestDate} onChange={(e)=>setHarvestDate(e.target.value)} />
+            <Input type="date" value={harvestDate} onChange={(e) => setHarvestDate(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Growth rate</Label>
-            <Input value={growthRate} onChange={(e)=>setGrowthRate(e.target.value)} placeholder="e.g. 2cm/week" />
+            <Input value={growthRate} onChange={(e) => setGrowthRate(e.target.value)} placeholder="e.g. 2cm/week" />
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label>Outcome</Label>
-            <Input value={outcome} onChange={(e)=>setOutcome(e.target.value)} placeholder="Eaten in class, donated, etc" />
+            <Input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Eaten in class, donated, etc" />
           </div>
           <div className="md:col-span-3">
             <Button onClick={addPlanting} disabled={submitting || !name.trim()}>
               {submitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
                 </>
               ) : (
                 "Add plant"
@@ -419,13 +359,12 @@ function PlantsTab({ towerId }: { towerId: string }) {
           </div>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader><CardTitle>Plants</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {plantings.length === 0 && <div className="text-sm text-muted-foreground">No plants yet.</div>}
-            {plantings.map((p)=> (
+            {plantings.map((p) => (
               <div key={p.id} className="grid md:grid-cols-8 gap-2 p-3 border rounded-md">
                 <div><span className="text-xs text-muted-foreground">Name</span><div>{p.name}</div></div>
                 <div><span className="text-xs text-muted-foreground">Port</span><div>{p.port_number ?? "-"}</div></div>
@@ -449,7 +388,6 @@ function PestsTab({ towerId }: { towerId: string }) {
   const [pestLogs, setPestLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
   const [pest, setPest] = useState("");
   const [action, setAction] = useState("");
   const [notes, setNotes] = useState("");
@@ -459,14 +397,12 @@ function PestsTab({ towerId }: { towerId: string }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
         const { data, error } = await supabase
           .from('pest_logs')
           .select('*')
           .eq('tower_id', towerId)
           .eq('teacher_id', user.id)
           .order('observed_at', { ascending: false });
-
         if (error) throw error;
         setPestLogs(data || []);
       } catch (error) {
@@ -475,18 +411,15 @@ function PestsTab({ towerId }: { towerId: string }) {
         setLoading(false);
       }
     };
-
     fetchPestLogs();
   }, [towerId]);
 
   const addPestLog = async () => {
     if (!pest.trim()) return;
-
     try {
       setSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { data, error } = await supabase
         .from('pest_logs')
         .insert({
@@ -498,25 +431,15 @@ function PestsTab({ towerId }: { towerId: string }) {
         })
         .select()
         .single();
-
       if (error) throw error;
-
       setPestLogs(prev => [data, ...prev]);
       setPest("");
       setAction("");
       setNotes("");
-
-      toast({
-        title: "Pest log added",
-        description: "Pest observation has been recorded successfully."
-      });
+      toast({ title: "Pest log added", description: "Pest observation has been recorded successfully." });
     } catch (error) {
       console.error('Error adding pest log:', error);
-      toast({
-        title: "Error adding pest log",
-        description: "Failed to add pest log. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Error adding pest log", description: "Failed to add pest log. Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -529,22 +452,21 @@ function PestsTab({ towerId }: { towerId: string }) {
         <CardContent className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2 md:col-span-2">
             <Label>Pest/Observation</Label>
-            <Textarea value={pest} onChange={(e)=>setPest(e.target.value)} placeholder="Aphids on row 2" />
+            <Textarea value={pest} onChange={(e) => setPest(e.target.value)} placeholder="Aphids on row 2" />
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label>Action</Label>
-            <Textarea value={action} onChange={(e)=>setAction(e.target.value)} placeholder="Released ladybugs" />
+            <Textarea value={action} onChange={(e) => setAction(e.target.value)} placeholder="Released ladybugs" />
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Additional notes" />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes" />
           </div>
           <div className="md:col-span-2">
             <Button onClick={addPestLog} disabled={submitting || !pest.trim()}>
               {submitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
                 </>
               ) : (
                 "Save entry"
@@ -553,7 +475,6 @@ function PestsTab({ towerId }: { towerId: string }) {
           </div>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader><CardTitle>History</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -566,7 +487,7 @@ function PestsTab({ towerId }: { towerId: string }) {
           ) : pestLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">No entries yet.</div>
           ) : (
-            pestLogs.map((p)=> (
+            pestLogs.map((p) => (
               <div key={p.id} className="p-3 border rounded-md">
                 <div className="text-xs text-muted-foreground">{new Date(p.observed_at).toLocaleString()}</div>
                 <div className="font-medium">{p.pest}</div>
@@ -581,156 +502,12 @@ function PestsTab({ towerId }: { towerId: string }) {
   );
 }
 
-function HarvestsTab({ towerId }: { towerId: string }) {
-  const { toast } = useToast();
-  const [harvests, setHarvests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0,10));
-  const [weight, setWeight] = useState<number>(0);
-  const [destination, setDestination] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
-
-  useEffect(() => {
-    const fetchHarvests = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from('harvests')
-          .select('*')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', user.id)
-          .order('harvested_at', { ascending: false });
-
-        if (error) throw error;
-        setHarvests(data || []);
-      } catch (error) {
-        console.error('Error fetching harvests:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHarvests();
-  }, [towerId]);
-
-  const addHarvest = async () => {
-    if (weight <= 0) return;
-
-    try {
-      setSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('harvests')
-        .insert({
-          tower_id: towerId,
-          teacher_id: user.id,
-          harvested_at: date,
-          weight_grams: weight,
-          destination: destination || null,
-          notes: notes || null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setHarvests(prev => [data, ...prev]);
-      setWeight(0);
-      setDestination("");
-      setNotes("");
-
-      toast({
-        title: "Harvest added",
-        description: "Harvest has been recorded successfully."
-      });
-    } catch (error) {
-      console.error('Error adding harvest:', error);
-      toast({
-        title: "Error adding harvest",
-        description: "Failed to add harvest. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle>Add Harvest</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e)=>setDate(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Weight (g)</Label>
-            <Input inputMode="decimal" value={weight} onChange={(e)=>setWeight(Number(e.target.value))} />
-          </div>
-          <div className="space-y-2">
-            <Label>Destination</Label>
-            <Input value={destination} onChange={(e)=>setDestination(e.target.value)} placeholder="Cafeteria, donation, etc" />
-          </div>
-          <div className="space-y-2 md:col-span-3">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Additional notes" />
-          </div>
-          <div className="md:col-span-3">
-            <Button onClick={addHarvest} disabled={submitting || weight <= 0}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add harvest"
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Harvests</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : harvests.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No harvests yet.</div>
-          ) : (
-            harvests.map((h)=> (
-              <div key={h.id} className="grid md:grid-cols-4 gap-2 p-3 border rounded-md">
-                <div><span className="text-xs text-muted-foreground">Date</span><div>{h.harvested_at}</div></div>
-                <div><span className="text-xs text-muted-foreground">Weight</span><div>{h.weight_grams} g</div></div>
-                <div><span className="text-xs text-muted-foreground">Destination</span><div>{h.destination || "-"}</div></div>
-                <div><span className="text-xs text-muted-foreground">Notes</span><div>{h.notes || "-"}</div></div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function WasteTab({ towerId }: { towerId: string }) {
   const { toast } = useToast();
   const [wasteLogs, setWasteLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0,10));
+  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [grams, setGrams] = useState<number>(0);
   const [notes, setNotes] = useState<string>("");
 
@@ -739,14 +516,12 @@ function WasteTab({ towerId }: { towerId: string }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
         const { data, error } = await supabase
           .from('waste_logs')
           .select('*')
           .eq('tower_id', towerId)
           .eq('teacher_id', user.id)
           .order('logged_at', { ascending: false });
-
         if (error) throw error;
         setWasteLogs(data || []);
       } catch (error) {
@@ -755,18 +530,15 @@ function WasteTab({ towerId }: { towerId: string }) {
         setLoading(false);
       }
     };
-
     fetchWasteLogs();
   }, [towerId]);
 
   const addWasteLog = async () => {
     if (grams <= 0) return;
-
     try {
       setSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { data, error } = await supabase
         .from('waste_logs')
         .insert({
@@ -778,24 +550,14 @@ function WasteTab({ towerId }: { towerId: string }) {
         })
         .select()
         .single();
-
       if (error) throw error;
-
       setWasteLogs(prev => [data, ...prev]);
       setGrams(0);
       setNotes("");
-
-      toast({
-        title: "Waste logged",
-        description: "Waste has been recorded successfully."
-      });
+      toast({ title: "Waste logged", description: "Waste has been recorded successfully." });
     } catch (error) {
       console.error('Error adding waste log:', error);
-      toast({
-        title: "Error logging waste",
-        description: "Failed to log waste. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Error logging waste", description: "Failed to log waste. Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -808,22 +570,21 @@ function WasteTab({ towerId }: { towerId: string }) {
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e)=>setDate(e.target.value)} />
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Waste (g)</Label>
-            <Input inputMode="decimal" value={grams} onChange={(e)=>setGrams(Number(e.target.value))} />
+            <Input inputMode="decimal" value={grams} onChange={(e) => setGrams(Number(e.target.value))} />
           </div>
           <div className="space-y-2 md:col-span-3">
             <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Reason for waste, etc." />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Reason for waste, etc." />
           </div>
           <div className="md:col-span-3">
             <Button onClick={addWasteLog} disabled={submitting || grams <= 0}>
               {submitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging...
                 </>
               ) : (
                 "Log waste"
@@ -832,7 +593,6 @@ function WasteTab({ towerId }: { towerId: string }) {
           </div>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader><CardTitle>Waste History</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -845,7 +605,7 @@ function WasteTab({ towerId }: { towerId: string }) {
           ) : wasteLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">No waste logs yet.</div>
           ) : (
-            wasteLogs.map((w)=> (
+            wasteLogs.map((w) => (
               <div key={w.id} className="grid md:grid-cols-3 gap-2 p-3 border rounded-md">
                 <div><span className="text-xs text-muted-foreground">Date</span><div>{w.logged_at}</div></div>
                 <div><span className="text-xs text-muted-foreground">Weight</span><div>{w.grams} g</div></div>
@@ -870,7 +630,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
         // Fetch vitals data
         const { data: vitals } = await supabase
           .from('tower_vitals')
@@ -879,7 +638,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
           .eq('teacher_id', user.id)
           .order('recorded_at', { ascending: false })
           .limit(50);
-
         // Fetch harvests data
         const { data: harvests } = await supabase
           .from('harvests')
@@ -888,7 +646,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
           .eq('teacher_id', user.id)
           .order('harvested_at', { ascending: false })
           .limit(50);
-
         // Fetch pest logs
         const { data: pests } = await supabase
           .from('pest_logs')
@@ -897,7 +654,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
           .eq('teacher_id', user.id)
           .order('observed_at', { ascending: false })
           .limit(50);
-
         setVitalsData(vitals || []);
         setHarvestsData(harvests || []);
         setPestsData(pests || []);
@@ -907,7 +663,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
         setLoading(false);
       }
     };
-
     fetchHistoricalData();
   }, [towerId]);
 
@@ -957,7 +712,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
           )}
         </CardContent>
       </Card>
-
       {/* Harvests History */}
       <Card>
         <CardHeader>
@@ -988,7 +742,6 @@ function HistoryTab({ towerId }: { towerId: string }) {
           )}
         </CardContent>
       </Card>
-
       {/* Pest Logs History */}
       <Card>
         <CardHeader>
