@@ -174,6 +174,7 @@ export default function PlantCatalog() {
         <SEO title="Plant Catalog – Sproutify School" description="Browse the plant catalog and add plants to classroom towers." canonical={canonical} />
         
         <header className="flex items-center justify-between">
+          Select-String -Path .\**\*.js -Pattern "Plant Catalog – Sproutify School"
           <h1 className="text-2xl font-semibold">Plant Catalog</h1>
         </header>
 
