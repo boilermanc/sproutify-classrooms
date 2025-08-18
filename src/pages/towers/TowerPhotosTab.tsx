@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // 1. Added useCallback for memoization
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { nanoid } from "nanoid";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"; // Corrected to use the hook pattern
 
 interface Props {
   towerId: string;
@@ -20,42 +20,55 @@ type Photo = {
 };
 
 export default function TowerPhotosTab({ towerId }: Props) {
+  const { toast } = useToast(); // Initialize toast
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState("");
   const [studentName, setStudentName] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
+  // 2. Use the robust, reactive authentication pattern
   const [teacherId, setTeacherId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setTeacherId(data.user?.id ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTeacherId(session?.user?.id ?? null);
     });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setTeacherId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loadPhotos = useMemo(() => async () => {
+  // 3. Simplified and secured data loading
+  const loadPhotos = useCallback(async () => {
+    if (!teacherId) return; // Don't run if the user isn't logged in
+
     const { data, error } = await supabase
       .from("tower_photos")
       .select("id, file_path, caption, student_name, taken_at")
       .eq("tower_id", towerId)
+      .eq("teacher_id", teacherId) // CRITICAL: This adds the security check
       .order("taken_at", { ascending: false });
+
     if (error) {
       console.error(error);
-      toast({ title: "Failed to load photos" });
+      toast({ title: "Failed to load photos", description: error.message, variant: "destructive" });
     } else {
       setPhotos(data as Photo[]);
     }
-  }, [towerId]);
+  }, [towerId, teacherId, toast]);
 
   useEffect(() => {
     loadPhotos();
-  }, [loadPhotos]);
+  }, [loadPhotos]); // This will now re-run correctly when teacherId is set
 
   const handleUpload = async () => {
     if (!file) return;
     if (!teacherId) {
-      toast({ title: "Not signed in" });
+      toast({ title: "Not signed in", variant: "destructive" });
       return;
     }
     try {
@@ -64,6 +77,7 @@ export default function TowerPhotosTab({ towerId }: Props) {
       const filename = `${nanoid()}.${ext}`;
       const path = `${teacherId}/${towerId}/${filename}`;
 
+      // This part was already great!
       const { error: upErr } = await supabase.storage
         .from("tower-photos")
         .upload(path, file, { upsert: false, contentType: file.type });
@@ -81,11 +95,15 @@ export default function TowerPhotosTab({ towerId }: Props) {
       setCaption("");
       setStudentName("");
       setFile(null);
+      // Clear the file input visually
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+      
       toast({ title: "Photo uploaded" });
-      await loadPhotos();
-    } catch (e) {
+      await loadPhotos(); // Refresh the gallery
+    } catch (e: any) {
       console.error(e);
-      toast({ title: "Upload failed" });
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
     } finally {
       setUploading(false);
     }
