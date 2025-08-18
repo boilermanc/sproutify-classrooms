@@ -1,5 +1,5 @@
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
