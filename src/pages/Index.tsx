@@ -1,41 +1,54 @@
+// src/pages/Index.tsx
+
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
-import { GradientBackground } from "@/components/GradientBackground";
-import { Footer } from "@/components/Footer";
-import { Link } from "react-router-dom";
 
-const Index = () => {
+// A simple hero component for the landing page
+function Hero() {
   return (
-    <div className="min-h-screen bg-background relative flex flex-col">
+    <section className="text-center container py-24 sm:py-32">
+      <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4">
+        Bring Your Classroom Garden to Life
+      </h1>
+      <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
+        Sproutify School is the simple, powerful way for teachers and students
+        to track, manage, and learn from your hydroponic tower gardens.
+      </p>
+      
+      <div className="space-y-4">
+        <div className="flex justify-center gap-4">
+          <Button asChild size="lg">
+            <Link to="/auth/register">Get Started Free</Link>
+          </Button>
+          <Button asChild variant="secondary" size="lg">
+            <Link to="/auth/login">Teacher Login</Link>
+          </Button>
+        </div>
+        
+        {/* Here is the clear link for the student login flow */}
+        <p className="text-sm text-muted-foreground">
+          Are you a student?{" "}
+          <Link to="/student-login" className="underline font-semibold hover:text-primary">
+            Log in with your class PIN
+          </Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// Main page component
+export default function Index() {
+  return (
+    <div>
       <SEO
         title="Sproutify School | Classroom Tower Tracker"
-        description="Manage classroom vertical tower gardens: track vitals, pests, plants, and harvests with friendly dashboards."
-        canonical="/"
+        description="Track classroom vertical tower gardens: pH, EC, lighting, pests, plants, harvests, and leaderboards with Sproutify School."
       />
-      <GradientBackground className="absolute inset-0" />
-      <main className="relative container mx-auto px-6 py-24 flex-1 flex items-center">
-        <div className="max-w-3xl">
-          <img 
-            src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
-            alt="Sproutify School Logo" 
-            className="h-24 object-contain mb-6"
-          />
-          <p className="text-lg text-muted-foreground mb-8">
-            A simple, student‑friendly way to track vertical tower growing in the classroom. Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Button asChild variant="hero" size="lg">
-              <Link to="/auth/register">Register Teacher</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/auth/login">Sign In</Link>
-            </Button>
-          </div>
-        </div>
+      <main>
+        <Hero />
       </main>
-      <Footer />
     </div>
   );
-};
-
-export default Index;
+}
