@@ -25,6 +25,9 @@ import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
 import Accessibility from "@/pages/legal/Accessibility";
 
+// 1. Import the new student login page
+import StudentLoginPage from "@/pages/auth/StudentLoginPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -40,6 +43,9 @@ const App = () => (
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
           </Route>
+
+          {/* 2. Add the new route for the student login page */}
+          <Route path="/student-login" element={<StudentLoginPage />} />
 
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
