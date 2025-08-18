@@ -23,7 +23,6 @@ type PlantCatalogItem = {
 };
 
 export default function PlantCatalog() {
-  const { state, dispatch } = useAppStore();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const addToTowerId = params.get("addTo") || undefined;
