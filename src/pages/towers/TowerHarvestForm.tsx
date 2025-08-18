@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast"; // 1. Import useToast for better feedback
 
 interface TowerHarvestFormProps {
   towerId: string;
@@ -13,6 +14,7 @@ interface TowerHarvestFormProps {
 }
 
 export default function TowerHarvestForm({ towerId, teacherId, onHarvested }: TowerHarvestFormProps) {
+  const { toast } = useToast(); // 2. Initialize toast
   const [plantings, setPlantings] = useState<any[]>([]);
   const [selectedPlantName, setSelectedPlantName] = useState<string>("");
   const [availableQuantity, setAvailableQuantity] = useState<number>(0);
@@ -23,21 +25,28 @@ export default function TowerHarvestForm({ towerId, teacherId, onHarvested }: To
 
   useEffect(() => {
     const fetchPlantings = async () => {
+      // 3. The important change is here: adding .eq("teacher_id", teacherId)
       const { data, error } = await supabase
         .from("plantings")
         .select("name, quantity")
         .eq("tower_id", towerId)
+        .eq("teacher_id", teacherId) // This ensures we only fetch plants for the logged-in teacher
         .eq("status", "active");
 
       if (error) {
         console.error("Error fetching plantings:", error);
+        toast({
+            title: "Error",
+            description: "Could not fetch active plants for harvesting.",
+            variant: "destructive",
+        });
       } else {
         setPlantings(data);
       }
     };
 
     fetchPlantings();
-  }, [towerId]);
+  }, [towerId, teacherId, toast]); // 4. Add teacherId and toast to the dependency array
 
   const handlePlantSelect = (plantName: string) => {
     setSelectedPlantName(plantName);
@@ -62,7 +71,16 @@ export default function TowerHarvestForm({ towerId, teacherId, onHarvested }: To
 
     if (error) {
       console.error("Error inserting harvest:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit harvest. Please try again.",
+        variant: "destructive",
+      });
     } else {
+      toast({
+        title: "Success!",
+        description: "Your harvest has been recorded.",
+      });
       if (onHarvested) onHarvested();
       // reset form
       setSelectedPlantName("");
