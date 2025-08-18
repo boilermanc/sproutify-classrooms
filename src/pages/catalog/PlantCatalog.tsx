@@ -11,7 +11,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppStore, newPlant } from "@/context/AppStore";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase"; // Adjust import path as needed
+import { supabase } from "@/integrations/supabase/client";
 
 type PlantCatalogItem = {
   id: string;
