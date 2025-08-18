@@ -1,73 +1,163 @@
-# Welcome to your Lovable project
-
-## Project info
-
-**URL**: https://lovable.dev/projects/8343b4a5-af78-4d94-b15f-438ec7b1380b
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/8343b4a5-af78-4d94-b15f-438ec7b1380b) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Sproutify School 🌱
+A web application designed for teachers to manage classroom hydroponic tower gardens. Sproutify School helps track plant growth, log data, and engage students in the journey from seed to harvest.
+Table of Contents
+About The Project
+Key Features
+Tech Stack
+Getting Started
+Prerequisites
+Supabase Setup
+Local Installation
+Database Schema
+Project Structure
+Future Roadmap
+About The Project
+Sproutify School addresses the need for a simple yet powerful tool for educators using hydroponic towers in their classrooms. It replaces scattered spreadsheets and notebooks with a centralized, user-friendly dashboard. The application allows teachers to monitor multiple towers, track vital environmental data (pH, EC), manage individual plantings, and record outcomes like harvests and waste.
+The Kiosk Mode feature simplifies student onboarding, allowing them to join their class and contribute to the project, for example by uploading photos of the tower's progress.
+Key Features
+Tower Management: Add and manage multiple hydroponic towers for your classroom.
+Vitals Tracking: Log and monitor essential water quality metrics like pH and EC, with color-coded inputs for instant feedback on optimal ranges.
+Plant Logging: Track each plant's lifecycle from seed to harvest, including dates, quantities, and port numbers.
+Harvest & Waste Logging: Record the weight and destination of all harvests and log any plant waste, providing valuable data on tower yield.
+Pest Management: Keep a running log of pest observations and the actions taken to resolve them.
+Photo Gallery: Upload photos for each tower to visually document its growth over time. Students can be credited for their photos.
+Comprehensive History: A centralized view of all historical data for a tower, including vitals, harvests, waste, and pest logs.
+Classroom & Student Management: Create classrooms and generate unique join codes for students.
+Kiosk Mode: A simple, secure interface for students to join a class on a shared device using a join code.
+Gamified Leaderboard: Compare your class's harvest totals (by weight and plant count) against fictional district and state leaders to encourage engagement.
+Teacher Profiles: Manage personal and school information, including profile avatars and school logos.
+Tech Stack
+This project is built with a modern, robust, and scalable technology stack.
+Frontend: React with TypeScript and Vite
+UI Framework: shadcn/ui
+Styling: Tailwind CSS
+Backend & Database: Supabase
+Authentication: Supabase Auth
+Database: Supabase Postgres
+Storage: Supabase Storage for all image uploads (avatars, school logos, tower photos)
+Routing: React Router
+State Management: React Context (AppStore)
+Utility: nanoid for generating unique join codes.
+Getting Started
+To get a local copy up and running, follow these simple steps.
+Prerequisites
+Node.js (v18 or later)
+npm or yarn
+A free Supabase account.
+Supabase Setup
+Create a New Project: Go to your Supabase dashboard and create a new project.
+Get API Keys: Navigate to Project Settings > API. You will need the Project URL and the anon (public) key.
+Run SQL Schema: Navigate to the SQL Editor in your Supabase dashboard. Copy the contents of the Database Schema section below and run the query to create all the necessary tables and policies.
+Create Storage Buckets: Navigate to the Storage section and create the following public buckets:
+avatars
+school-logos
+tower-photos
+Local Installation
+Clone the repo:
+code
+Sh
+git clone https://github.com/your-username/sproutify-school.git
+cd sproutify-school
+Install NPM packages:
+code
+Sh
+npm install
+Create an environment file: Create a file named .env in the root of the project and add your Supabase keys.
+code
+Env
+# .env
+VITE_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"
+VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+Run the development server:
+code
+Sh
 npm run dev
-```
+Your application should now be running on http://localhost:5173.
+Database Schema
+Run the following SQL in your Supabase project's SQL Editor to set up the database tables.
+code
+SQL
+-- Create a table for public profiles
+create table profiles (
+  id uuid references auth.users on delete cascade not null primary key,
+  updated_at timestamp with time zone,
+  full_name text,
+  avatar_url text,
+  school_name text,
+  school_image_url text,
+  district text,
+  phone text,
+  bio text,
+  timezone text
+);
+-- Set up Row Level Security (RLS)
+alter table profiles enable row level security;
+create policy "Public profiles are viewable by everyone." on profiles for select using (true);
+create policy "Users can insert their own profile." on profiles for insert with check (auth.uid() = id);
+create policy "Users can update own profile." on profiles for update using (auth.uid() = id);
 
-**Edit a file directly in GitHub**
+-- Create other necessary tables
+-- (Note: Add tables for towers, plantings, students, classrooms, etc. here)
+-- Example for harvests:
+create table public.harvests (
+  id uuid not null default gen_random_uuid (),
+  teacher_id uuid not null,
+  tower_id uuid not null,
+  harvested_at date not null default now(),
+  weight_grams integer not null,
+  destination text null,
+  notes text null,
+  created_at timestamp with time zone not null default now(),
+  planting_id uuid null,
+  plant_quantity integer null default 1,
+  plant_name text null,
+  constraint harvests_pkey primary key (id)
+);
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+-- Example for waste logs:
+create table public.waste_logs (
+  id uuid not null default gen_random_uuid (),
+  teacher_id uuid not null,
+  tower_id uuid not null,
+  logged_at date not null default now(),
+  grams integer not null,
+  notes text null,
+  created_at timestamp with time zone not null default now(),
+  plant_name text null,
+  plant_quantity integer null default 1,
+  constraint waste_logs_pkey primary key (id)
+);
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/8343b4a5-af78-4d94-b15f-438ec7b1380b) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+-- Remember to add RLS policies for all tables to ensure data security!
+-- Example RLS policy for a table:
+-- alter table harvests enable row level security;
+-- create policy "Users can manage their own harvests." on harvests
+-- for all using (auth.uid() = teacher_id);
+Project Structure
+The project follows a standard Vite + React structure. Key directories include:
+code
+Code
+/src
+|-- /components       # Reusable UI components
+|   |-- /ui           # Base components from shadcn/ui (Button, Card, etc.)
+|   `-- SEO.tsx       # Component for managing SEO tags
+|-- /context          # React Context for global state (AppStore)
+|-- /hooks            # Custom React hooks (e.g., useToast)
+|-- /integrations     # Client integrations (e.g., Supabase client setup)
+|-- /lib              # Utility functions (e.g., cn for classnames)
+|-- /pages            # Top-level page components
+|   |-- /towers       # Components related to the Tower Detail view
+|   |   |-- TowerDetail.tsx
+|   |   |-- TowerHarvestForm.tsx
+|   |   |-- TowerHistory.tsx
+|   |   `-- ...and other sub-components
+|   |-- Kiosk.tsx
+|   |-- Leaderboard.tsx
+|   `-- Profile.tsx
+`-- main.tsx          # Main application entry point
+Future Roadmap
+Implement Real Leaderboard Data: Replace the mock leaderboard data with real, aggregated data from the database using a Supabase RPC function.
+Data Visualization: Add graphs and charts to the TowerHistory component to visualize pH, EC, and harvest trends over time.
+Plant Catalog: Implement the "Add from Catalog" feature to allow teachers to quickly add common plants with pre-filled data.
+Robust Row Level Security (RLS): Review and implement comprehensive RLS policies for all tables to ensure data is secure and only accessible by the owner.
+Notifications: Add a system to notify teachers of important events (e.g., "Expected harvest date is approaching").
