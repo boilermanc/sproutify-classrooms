@@ -10,13 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import TowerPhotosTab from "./TowerPhotosTab";
-import { ColorNumberInput } from "@/components/ui/color-number-input";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TowerHarvestForm from "@/pages/towers/TowerHarvestForm";
 import TowerWasteForm from "@/pages/towers/TowerWasteForm";
 import TowerHistory from "@/pages/towers/TowerHistory";
+import TowerVitalsForm from "@/pages/towers/TowerVitalsForm"; // 1. Import the new component
 
 type Tower = {
   id: string;
@@ -42,22 +42,16 @@ export default function TowerDetail() {
   const { id: towerIdParam } = useParams();
   const { toast } = useToast();
 
-  // 1. Centralize Auth State (like in Classrooms.tsx)
   const [teacherId, setTeacherId] = useState<string | null>(null);
-
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ph, setPh] = useState<number | undefined>();
-  const [ec, setEc] = useState<number | undefined>();
-  const [light, setLight] = useState<number | undefined>();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "vitals";
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshData = () => setRefreshKey(key => key + 1);
 
-  // 2. Add Auth Listener useEffect (like in Classrooms.tsx)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setTeacherId(session?.user?.id ?? null);
@@ -70,11 +64,9 @@ export default function TowerDetail() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 3. Update data fetching to depend on the authenticated user
   useEffect(() => {
     const fetchTower = async () => {
       if (!towerIdParam || !teacherId) {
-        // Don't fetch if we don't have the tower ID or the user isn't logged in
         setLoading(false);
         return;
       }
@@ -85,7 +77,7 @@ export default function TowerDetail() {
           .from('towers')
           .select('id, name, ports, teacher_id')
           .eq('id', towerIdParam)
-          .eq('teacher_id', teacherId) // Authorize using the teacherId from state
+          .eq('teacher_id', teacherId)
           .single();
         if (fetchError) {
           throw fetchError;
@@ -101,27 +93,7 @@ export default function TowerDetail() {
     fetchTower();
   }, [towerIdParam, teacherId]);
 
-  const saveVitals = async () => {
-    if (!tower || !teacherId) return; // Use centralized teacherId
-    try {
-      // No more supabase.auth.getUser() needed
-      const { error } = await supabase.from('tower_vitals').insert({
-        tower_id: tower.id,
-        teacher_id: teacherId, // Use centralized teacherId
-        ph: ph || null,
-        ec: ec || null,
-        light_lux: light ? Math.round(light * 1000) : null
-      });
-      if (error) throw error;
-      toast({ title: "Vitals saved", description: "Tower vitals have been recorded successfully." });
-      setPh(undefined);
-      setEc(undefined);
-      setLight(undefined);
-    } catch (error) {
-      console.error('Error saving vitals:', error);
-      toast({ title: "Error saving vitals", description: "Failed to save tower vitals. Please try again.", variant: "destructive" });
-    }
-  };
+  // 2. All vitals state and the saveVitals function are now REMOVED from this component.
 
   if (loading) {
     return (
@@ -184,20 +156,12 @@ export default function TowerDetail() {
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           <TabsContent value="vitals" className="mt-4">
-            <Card>
-              <CardHeader><CardTitle>pH / EC / Lighting</CardTitle></CardHeader>
-              <CardContent className="grid md:grid-cols-3 gap-4">
-                <ColorNumberInput type="ph" label="pH" value={ph} onChange={setPh} placeholder="e.g. 6.5" />
-                <ColorNumberInput type="ec" label="EC (mS/cm)" value={ec} onChange={setEc} placeholder="e.g. 1.6" />
-                <div className="space-y-2">
-                  <Label>Light hours/day</Label>
-                  <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.target.value))} placeholder="e.g. 12" />
-                </div>
-                <div className="md:col-span-3">
-                  <Button onClick={saveVitals}> Save vitals </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {/* 3. Use the new component here */}
+            <TowerVitalsForm 
+                towerId={tower.id} 
+                teacherId={teacherId} 
+                onVitalsSaved={refreshData} 
+            />
           </TabsContent>
           <TabsContent value="plants" className="mt-4">
             <PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
@@ -231,6 +195,8 @@ export default function TowerDetail() {
   );
 }
 
+// PlantsTab and PestsTab functions remain unchanged and are included below for completeness.
+
 function PlantsTab({ towerId, teacherId, refreshKey }: { towerId: string; teacherId: string; refreshKey: number }) {
   const { toast } = useToast();
   const [plantings, setPlantings] = useState<Planting[]>([]);
@@ -251,7 +217,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: { towerId: string; teache
     const fetchPlantings = async () => {
       try {
         setLoading(true);
-        // No more supabase.auth.getUser() needed!
         const { data, error } = await supabase
           .from('plantings')
           .select('*')
@@ -274,7 +239,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: { towerId: string; teache
     if (!name.trim()) return;
     try {
       setSubmitting(true);
-      // No more supabase.auth.getUser() needed!
       const { data, error } = await supabase
         .from('plantings')
         .insert({
@@ -306,7 +270,17 @@ function PlantsTab({ towerId, teacherId, refreshKey }: { towerId: string; teache
   };
 
   if (loading) {
-    return ( /* ... Loading Skeleton ... */ );
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -396,7 +370,6 @@ function PestsTab({ towerId, teacherId }: { towerId: string; teacherId: string }
   useEffect(() => {
     const fetchPestLogs = async () => {
       try {
-        // No more supabase.auth.getUser() needed!
         const { data, error } = await supabase
           .from('pest_logs')
           .select('*')
@@ -418,7 +391,6 @@ function PestsTab({ towerId, teacherId }: { towerId: string; teacherId: string }
     if (!pest.trim()) return;
     try {
       setSubmitting(true);
-      // No more supabase.auth.getUser() needed!
       const { data, error } = await supabase
         .from('pest_logs')
         .insert({
