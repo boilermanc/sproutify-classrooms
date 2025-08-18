@@ -108,14 +108,22 @@ export default function DashboardHome() {
           <CardContent className="text-3xl font-bold">{stats.towers}</CardContent>
         </Card>
       </Link>
-      <Card>
-        <CardHeader><CardTitle>Plants</CardTitle></CardHeader>
-        <CardContent className="text-3xl font-bold">{stats.plants}</CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Harvests</CardTitle></CardHeader>
-        <CardContent className="text-3xl font-bold">{stats.harvests}</CardContent>
-      </Card>
+
+      {/* 1. Wrapped the "Plants" Card in a Link */}
+      <Link to="/app/plants" className="hover:opacity-90 transition-opacity">
+        <Card>
+          <CardHeader><CardTitle>Plants</CardTitle></CardHeader>
+          <CardContent className="text-3xl font-bold">{stats.plants}</CardContent>
+        </Card>
+      </Link>
+
+      {/* 2. Wrapped the "Harvests" Card in a Link */}
+      <Link to="/app/harvests" className="hover:opacity-90 transition-opacity">
+        <Card>
+          <CardHeader><CardTitle>Harvests</CardTitle></CardHeader>
+          <CardContent className="text-3xl font-bold">{stats.harvests}</CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }
