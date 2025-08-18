@@ -1,38 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-     <!-- This is your new, correct code -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest">
-    <!-- End of new code -->
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sproutify School | Classroom Tower Tracker</title>
-    <meta name="description" content="Track classroom vertical tower gardens: pH, EC, lighting, pests, plants, harvests, and leaderboards with Sproutify School." />
-    <meta name="author" content="Sproutify" />
+// src/pages/Index.tsx
 
-    <link rel="canonical" href="/" />
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { SEO } from "@/components/SEO";
 
-    <meta property="og:title" content="Sproutify School | Classroom Tower Tracker" />
-    <meta property="og:description" content="Student-friendly app to manage tower gardens, track growth, and compete across classes and schools." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+// A simple hero component for the landing page
+function Hero() {
+  return (
+    <section className="text-center container py-24 sm:py-32">
+      <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4">
+        Bring Your Classroom Garden to Life
+      </h1>
+      <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
+        Sproutify School is the simple, powerful way for teachers and students
+        to track, manage, and learn from your hydroponic tower gardens.
+      </p>
+      
+      {/* --- This is the section we are updating --- */}
+      <div className="space-y-4">
+        <div className="flex justify-center gap-4">
+          <Button asChild size="lg">
+            <Link to="/auth/register">Get Started Free</Link>
+          </Button>
+          <Button asChild variant="secondary" size="lg">
+            <Link to="/auth/login">Teacher Login</Link>
+          </Button>
+        </div>
+        
+        {/* 1. Added a clear link for the student login flow */}
+        <p className="text-sm text-muted-foreground">
+          Are you a student?{" "}
+          <Link to="/student-login" className="underline font-semibold hover:text-primary">
+            Log in with your class PIN
+          </Link>
+        </p>
+      </div>
+       {/* --- End of updated section --- */}
+    </section>
+  );
+}
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <link rel="icon" href="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" type="image/png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  </head>
-
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+// Main page component
+export default function Index() {
+  return (
+    <div>
+      <SEO
+        title="Sproutify School | Classroom Tower Tracker"
+        description="Track classroom vertical tower gardens: pH, EC, lighting, pests, plants, harvests, and leaderboards with Sproutify School."
+      />
+      {/* You can add a Navbar here if you have one */}
+      <main>
+        <Hero />
+        {/* You can add more sections here like "Features", "Testimonials", etc. */}
+      </main>
+      {/* You can add a Footer here if you have one */}
+    </div>
+  );
+}
