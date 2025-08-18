@@ -2,8 +2,22 @@ import { useMemo, useState, useEffect } from "react";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +25,6 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAppStore } from "@/state/store"; // ✅ Adjust path if needed
 
 type PlantCatalogItem = {
   id: string;
@@ -33,37 +46,37 @@ export default function PlantCatalog() {
   const [plantedAt, setPlantedAt] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
 
-  // Supabase data state
   const [plantCatalog, setPlantCatalog] = useState<PlantCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canonical = typeof window !== "undefined" ? `${window.location.origin}/app/catalog` : "/app/catalog";
+  const canonical =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/app/catalog`
+      : "/app/catalog";
 
-  // Towers state
   const [towers, setTowers] = useState<{ id: string; name: string }[]>([]);
   const [towersLoading, setTowersLoading] = useState(true);
 
-  // Fetch plant catalog from Supabase
   useEffect(() => {
     const fetchPlantCatalog = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Get current user to fetch both global and user-specific plants
         const { data: { user } } = await supabase.auth.getUser();
-        
-        let query = supabase
-          .from('plant_catalog')
-          .select('id, name, description, germination_days, harvest_days, image_url, is_global, teacher_id, category')
-          .order('name', { ascending: true });
 
-        // Fetch global plants and user's custom plants
+        let query = supabase
+          .from("plant_catalog")
+          .select(
+            "id, name, description, germination_days, harvest_days, image_url, is_global, teacher_id, category"
+          )
+          .order("name", { ascending: true });
+
         if (user) {
           query = query.or(`is_global.eq.true,teacher_id.eq.${user.id}`);
         } else {
-          query = query.eq('is_global', true);
+          query = query.eq("is_global", true);
         }
 
         const { data, error: fetchError } = await query;
@@ -72,11 +85,10 @@ export default function PlantCatalog() {
           throw fetchError;
         }
 
-        // Transform data to match component expectations
-        const transformedData: PlantCatalogItem[] = (data || []).map(plant => ({
+        const transformedData: PlantCatalogItem[] = (data || []).map((plant) => ({
           id: plant.id,
           name: plant.name,
-          category: plant.category || "Leafy Green", // Default to Leafy Green if null
+          category: plant.category || "Leafy Green",
           days: plant.harvest_days || undefined,
           description: plant.description || undefined,
           image_url: plant.image_url || undefined,
@@ -84,8 +96,10 @@ export default function PlantCatalog() {
 
         setPlantCatalog(transformedData);
       } catch (err) {
-        console.error('Error fetching plant catalog:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load plant catalog');
+        console.error("Error fetching plant catalog:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load plant catalog"
+        );
       } finally {
         setLoading(false);
       }
@@ -94,30 +108,26 @@ export default function PlantCatalog() {
     fetchPlantCatalog();
   }, []);
 
-  // Fetch towers from Supabase
   useEffect(() => {
     const fetchTowers = async () => {
       try {
         setTowersLoading(true);
 
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (user) {
           const { data, error } = await supabase
-            .from('towers')
-            .select('id, name')
-            .eq('teacher_id', user.id)
-            .order('name', { ascending: true });
+            .from("towers")
+            .select("id, name")
+            .eq("teacher_id", user.id)
+            .order("name", { ascending: true });
 
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
 
           setTowers(data || []);
         }
       } catch (err) {
-        console.error('Error fetching towers:', err);
-        // Don't show error for towers, just keep empty list
+        console.error("Error fetching towers:", err);
         setTowers([]);
       } finally {
         setTowersLoading(false);
@@ -129,7 +139,7 @@ export default function PlantCatalog() {
 
   const onConfirm = async (plantName: string) => {
     if (!selectedTower) return;
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -137,33 +147,25 @@ export default function PlantCatalog() {
         return;
       }
 
-      // Save to Supabase plantings table
-      const { error } = await supabase
-        .from('plantings')
-        .insert({
-          tower_id: selectedTower,
-          teacher_id: user.id,
-          name: plantName,
-          quantity: quantity,
-          seeded_at: seededAt || null,
-          planted_at: plantedAt || null,
-        });
+      const { error } = await supabase.from("plantings").insert({
+        tower_id: selectedTower,
+        teacher_id: user.id,
+        name: plantName,
+        quantity: quantity,
+        seeded_at: seededAt || null,
+        planted_at: plantedAt || null,
+      });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Reset form and close dialog
       setOpenFor(null);
       setSeededAt("");
       setPlantedAt("");
       setQuantity(1);
-      
-      // Navigate to tower with plants tab open
+
       navigate(`/app/towers/${selectedTower}?tab=plants`);
-      
     } catch (error) {
-      console.error('Error adding plant:', error);
+      console.error("Error adding plant:", error);
       alert("Failed to add plant. Please try again.");
     }
   };
@@ -171,13 +173,14 @@ export default function PlantCatalog() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <SEO title="Plant Catalog – Sproutify School" description="Browse the plant catalog and add plants to classroom towers." canonical={canonical} />
-        
+        <SEO
+          title="Plant Catalog – Sproutify School"
+          description="Browse the plant catalog and add plants to classroom towers."
+          canonical={canonical}
+        />
         <header className="flex items-center justify-between">
-          Select-String -Path .\**\*.js -Pattern "Plant Catalog – Sproutify School"
           <h1 className="text-2xl font-semibold">Plant Catalog</h1>
         </header>
-
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
@@ -200,12 +203,14 @@ export default function PlantCatalog() {
   if (error) {
     return (
       <main className="space-y-6">
-        <SEO title="Plant Catalog – Sproutify School" description="Browse the plant catalog and add plants to classroom towers." canonical={canonical} />
-        
+        <SEO
+          title="Plant Catalog – Sproutify School"
+          description="Browse the plant catalog and add plants to classroom towers."
+          canonical={canonical}
+        />
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Plant Catalog</h1>
         </header>
-
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -218,12 +223,14 @@ export default function PlantCatalog() {
 
   return (
     <main className="space-y-6">
-      <SEO title="Plant Catalog – Sproutify School" description="Browse the plant catalog and add plants to classroom towers." canonical={canonical} />
-
+      <SEO
+        title="Plant Catalog – Sproutify School"
+        description="Browse the plant catalog and add plants to classroom towers."
+        canonical={canonical}
+      />
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Plant Catalog</h1>
       </header>
-
       {plantCatalog.length === 0 ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -255,12 +262,17 @@ export default function PlantCatalog() {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Add {p.name} to a tower</DialogTitle>
+                      <DialogDescription>
+                        Choose a tower and planting details for this plant.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-2">
                       <label className="text-sm">Select tower</label>
                       <Select value={selectedTower} onValueChange={setSelectedTower}>
                         <SelectTrigger>
-                          <SelectValue placeholder={towersLoading ? "Loading towers..." : "Choose tower"} />
+                          <SelectValue
+                            placeholder={towersLoading ? "Loading towers..." : "Choose tower"}
+                          />
                         </SelectTrigger>
                         <SelectContent>
                           {towersLoading ? (
@@ -273,7 +285,9 @@ export default function PlantCatalog() {
                             </SelectItem>
                           ) : (
                             towers.map((t) => (
-                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.name}
+                              </SelectItem>
                             ))
                           )}
                         </SelectContent>
@@ -282,20 +296,44 @@ export default function PlantCatalog() {
                     <div className="grid md:grid-cols-3 gap-4 mt-2">
                       <div className="space-y-2">
                         <Label>Seeded at</Label>
-                        <Input type="date" value={seededAt} onChange={(e) => setSeededAt(e.target.value)} />
+                        <Input
+                          type="date"
+                          value={seededAt}
+                          onChange={(e) => setSeededAt(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Planted at</Label>
-                        <Input type="date" value={plantedAt} onChange={(e) => setPlantedAt(e.target.value)} />
+                        <Input
+                          type="date"
+                          value={plantedAt}
+                          onChange={(e) => setPlantedAt(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Quantity</Label>
-                        <Input inputMode="numeric" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
+                        <Input
+                          inputMode="numeric"
+                          value={quantity}
+                          onChange={(e) => setQuantity(Number(e.target.value))}
+                        />
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="ghost" onClick={() => { setOpenFor(null); setSeededAt(""); setPlantedAt(""); setQuantity(1); }}>Cancel</Button>
-                      <Button onClick={() => onConfirm(p.name)} disabled={!selectedTower}>Add</Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setOpenFor(null);
+                          setSeededAt("");
+                          setPlantedAt("");
+                          setQuantity(1);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={() => onConfirm(p.name)} disabled={!selectedTower}>
+                        Add
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
