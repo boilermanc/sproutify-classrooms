@@ -15,7 +15,8 @@ import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TowerHarvestForm from "@/pages/towers/TowerHarvestForm";
-import TowerWasteForm from "@/pages/towers/TowerWasteForm"; // 1. IMPORT new component
+import TowerWasteForm from "@/pages/towers/TowerWasteForm";
+import TowerHistory from "@/pages/towers/TowerHistory"; // IMPORT the new component
 
 type Tower = {
   id: string;
@@ -189,7 +190,6 @@ export default function TowerDetail() {
             />
           </TabsContent>
           <TabsContent value="waste" className="mt-4">
-            {/* 3. REPLACE old tab with new component */}
             <TowerWasteForm
               towerId={towerId}
               teacherId={teacherId}
@@ -200,7 +200,7 @@ export default function TowerDetail() {
             <TowerPhotosTab towerId={tower.id} />
           </TabsContent>
           <TabsContent value="history" className="mt-4">
-            <HistoryTab towerId={tower.id} refreshKey={refreshKey} />
+            <TowerHistory towerId={tower.id} refreshKey={refreshKey} />
           </TabsContent>
         </Tabs>
       </div>
@@ -508,105 +508,4 @@ function PestsTab({ towerId }: { towerId: string }) {
   );
 }
 
-// 2. REMOVE the entire `WasteTab` function from here.
-
-function HistoryTab({ towerId, refreshKey }: { towerId: string; refreshKey: number }) {
-  const [vitalsData, setVitalsData] = useState<any[]>([]);
-  const [harvestsData, setHarvestsData] = useState<any[]>([]);
-  const [wasteData, setWasteData] = useState<any[]>([]); // Add state for waste data
-  const [pestsData, setPestsData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchHistoricalData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        // Fetch all data concurrently
-        const [vitals, harvests, waste, pests] = await Promise.all([
-          supabase.from('tower_vitals').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('recorded_at', { ascending: false }).limit(50),
-          supabase.from('harvests').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('harvested_at', { ascending: false }).limit(50),
-          supabase.from('waste_logs').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('logged_at', { ascending: false }).limit(50),
-          supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('observed_at', { ascending: false }).limit(50),
-        ]);
-        
-        setVitalsData(vitals.data || []);
-        setHarvestsData(harvests.data || []);
-        setWasteData(waste.data || []);
-        setPestsData(pests.data || []);
-
-      } catch (error) {
-        console.error('Error fetching historical data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHistoricalData();
-  }, [towerId, refreshKey]); // 5. Add refreshKey to dependency array
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">Loading historical data...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Vitals History */}
-      <Card>
-        <CardHeader><CardTitle>Vitals History</CardTitle></CardHeader>
-        <CardContent>
-          {vitalsData.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No vitals data recorded yet.</div>
-          ) : ( /* ... Vitals map ... */ )}
-        </CardContent>
-      </Card>
-
-      {/* Harvests History */}
-      <Card>
-        <CardHeader><CardTitle>Harvest History</CardTitle></CardHeader>
-        <CardContent>
-          {harvestsData.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No harvests recorded yet.</div>
-          ) : ( /* ... Harvests map ... */ )}
-        </CardContent>
-      </Card>
-
-      {/* Waste History */}
-      <Card>
-        <CardHeader><CardTitle>Waste History</CardTitle></CardHeader>
-        <CardContent>
-          {wasteData.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No waste recorded yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {wasteData.map((waste) => (
-                <div key={waste.id} className="grid grid-cols-4 gap-4 p-3 border rounded-md">
-                  <div> <div className="text-xs text-muted-foreground">Date</div> <div>{waste.logged_at}</div> </div>
-                  <div> <div className="text-xs text-muted-foreground">Plant</div> <div>{waste.plant_name || "-"}</div> </div>
-                  <div> <div className="text-xs text-muted-foreground">Weight</div> <div>{waste.grams} g</div> </div>
-                  <div> <div className="text-xs text-muted-foreground">Notes</div> <div>{waste.notes || "-"}</div> </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pest Logs History */}
-      <Card>
-        <CardHeader><CardTitle>Pest Log History</CardTitle></CardHeader>
-        <CardContent>
-          {pestsData.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No pest observations recorded yet.</div>
-          ) : ( /* ... Pests map ... */ )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+// REMOVE the entire `HistoryTab` function from here.
