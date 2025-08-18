@@ -24,9 +24,11 @@ import TermsOfService from "@/pages/legal/TermsOfService";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
 import Accessibility from "@/pages/legal/Accessibility";
-
-// 1. Import the new student login page
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
+
+// 1. Import the new Student components
+import StudentLayout from "@/components/layout/StudentLayout";
+import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 
 const queryClient = new QueryClient();
 
@@ -37,21 +39,28 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Index />} />
-
-          <Route path="/auth">
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<RegisterTeacher />} />
-          </Route>
-
-          {/* 2. Add the new route for the student login page */}
           <Route path="/student-login" element={<StudentLoginPage />} />
-
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="/accessibility" element={<Accessibility />} />
 
+          {/* --- TEACHER AUTH ROUTES --- */}
+          <Route path="/auth">
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<RegisterTeacher />} />
+          </Route>
+          
+          {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
+          {/* 2. All routes inside here will be wrapped by the StudentLayout */}
+          <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
+            <Route path="dashboard" element={<StudentDashboard />} />
+            {/* We will add more student pages here later, like /student/vitals */}
+          </Route>
+
+          {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
             <Route path="towers" >
@@ -67,7 +76,7 @@ const App = () => (
             <Route path="profile" element={<Profile />} />
           </Route>
 
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* --- CATCH-ALL ROUTE --- */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
