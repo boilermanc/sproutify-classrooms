@@ -1,5 +1,3 @@
-// src/pages/towers/TowerHistory.tsx
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,10 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface TowerHistoryProps {
   towerId: string;
-  refreshKey?: number; // Optional prop to trigger a refresh
+  teacherId: string; // 1. Make teacherId a required prop
+  refreshKey?: number;
 }
 
-export default function TowerHistory({ towerId, refreshKey }: TowerHistoryProps) {
+export default function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryProps) {
   const [vitalsData, setVitalsData] = useState<any[]>([]);
   const [harvestsData, setHarvestsData] = useState<any[]>([]);
   const [wasteData, setWasteData] = useState<any[]>([]);
@@ -19,17 +18,22 @@ export default function TowerHistory({ towerId, refreshKey }: TowerHistoryProps)
 
   useEffect(() => {
     const fetchHistoricalData = async () => {
+      // Guard against running if the teacherId prop isn't available yet
+      if (!teacherId) return; 
+
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        
+        // 2. REMOVE the local call to supabase.auth.getUser()
+        // const { data: { user } } = await supabase.auth.getUser();
+        // if (!user) return;
 
-        // Fetch all data concurrently for efficiency
+        // 3. USE the teacherId prop in all queries
         const [vitals, harvests, waste, pests] = await Promise.all([
-          supabase.from('tower_vitals').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('recorded_at', { ascending: false }).limit(50),
-          supabase.from('harvests').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('harvested_at', { ascending: false }).limit(50),
-          supabase.from('waste_logs').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('logged_at', { ascending: false }).limit(50),
-          supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', user.id).order('observed_at', { ascending: false }).limit(50),
+          supabase.from('tower_vitals').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('recorded_at', { ascending: false }).limit(50),
+          supabase.from('harvests').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('harvested_at', { ascending: false }).limit(50),
+          supabase.from('waste_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('logged_at', { ascending: false }).limit(50),
+          supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('observed_at', { ascending: false }).limit(50),
         ]);
         
         setVitalsData(vitals.data || []);
@@ -44,7 +48,7 @@ export default function TowerHistory({ towerId, refreshKey }: TowerHistoryProps)
       }
     };
     fetchHistoricalData();
-  }, [towerId, refreshKey]);
+  }, [towerId, teacherId, refreshKey]); // 4. Add teacherId to the dependency array
 
   if (loading) {
     return (
