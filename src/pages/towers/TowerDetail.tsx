@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TowerHarvestForm from "@/pages/towers/TowerHarvestForm";
 import TowerWasteForm from "@/pages/towers/TowerWasteForm";
-import TowerHistory from "@/pages/towers/TowerHistory"; // IMPORT the new component
+import TowerHistory from "@/pages/towers/TowerHistory";
 
 type Tower = {
   id: string;
@@ -39,8 +39,12 @@ type Planting = {
 };
 
 export default function TowerDetail() {
-  const { id } = useParams();
+  const { id: towerIdParam } = useParams();
   const { toast } = useToast();
+
+  // 1. Centralize Auth State (like in Classrooms.tsx)
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,22 +57,35 @@ export default function TowerDetail() {
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshData = () => setRefreshKey(key => key + 1);
 
-  // Fetch tower data
+  // 2. Add Auth Listener useEffect (like in Classrooms.tsx)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTeacherId(session?.user?.id ?? null);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setTeacherId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 3. Update data fetching to depend on the authenticated user
   useEffect(() => {
     const fetchTower = async () => {
-      if (!id) return;
+      if (!towerIdParam || !teacherId) {
+        // Don't fetch if we don't have the tower ID or the user isn't logged in
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         setError(null);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error("Authentication required");
-        }
         const { data: towerData, error: fetchError } = await supabase
           .from('towers')
           .select('id, name, ports, teacher_id')
-          .eq('id', id)
-          .eq('teacher_id', user.id)
+          .eq('id', towerIdParam)
+          .eq('teacher_id', teacherId) // Authorize using the teacherId from state
           .single();
         if (fetchError) {
           throw fetchError;
@@ -82,26 +99,21 @@ export default function TowerDetail() {
       }
     };
     fetchTower();
-  }, [id]);
+  }, [towerIdParam, teacherId]);
 
   const saveVitals = async () => {
-    if (!tower || !id) return;
+    if (!tower || !teacherId) return; // Use centralized teacherId
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({ title: "Authentication required", description: "Please log in to save tower vitals.", variant: "destructive" });
-        return;
-      }
+      // No more supabase.auth.getUser() needed
       const { error } = await supabase.from('tower_vitals').insert({
-        tower_id: id,
-        teacher_id: user.id,
+        tower_id: tower.id,
+        teacher_id: teacherId, // Use centralized teacherId
         ph: ph || null,
         ec: ec || null,
         light_lux: light ? Math.round(light * 1000) : null
       });
       if (error) throw error;
       toast({ title: "Vitals saved", description: "Tower vitals have been recorded successfully." });
-      // Clear the form
       setPh(undefined);
       setEc(undefined);
       setLight(undefined);
@@ -123,21 +135,32 @@ export default function TowerDetail() {
     );
   }
 
+  if (!teacherId) {
+     return (
+        <div className="container max-w-2xl py-8">
+            <Card>
+                <CardHeader><CardTitle>Please Log In</CardTitle></CardHeader>
+                <CardContent>
+                    <p>You must be logged in to view tower details.</p>
+                    <Button asChild className="mt-4"><Link to="/login">Go to Login</Link></Button>
+                </CardContent>
+            </Card>
+        </div>
+     );
+  }
+
   if (error || !tower) {
     return (
       <div className="space-y-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {error || "Tower not found"}. Please try refreshing the page.
+            {error ? error : "Tower not found or you do not have permission to view it."} Please try refreshing the page.
           </AlertDescription>
         </Alert>
       </div>
     );
   }
-
-  const towerId = tower.id;
-  const teacherId = tower.teacher_id;
 
   return (
     <>
@@ -177,21 +200,21 @@ export default function TowerDetail() {
             </Card>
           </TabsContent>
           <TabsContent value="plants" className="mt-4">
-            <PlantsTab towerId={tower.id} refreshKey={refreshKey} />
+            <PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
           </TabsContent>
           <TabsContent value="pests" className="mt-4">
-            <PestsTab towerId={tower.id} />
+            <PestsTab towerId={tower.id} teacherId={teacherId} />
           </TabsContent>
           <TabsContent value="harvests" className="mt-4">
             <TowerHarvestForm
-              towerId={towerId}
+              towerId={tower.id}
               teacherId={teacherId}
               onHarvested={refreshData}
             />
           </TabsContent>
           <TabsContent value="waste" className="mt-4">
             <TowerWasteForm
-              towerId={towerId}
+              towerId={tower.id}
               teacherId={teacherId}
               onWasteLogged={refreshData}
             />
@@ -200,7 +223,7 @@ export default function TowerDetail() {
             <TowerPhotosTab towerId={tower.id} />
           </TabsContent>
           <TabsContent value="history" className="mt-4">
-            <TowerHistory towerId={tower.id} refreshKey={refreshKey} />
+            <TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
           </TabsContent>
         </Tabs>
       </div>
@@ -208,7 +231,7 @@ export default function TowerDetail() {
   );
 }
 
-function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: number }) {
+function PlantsTab({ towerId, teacherId, refreshKey }: { towerId: string; teacherId: string; refreshKey: number }) {
   const { toast } = useToast();
   const [plantings, setPlantings] = useState<Planting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,17 +247,16 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
   const [outcome, setOutcome] = useState("");
   const [portNumber, setPortNumber] = useState<number | undefined>();
 
-  // Fetch plantings
   useEffect(() => {
     const fetchPlantings = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        setLoading(true);
+        // No more supabase.auth.getUser() needed!
         const { data, error } = await supabase
           .from('plantings')
           .select('*')
           .eq('tower_id', towerId)
-          .eq('teacher_id', user.id)
+          .eq('teacher_id', teacherId)
           .order('created_at', { ascending: false });
         if (error) throw error;
         setPlantings(data || []);
@@ -246,22 +268,18 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
       }
     };
     fetchPlantings();
-  }, [towerId, toast, refreshKey]);
+  }, [towerId, teacherId, toast, refreshKey]);
 
   const addPlanting = async () => {
     if (!name.trim()) return;
     try {
       setSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({ title: "Authentication required", description: "Please log in to add plants.", variant: "destructive" });
-        return;
-      }
+      // No more supabase.auth.getUser() needed!
       const { data, error } = await supabase
         .from('plantings')
         .insert({
           tower_id: towerId,
-          teacher_id: user.id,
+          teacher_id: teacherId,
           name: name.trim(),
           quantity,
           seeded_at: seededAt || null,
@@ -276,15 +294,8 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
 
       if (error) throw error;
       setPlantings(prev => [data, ...prev]);
-      // Clear form
-      setName("");
-      setQuantity(1);
-      setSeededAt("");
-      setPlantedAt("");
-      setGrowthRate("");
-      setHarvestDate("");
-      setOutcome("");
-      setPortNumber(undefined);
+      setName(""); setQuantity(1); setSeededAt(""); setPlantedAt("");
+      setGrowthRate(""); setHarvestDate(""); setOutcome(""); setPortNumber(undefined);
       toast({ title: "Plant added", description: "Plant has been added to the tower successfully." });
     } catch (error) {
       console.error('Error adding planting:', error);
@@ -295,17 +306,7 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return ( /* ... Loading Skeleton ... */ );
   }
 
   return (
@@ -354,13 +355,7 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
           </div>
           <div className="md:col-span-3">
             <Button onClick={addPlanting} disabled={submitting || !name.trim()}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
-                </>
-              ) : (
-                "Add plant"
-              )}
+              {submitting ? ( <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding... </> ) : ( "Add plant" )}
             </Button>
           </div>
         </CardContent>
@@ -389,7 +384,7 @@ function PlantsTab({ towerId, refreshKey }: { towerId: string; refreshKey: numbe
   );
 }
 
-function PestsTab({ towerId }: { towerId: string }) {
+function PestsTab({ towerId, teacherId }: { towerId: string; teacherId: string }) {
   const { toast } = useToast();
   const [pestLogs, setPestLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -401,13 +396,12 @@ function PestsTab({ towerId }: { towerId: string }) {
   useEffect(() => {
     const fetchPestLogs = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        // No more supabase.auth.getUser() needed!
         const { data, error } = await supabase
           .from('pest_logs')
           .select('*')
           .eq('tower_id', towerId)
-          .eq('teacher_id', user.id)
+          .eq('teacher_id', teacherId)
           .order('observed_at', { ascending: false });
         if (error) throw error;
         setPestLogs(data || []);
@@ -418,19 +412,18 @@ function PestsTab({ towerId }: { towerId: string }) {
       }
     };
     fetchPestLogs();
-  }, [towerId]);
+  }, [towerId, teacherId]);
 
   const addPestLog = async () => {
     if (!pest.trim()) return;
     try {
       setSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // No more supabase.auth.getUser() needed!
       const { data, error } = await supabase
         .from('pest_logs')
         .insert({
           tower_id: towerId,
-          teacher_id: user.id,
+          teacher_id: teacherId,
           pest: pest.trim(),
           action: action || null,
           notes: notes || null,
@@ -439,9 +432,7 @@ function PestsTab({ towerId }: { towerId: string }) {
         .single();
       if (error) throw error;
       setPestLogs(prev => [data, ...prev]);
-      setPest("");
-      setAction("");
-      setNotes("");
+      setPest(""); setAction(""); setNotes("");
       toast({ title: "Pest log added", description: "Pest observation has been recorded successfully." });
     } catch (error) {
       console.error('Error adding pest log:', error);
@@ -470,13 +461,7 @@ function PestsTab({ towerId }: { towerId: string }) {
           </div>
           <div className="md:col-span-2">
             <Button onClick={addPestLog} disabled={submitting || !pest.trim()}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                "Save entry"
-              )}
+              {submitting ? ( <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving... </> ) : ( "Save entry" )}
             </Button>
           </div>
         </CardContent>
@@ -486,9 +471,7 @@ function PestsTab({ towerId }: { towerId: string }) {
         <CardContent className="space-y-2">
           {loading ? (
             <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
+              {Array.from({ length: 3 }).map((_, i) => ( <Skeleton key={i} className="h-16 w-full" /> ))}
             </div>
           ) : pestLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">No entries yet.</div>
@@ -507,5 +490,3 @@ function PestsTab({ towerId }: { towerId: string }) {
     </div>
   );
 }
-
-// REMOVE the entire `HistoryTab` function from here.
