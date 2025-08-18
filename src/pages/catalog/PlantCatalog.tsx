@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAppStore, newPlant } from "@/context/AppStore";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,7 +40,9 @@ export default function PlantCatalog() {
 
   const canonical = typeof window !== "undefined" ? `${window.location.origin}/app/catalog` : "/app/catalog";
 
-  const towers = useMemo(() => state.towers, [state.towers]);
+  // Towers state
+  const [towers, setTowers] = useState<{ id: string; name: string }[]>([]);
+  const [towersLoading, setTowersLoading] = useState(true);
 
   // Fetch plant catalog from Supabase
   useEffect(() => {
@@ -93,20 +94,78 @@ export default function PlantCatalog() {
     fetchPlantCatalog();
   }, []);
 
-  const onConfirm = (plantName: string) => {
+  // Fetch towers from Supabase
+  useEffect(() => {
+    const fetchTowers = async () => {
+      try {
+        setTowersLoading(true);
+
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data, error } = await supabase
+            .from('towers')
+            .select('id, name')
+            .eq('teacher_id', user.id)
+            .order('name', { ascending: true });
+
+          if (error) {
+            throw error;
+          }
+
+          setTowers(data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching towers:', err);
+        // Don't show error for towers, just keep empty list
+        setTowers([]);
+      } finally {
+        setTowersLoading(false);
+      }
+    };
+
+    fetchTowers();
+  }, []);
+
+  const onConfirm = async (plantName: string) => {
     if (!selectedTower) return;
-    dispatch({ 
-      type: "ADD_PLANT", 
-      payload: { 
-        towerId: selectedTower, 
-        plant: newPlant({ name: plantName, seededAt, plantedAt, quantity }) 
-      } 
-    });
-    setOpenFor(null);
-    setSeededAt("");
-    setPlantedAt("");
-    setQuantity(1);
-    navigate(`/app/towers/${selectedTower}?tab=plants`);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("You must be logged in to add plants.");
+        return;
+      }
+
+      // Save to Supabase plantings table
+      const { error } = await supabase
+        .from('plantings')
+        .insert({
+          tower_id: selectedTower,
+          teacher_id: user.id,
+          name: plantName,
+          quantity: quantity,
+          seeded_at: seededAt || null,
+          planted_at: plantedAt || null,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // Reset form and close dialog
+      setOpenFor(null);
+      setSeededAt("");
+      setPlantedAt("");
+      setQuantity(1);
+      
+      // Navigate to tower with plants tab open
+      navigate(`/app/towers/${selectedTower}?tab=plants`);
+      
+    } catch (error) {
+      console.error('Error adding plant:', error);
+      alert("Failed to add plant. Please try again.");
+    }
   };
 
   if (loading) {
@@ -200,17 +259,22 @@ export default function PlantCatalog() {
                       <label className="text-sm">Select tower</label>
                       <Select value={selectedTower} onValueChange={setSelectedTower}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Choose tower" />
+                          <SelectValue placeholder={towersLoading ? "Loading towers..." : "Choose tower"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {towers.length === 0 && (
+                          {towersLoading ? (
+                            <SelectItem value="loading" disabled>
+                              Loading towers...
+                            </SelectItem>
+                          ) : towers.length === 0 ? (
                             <SelectItem value="none" disabled>
                               No towers yet
                             </SelectItem>
+                          ) : (
+                            towers.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                            ))
                           )}
-                          {towers.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                          ))}
                         </SelectContent>
                       </Select>
                     </div>
