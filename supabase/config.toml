@@ -1,1 +1,44 @@
 project_id = "cqrjesmpwaqvmssrdeoc"
+[functions.student-log-vitals]
+enabled = true
+verify_jwt = true
+import_map = "./functions/student-log-vitals/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/student-log-vitals/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/student-log-vitals/*.html" ]
+
+[functions.student-log-harvest]
+enabled = true
+verify_jwt = true
+import_map = "./functions/student-log-harvest/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/student-log-harvest/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/student-log-harvest/*.html" ]
+
+[functions.student-log-waste]
+enabled = true
+verify_jwt = true
+import_map = "./functions/student-log-waste/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/student-log-waste/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/student-log-waste/*.html" ]
+
+[functions.student-log-pest]
+enabled = true
+verify_jwt = true
+import_map = "./functions/student-log-pest/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/student-log-pest/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/student-log-pest/*.html" ]
