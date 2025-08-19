@@ -18,7 +18,6 @@ export default function StudentVitalsForm() {
   const { toast } = useToast();
   
   const towerId = searchParams.get("towerId");
-  // Retrieve the teacherId we just saved in the dashboard
   const teacherId = localStorage.getItem("teacher_id_for_tower"); 
 
   const [ph, setPh] = useState<number | undefined>();
@@ -33,7 +32,6 @@ export default function StudentVitalsForm() {
     }
     setLoading(true);
 
-    // This is where we call the function you just deployed
     const { data, error } = await supabase.functions.invoke('student-log-vitals', {
       body: { towerId, teacherId, ph, ec, light },
     });
@@ -43,7 +41,7 @@ export default function StudentVitalsForm() {
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Success!", description: "Vitals have been saved." });
-      navigate("/student/dashboard"); // Go back to the dashboard on success
+      navigate("/student/dashboard");
     }
   };
 
@@ -57,7 +55,8 @@ export default function StudentVitalsForm() {
           <ColorNumberInput type="ec" label="EC (mS/cm)" value={ec} onChange={setEc} placeholder="e.g. 1.6" />
           <div className="space-y-2">
             <Label>Light hours/day</Label>
-            <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.targe t.value))} placeholder="e.g. 12" />
+            {/* THIS IS THE CORRECTED LINE */}
+            <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.target.value))} placeholder="e.g. 12" />
           </div>
           <div className="md:col-span-3">
             <Button onClick={handleSave} disabled={loading}>
