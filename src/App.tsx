@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,11 +27,11 @@ import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
 import Accessibility from "@/pages/legal/Accessibility";
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
-
-// Import the new Student components
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
-import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm"; // 1. Import the new Vitals form
+
+// Import the new Vitals form
+import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 
 const queryClient = new QueryClient();
 
@@ -57,7 +59,8 @@ const App = () => (
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="vitals" element={<StudentVitalsForm />} /> {/* 2. Add the route for the vitals form */}
+            {/* THIS IS THE ONLY NEW ROUTE */}
+            <Route path="vitals" element={<StudentVitalsForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
