@@ -30,9 +30,10 @@ import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
-
-// 1. Import the new Waste form component
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
+
+// 1. Import the new Pest form component
+import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 
 const queryClient = new QueryClient();
 
@@ -62,8 +63,9 @@ const App = () => (
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
-            {/* 2. Add the new route for the waste form */}
             <Route path="waste" element={<StudentWasteForm />} />
+            {/* 2. Add the new route for the pest form */}
+            <Route path="pests" element={<StudentPestForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
