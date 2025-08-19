@@ -1,4 +1,4 @@
-// src/pages/kiosk/StudentTowerDetail.tsx (Fully Updated)
+// src/pages/kiosk/StudentTowerDetail.tsx
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -65,13 +65,11 @@ export default function StudentTowerDetail() {
       <div>
         <h2 className="text-2xl font-semibold mb-4">Log New Data</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ActionCard to={`/student/add-plant?towerId=${towerId}`} title="Add a New Plant" description="Log a new seedling you've just planted." />
           <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
           <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
           <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
-          
-          {/* THIS IS THE CARD WE MISSED */}
           <ActionCard to={`/student/pests?towerId=${towerId}`} title="Log Pest Observation" description="Note any pests or issues you see." />
-          
           <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
         </div>
       </div>
