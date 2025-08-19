@@ -1,31 +1,46 @@
+// src/pages/kiosk/StudentDashboard.tsx
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Leaderboard from "@/pages/leaderboard/Leaderboard";
 import { SEO } from "@/components/SEO";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// A simple data card for navigation
-const ActionCard = ({ to, title, description }: { to: string; title: string; description: string }) => (
-  <Link to={to}>
+// Define a type for our tower data
+type Tower = {
+  id: string;
+  name: string;
+  ports: number;
+};
+
+// A new component for displaying a single tower card
+const TowerCard = ({ tower }: { tower: Tower }) => (
+  <Link to={`/student/tower/${tower.id}`}>
     <Card className="hover:bg-muted/50 hover:border-primary transition-all h-full">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle>{tower.name}</CardTitle>
+        <CardDescription>{tower.ports} ports</CardDescription>
       </CardHeader>
     </Card>
   </Link>
 );
 
 export default function StudentDashboard() {
-  const [towerId, setTowerId] = useState<string | null>(null);
+  // State now holds an array of towers, not just one ID
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const classroomId = localStorage.getItem("student_classroom_id");
-    if (!classroomId) return;
+    if (!classroomId) {
+      setLoading(false);
+      return;
+    }
 
-    const fetchTowerInfo = async () => {
+    const fetchTowersForClass = async () => {
+      // First, get the teacher_id for the classroom
       const { data: classroomData, error: classError } = await supabase
         .from("classrooms")
         .select("teacher_id")
@@ -34,28 +49,28 @@ export default function StudentDashboard() {
       
       if (classError || !classroomData) {
         console.error("Could not find classroom's teacher");
+        setLoading(false);
         return;
       }
 
       const currentTeacherId = classroomData.teacher_id;
-      
       localStorage.setItem("teacher_id_for_tower", currentTeacherId);
       
+      // Now, fetch ALL towers belonging to that teacher
       const { data: towerData, error: towerError } = await supabase
         .from("towers")
-        .select("id")
-        .eq("teacher_id", currentTeacherId)
-        .limit(1)
-        .single();
+        .select("id, name, ports") // Get all the info we need for the cards
+        .eq("teacher_id", currentTeacherId);
       
-      if (towerError || !towerData) {
-        console.error("Could not find a tower for this class");
-        return;
+      if (towerError) {
+        console.error("Could not find towers for this class:", towerError);
+      } else {
+        setTowers(towerData || []);
       }
-      setTowerId(towerData.id);
+      setLoading(false);
     };
 
-    fetchTowerInfo();
+    fetchTowersForClass();
   }, []);
 
   return (
@@ -63,25 +78,24 @@ export default function StudentDashboard() {
       <SEO title="Student Dashboard | Sproutify School" />
       <div>
         <h1 className="text-3xl font-bold">Student Dashboard</h1>
-        <p className="text-muted-foreground">Select a task to get started.</p>
+        <p className="text-muted-foreground">Select a tower to begin logging data.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {towerId ? (
-          <>
-            <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
-            <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
-            <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
-
-            {/* THIS IS THE NEW CARD */}
-            <ActionCard to={`/student/pests?towerId=${towerId}`} title="Log Pest Observation" description="Note any pests or issues you see." />
-            
-            {/* The photo link will give a 404 for now, which is expected */}
-            <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
-          </>
-        ) : (
-          <p className="text-muted-foreground">Loading tower information...</p>
-        )}
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">Class Towers</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            // Show skeleton loaders while fetching
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader></Card>
+            ))
+          ) : towers.length > 0 ? (
+            // Map over the towers and display a card for each
+            towers.map(tower => <TowerCard key={tower.id} tower={tower} />)
+          ) : (
+            <p className="text-muted-foreground col-span-full">No towers have been added for this class yet.</p>
+          )}
+        </div>
       </div>
 
       <Leaderboard />
