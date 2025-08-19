@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,9 +29,10 @@ import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
-
-// 1. Import the new Pest form component
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
+
+// 1. Import the new Student Tower Detail page
+import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
 
 const queryClient = new QueryClient();
 
@@ -61,10 +60,13 @@ const App = () => (
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
+            {/* 2. Add the new dynamic route for a specific tower */}
+            <Route path="tower/:id" element={<StudentTowerDetail />} />
+            
+            {/* These are the data entry forms, their paths remain the same */}
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
-            {/* 2. Add the new route for the pest form */}
             <Route path="pests" element={<StudentPestForm />} />
           </Route>
 
