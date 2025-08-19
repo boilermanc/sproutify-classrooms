@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,7 +33,7 @@ import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 
-// 1. Import the new Photo form component
+// Import the new Photo form component
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
 const queryClient = new QueryClient();
@@ -47,9 +45,15 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* --- PUBLIC & AUTH ROUTES --- */}
+          {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Index />} />
           <Route path="/student-login" element={<StudentLoginPage />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="/accessibility" element={<Accessibility />} />
+
+          {/* --- TEACHER AUTH ROUTES --- */}
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
@@ -64,17 +68,27 @@ const App = () => (
             <Route path="waste" element={<StudentWasteForm />} />
             <Route path="pests" element={<StudentPestForm />} />
             <Route path="add-plant" element={<StudentPlantForm />} />
-            {/* 2. Add the new route for the photo form */}
             <Route path="photos" element={<StudentPhotoForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
-            {/* ... all teacher routes ... */}
+            <Route index element={<DashboardHome />} />
+            <Route path="towers" >
+              <Route index element={<TowersList />} />
+              <Route path="new" element={<NewTower />} />
+              <Route path=":id" element={<TowerDetail />} />
+            </Route>
+            <Route path="catalog" element={<PlantCatalog />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="classrooms" element={<Classrooms />} />
+            <Route path="kiosk" element={<Kiosk />} />
+            <Route path="help" element={<HelpCenter />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
 
-          {/* --- LEGAL & CATCH-ALL ROUTES --- */}
-          {/* ... legal and not found routes ... */}
+          {/* --- CATCH-ALL ROUTE --- */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
