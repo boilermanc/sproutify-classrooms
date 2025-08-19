@@ -1,5 +1,3 @@
-// src/pages/kiosk/StudentDashboard.tsx
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +20,8 @@ const ActionCard = ({ to, title, description }: { to: string; title: string; des
 
 export default function StudentDashboard() {
   const [towerId, setTowerId] = useState<string | null>(null);
-  const [teacherId, setTeacherId] = useState<string | null>(null);
+  // We no longer need to store teacherId in the state for this component
+  // const [teacherId, setTeacherId] = useState<string | null>(null);
 
   useEffect(() => {
     const classroomId = localStorage.getItem("student_classroom_id");
@@ -42,8 +41,11 @@ export default function StudentDashboard() {
       }
 
       const currentTeacherId = classroomData.teacher_id;
-      setTeacherId(currentTeacherId);
-
+      
+      // THIS IS THE ONLY CHANGE: Save the teacherId to localStorage
+      // so that our data entry forms (Vitals, Harvest, etc.) can access it.
+      localStorage.setItem("teacher_id_for_tower", currentTeacherId);
+      
       // Then, we find the first tower that belongs to that teacher
       // NOTE: This assumes one tower per teacher for now. This can be expanded later.
       const { data: towerData, error: towerError } = await supabase
