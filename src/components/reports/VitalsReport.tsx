@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lightbulb, Droplets, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Lightbulb, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -100,13 +100,17 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
     const fetchVitals = async () => {
       if (!towerId || !teacherId) return;
       setLoading(true);
+      
+      // THIS IS THE CORRECTED QUERY
+      // It now filters out rows where both pH and EC are null.
       const { data, error } = await supabase
         .from("tower_vitals")
         .select("recorded_at, ph, ec")
         .eq("tower_id", towerId)
         .eq("teacher_id", teacherId)
-        .order("recorded_at", { ascending: true }) // Important: order ascending for the chart
-        .limit(30); // Get the last 30 readings
+        .or('ph.is.not.null,ec.is.not.null') // Only get rows with at least one value
+        .order("recorded_at", { ascending: true })
+        .limit(30);
 
       if (error) {
         console.error("Error fetching vitals:", error);
@@ -125,14 +129,21 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
   }, [towerId, teacherId]);
 
   if (loading) {
-    return <Skeleton className="w-full h-96" />;
+    return (
+        <div className="space-y-6">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-96 w-full" />
+        </div>
+    );
   }
   
-  const latestVital = vitals.length > 0 ? vitals[vitals.length - 1] : null;
+  // Find the most recent reading that actually has a pH value
+  const latestVitalWithPh = [...vitals].reverse().find(v => v.ph !== null) || null;
 
   return (
     <div className="space-y-6">
-        <RecommendationCard vital={latestVital} />
+        <RecommendationCard vital={latestVitalWithPh} />
 
         <Card>
             <CardHeader>
@@ -144,11 +155,10 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
                     <LineChart data={vitals} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <XAxis dataKey="recorded_at" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                         <YAxis domain={[4.5, 7.5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <Tooltip />
+                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
                         <Legend />
-                        {/* This creates the shaded "ideal" green zone on the chart */}
-                        <ReferenceArea y1={5.2} y2={5.8} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} />
-                        <Line type="monotone" dataKey="ph" name="pH" stroke="hsl(var(--primary))" dot={false} strokeWidth={2} />
+                        <ReferenceArea y1={5.2} y2={5.8} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} label={{ value: 'Ideal', position: 'insideTopRight', fill: 'hsl(var(--primary))', fontSize: 10 }}/>
+                        <Line type="monotone" dataKey="ph" name="pH" stroke="hsl(var(--primary))" connectNulls dot={false} strokeWidth={2} />
                     </LineChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -164,10 +174,10 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
                     <LineChart data={vitals} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <XAxis dataKey="recorded_at" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                         <YAxis domain={[0.5, 2.5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <Tooltip />
+                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                         <Legend />
-                        <ReferenceArea y1={1.2} y2={2.0} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} />
-                        <Line type="monotone" dataKey="ec" name="EC" stroke="hsl(var(--primary))" dot={false} strokeWidth={2} />
+                        <ReferenceArea y1={1.2} y2={2.0} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} label={{ value: 'Ideal', position: 'insideTopRight', fill: 'hsl(var(--primary))', fontSize: 10 }} />
+                        <Line type="monotone" dataKey="ec" name="EC" stroke="hsl(var(--primary))" connectNulls dot={false} strokeWidth={2} />
                     </LineChart>
                 </ResponsiveContainer>
             </CardContent>
