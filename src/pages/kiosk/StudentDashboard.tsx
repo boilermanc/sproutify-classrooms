@@ -1,5 +1,3 @@
-// src/pages/kiosk/StudentDashboard.tsx
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,7 +39,6 @@ export default function StudentDashboard() {
 
       const currentTeacherId = classroomData.teacher_id;
       
-      // THIS IS THE ONLY CHANGE: Save the teacherId to localStorage
       localStorage.setItem("teacher_id_for_tower", currentTeacherId);
       
       const { data: towerData, error: towerError } = await supabase
@@ -73,8 +70,12 @@ export default function StudentDashboard() {
         {towerId ? (
           <>
             <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
-            {/* The links below will give a 404 for now, which is expected */}
-            <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of the plants you harvested." />
+            <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
+            
+            {/* THIS IS THE NEW CARD */}
+            <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
+
+            {/* The photo link will give a 404 for now, which is expected */}
             <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
           </>
         ) : (
