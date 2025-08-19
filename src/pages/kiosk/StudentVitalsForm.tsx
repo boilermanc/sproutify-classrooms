@@ -1,7 +1,7 @@
 // src/pages/kiosk/StudentVitalsForm.tsx
 
 import { useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ export default function StudentVitalsForm() {
     }
     setLoading(true);
 
+    // This calls the Edge Function you deployed earlier
     const { data, error } = await supabase.functions.invoke('student-log-vitals', {
       body: { towerId, teacherId, ph, ec, light },
     });
@@ -41,7 +42,7 @@ export default function StudentVitalsForm() {
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Success!", description: "Vitals have been saved." });
-      navigate("/student/dashboard");
+      navigate("/student/dashboard"); // Go back to the dashboard on success
     }
   };
 
@@ -50,17 +51,21 @@ export default function StudentVitalsForm() {
       <SEO title="Log Vitals | Sproutify School" />
       <Card className="max-w-2xl mx-auto">
         <CardHeader><CardTitle>Log Vitals</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <ColorNumberInput type="ph" label="pH" value={ph} onChange={setPh} placeholder="e.g. 5.5" />
-          <ColorNumberInput type="ec" label="EC (mS/cm)" value={ec} onChange={setEc} placeholder="e.g. 1.6" />
-          <div className="space-y-2">
-            <Label>Light hours/day</Label>
-            {/* THIS IS THE CORRECTED LINE */}
-            <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.target.value))} placeholder="e.g. 12" />
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <ColorNumberInput type="ph" label="pH" value={ph} onChange={setPh} placeholder="e.g. 5.5" />
+            <ColorNumberInput type="ec" label="EC (mS/cm)" value={ec} onChange={setEc} placeholder="e.g. 1.6" />
+            <div className="space-y-2">
+              <Label>Light hours/day</Label>
+              <Input inputMode="numeric" value={light ?? ""} onChange={(e) => setLight(Number(e.target.value))} placeholder="e.g. 12" />
+            </div>
           </div>
-          <div className="md:col-span-3">
+          <div className="flex items-center gap-2">
             <Button onClick={handleSave} disabled={loading}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Vitals"}
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/student/dashboard">Back to Dashboard</Link>
             </Button>
           </div>
         </CardContent>
