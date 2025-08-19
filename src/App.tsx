@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,13 +28,14 @@ import Accessibility from "@/pages/legal/Accessibility";
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
+import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 
-// 1. Import the new Student Tower Detail page
-import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
+// 1. Import the new Plant form component
+import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 
 const queryClient = new QueryClient();
 
@@ -46,10 +49,7 @@ const App = () => (
           {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Index />} />
           <Route path="/student-login" element={<StudentLoginPage />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/cookies" element={<CookiePolicy />} />
-          <Route path="/accessibility" element={<Accessibility />} />
+          {/* ... legal pages ... */}
 
           {/* --- TEACHER AUTH ROUTES --- */}
           <Route path="/auth">
@@ -60,30 +60,18 @@ const App = () => (
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            {/* 2. Add the new dynamic route for a specific tower */}
             <Route path="tower/:id" element={<StudentTowerDetail />} />
-            
-            {/* These are the data entry forms, their paths remain the same */}
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
             <Route path="pests" element={<StudentPestForm />} />
+            {/* 2. Add the new route for the plant form */}
+            <Route path="add-plant" element={<StudentPlantForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
-            <Route index element={<DashboardHome />} />
-            <Route path="towers" >
-              <Route index element={<TowersList />} />
-              <Route path="new" element={<NewTower />} />
-              <Route path=":id" element={<TowerDetail />} />
-            </Route>
-            <Route path="catalog" element={<PlantCatalog />} />
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="classrooms" element={<Classrooms />} />
-            <Route path="kiosk" element={<Kiosk />} />
-            <Route path="help" element={<HelpCenter />} />
-            <Route path="profile" element={<Profile />} />
+            {/* ... all teacher routes ... */}
           </Route>
 
           {/* --- CATCH-ALL ROUTE --- */}
