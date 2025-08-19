@@ -33,9 +33,10 @@ import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
-
-// 1. Import the new Plant form component
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
+
+// 1. Import the new Photo form component
+import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
 const queryClient = new QueryClient();
 
@@ -46,12 +47,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* --- PUBLIC ROUTES --- */}
+          {/* --- PUBLIC & AUTH ROUTES --- */}
           <Route path="/" element={<Index />} />
           <Route path="/student-login" element={<StudentLoginPage />} />
-          {/* ... legal pages ... */}
-
-          {/* --- TEACHER AUTH ROUTES --- */}
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
@@ -65,8 +63,9 @@ const App = () => (
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
             <Route path="pests" element={<StudentPestForm />} />
-            {/* 2. Add the new route for the plant form */}
             <Route path="add-plant" element={<StudentPlantForm />} />
+            {/* 2. Add the new route for the photo form */}
+            <Route path="photos" element={<StudentPhotoForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
@@ -74,8 +73,8 @@ const App = () => (
             {/* ... all teacher routes ... */}
           </Route>
 
-          {/* --- CATCH-ALL ROUTE --- */}
-          <Route path="*" element={<NotFound />} />
+          {/* --- LEGAL & CATCH-ALL ROUTES --- */}
+          {/* ... legal and not found routes ... */}
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
