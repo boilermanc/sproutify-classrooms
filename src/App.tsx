@@ -15,7 +15,6 @@ import TowersList from "@/pages/towers/TowersList";
 import NewTower from "@/pages/towers/NewTower";
 import TowerDetail from "@/pages/towers/TowerDetail";
 import Leaderboard from "@/pages/leaderboard/Leaderboard";
-import { AppStoreProvider } from "@/context/AppStore";
 import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
 import PlantCatalog from "@/pages/catalog/PlantCatalog";
 import Classrooms from "@/pages/classrooms/Classrooms";
@@ -29,9 +28,10 @@ import Accessibility from "@/pages/legal/Accessibility";
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
-
-// Import the new Vitals form
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
+
+// 1. Import the new Harvest form component
+import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 
 const queryClient = new QueryClient();
 
@@ -59,8 +59,9 @@ const App = () => (
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            {/* THIS IS THE ONLY NEW ROUTE */}
             <Route path="vitals" element={<StudentVitalsForm />} />
+            {/* 2. Add the new route for the harvest form */}
+            <Route path="harvest" element={<StudentHarvestForm />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
