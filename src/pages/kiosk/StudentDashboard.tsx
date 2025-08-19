@@ -71,10 +71,11 @@ export default function StudentDashboard() {
           <>
             <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
             <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
-            
-            {/* THIS IS THE NEW CARD */}
             <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
 
+            {/* THIS IS THE NEW CARD */}
+            <ActionCard to={`/student/pests?towerId=${towerId}`} title="Log Pest Observation" description="Note any pests or issues you see." />
+            
             {/* The photo link will give a 404 for now, which is expected */}
             <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
           </>
