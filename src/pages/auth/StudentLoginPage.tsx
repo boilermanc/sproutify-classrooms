@@ -24,13 +24,12 @@ export default function StudentLoginPage() {
     setLoading(true);
     setError("");
 
-    // Query the database to find a matching classroom
     const { data, error: queryError } = await supabase
       .from("classrooms")
       .select("id, name")
       .eq("name", className.trim())
       .eq("kiosk_pin", kioskPin.trim())
-      .single(); // We expect only one match
+      .single();
 
     if (queryError || !data) {
       console.error("Login failed:", queryError);
@@ -39,14 +38,11 @@ export default function StudentLoginPage() {
       return;
     }
 
-    // --- Success! ---
-    // Save the "session" to the browser's local storage
     localStorage.setItem("student_classroom_id", data.id);
     localStorage.setItem("student_classroom_name", data.name);
     
     toast({ title: `Welcome, ${data.name}!` });
 
-    // Redirect to the student dashboard
     navigate("/student/dashboard");
   };
 
@@ -91,7 +87,8 @@ export default function StudentLoginPage() {
         </Card>
         <div className="mt-4 text-center text-sm">
           Are you a teacher?{" "}
-          <Link to="/login" className="underline">
+          {/* THIS IS THE CORRECTED LINE */}
+          <Link to="/auth/login" className="underline">
             Teacher Login
           </Link>
         </div>
