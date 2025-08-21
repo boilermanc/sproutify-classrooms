@@ -29,17 +29,15 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Deploy with rsync
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.IONOS_HOST }}
-          username: ${{ secrets.IONOS_USERNAME }}
-          password: ${{ secrets.IONOS_PASSWORD }}
-          script: |
-            echo "-----> Verifying build output before deploy..."
-            # This next line is for debugging. It will show us all the files in the workspace.
-            ls -laR
-            
-            echo "-----> Deploying to Live Server..."
-            rsync -avz --delete ./dist/ ${{ secrets.IONOS_SCHOOL_PATH }}
-            echo "-----> Deployment complete."
+      # The final, correct deployment step using the SSH key
+      - name: Deploy to Server with rsync
+        uses: easingthemes/ssh-deploy@v5.0.0
+        env:
+          # These secrets are passed to the action for the connection
+          SSH_PRIVATE_KEY: ${{ secrets.IONOS_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.IONOS_HOST }}
+          REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
+
+          # This tells rsync what to copy and where to put it
+          SOURCE: "dist/"
+          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
