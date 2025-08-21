@@ -1,49 +1,42 @@
-# SCRIPT NAME: Build and Deploy Sproutify Classrooms
+name: Build and Deploy Sproutify Classrooms
 
-# WHEN TO RUN:
-# Run automatically every time code is pushed to the 'main' branch.
 on:
   push:
     branches:
       - main
 
-# WHAT TO DO:
 jobs:
-  run-the-script:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
-    # Make the Supabase secrets available to the build command
     env:
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
     steps:
-      # Step 1: Get the new code
-      - name: Get latest code from GitHub
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Set up the programming environment (Node.js)
-      - name: Setup Node.js environment
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
-      # Step 3: Install all the project tools
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      # Step 4: Run the build command (compile TypeScript to JavaScript)
-      - name: Build the website
+      - name: Build Project
         run: npm run build
 
-      # Step 5: Upload the finished website to IONOS
-      - name: Deploy to server
-        uses: appleboy/scp-action@v0.1.4
+      - name: Deploy with rsync
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.IONOS_HOST }}
           username: ${{ secrets.IONOS_USERNAME }}
           password: ${{ secrets.IONOS_PASSWORD }}
-          source: "./dist/*"
-          target: ${{ secrets.IONOS_SCHOOL_PATH }} # <-- THIS IS THE UPDATED LINE
-          strip_components: 1
+          script: |
+            echo "-----> Deploying to Live Server..."
+            # This is now correct because httpdocs is a dedicated public folder
+            rsync -avz --delete ./dist/ ${{ secrets.IONOS_SCHOOL_PATH }}
+            echo "-----> Deployment complete."
