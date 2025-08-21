@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Vite build-time env (must be set as repo secrets)
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
@@ -27,57 +26,51 @@ jobs:
         run: npm ci
 
       - name: Build
+        shell: bash
         run: |
+          set -euo pipefail
           npm run build
 
-          # Build stamps (txt for filesystem checks, html for browser check)
+          # Build stamps (txt for filesystem checks)
           echo "commit=${GITHUB_SHA}" > dist/build-info.txt
           date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ" >> dist/build-info.txt
 
-          # HTML version (variables expanded at build time)
-          cat > dist/build-info.html <<EOF
-<!doctype html>
-<meta charset="utf-8">
-<title>Build Info</title>
-<pre id="info"></pre>
-<script>
-document.getElementById('info').textContent =
-  "commit=${GITHUB_SHA}\n" +
-  "built_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)";
-</script>
-EOF
+          # HTML marker (use printf to avoid heredoc YAML pitfalls)
+          printf '%s\n' \
+            '<!doctype html>' \
+            '<meta charset="utf-8">' \
+            '<title>Build Info</title>' \
+            '<pre id="info"></pre>' \
+            '<script>' \
+            "document.getElementById('info').textContent =" \
+            "  'commit=${GITHUB_SHA}\\n' +" \
+            "  'built_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)';" \
+            '</script>' \
+            > dist/build-info.html
 
           # Safer SPA .htaccess so real files are served directly
-          cat > dist/.htaccess <<'EOF'
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  # Serve existing files/dirs
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-  # SPA fallback
-  RewriteRule . /index.html [L]
-</IfModule>
-EOF
+          printf '%s\n' \
+            '<IfModule mod_rewrite.c>' \
+            '  RewriteEngine On' \
+            '  RewriteBase /' \
+            '  # Serve existing files/dirs' \
+            '  RewriteCond %{REQUEST_FILENAME} -f [OR]' \
+            '  RewriteCond %{REQUEST_FILENAME} -d' \
+            '  RewriteRule ^ - [L]' \
+            '  # SPA fallback' \
+            '  RewriteRule . /index.html [L]' \
+            '</IfModule>' \
+            > dist/.htaccess
 
       - name: Deploy via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.0.0
         env:
-          # SSH connection (set these as repo secrets)
           SSH_PRIVATE_KEY: ${{ secrets.IONOS_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
-
-          # Your actual document root path in Plesk
-          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}  # e.g. /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
-          # Copy the *contents* of dist into TARGET
+          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
           SOURCE: "dist/"
-
-          # Clean stale files, keep ACME challenges if present
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
-
-          # Post-deploy sanity check
           SCRIPT_AFTER: |
             set -e
             cd "${TARGET}"
