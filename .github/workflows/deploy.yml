@@ -28,17 +28,33 @@ jobs:
       - name: Build
         run: |
           npm run build
-          # Build stamp to verify live deploy
+          # Build stamps
           echo "commit=${GITHUB_SHA}" > dist/build-info.txt
           date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ" >> dist/build-info.txt
-          # SPA routing (Apache)
+
+          # Also generate an .html version (nginx will serve this fine)
+          cat > dist/build-info.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Build Info</title>
+          <pre id="info"></pre>
+          <script>
+          document.getElementById('info').textContent =
+            `commit=${location.search.slice(1) || '${GITHUB_SHA}'}\n` +
+            `built_utc=${new Date().toISOString()}`;
+          </script>
+          EOF
+
+          # Safer SPA .htaccess (ensures real files like build-info.html are served)
           cat > dist/.htaccess <<'EOF'
           <IfModule mod_rewrite.c>
             RewriteEngine On
             RewriteBase /
-            RewriteRule ^index\.html$ - [L]
-            RewriteCond %{REQUEST_FILENAME} !-f
-            RewriteCond %{REQUEST_FILENAME} !-d
+            # Serve existing files/dirs
+            RewriteCond %{REQUEST_FILENAME} -f [OR]
+            RewriteCond %{REQUEST_FILENAME} -d
+            RewriteRule ^ - [L]
+            # SPA fallback
             RewriteRule . /index.html [L]
           </IfModule>
           EOF
@@ -50,29 +66,16 @@ jobs:
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
 
-          # ✅ Your docroot path (put this exact string in the secret)
           TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}  # /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
-
-          # Copy the *contents* of dist into TARGET
           SOURCE: "dist/"
-
-          # Clean stale files, keep ACME challenges
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
 
-          # Server-side sanity checks + make a second marker file
           SCRIPT_AFTER: |
             set -e
             cd "${TARGET}"
             echo "PWD: $(pwd)"
             ls -la | sed -n '1,160p'
-            echo "---- build-info.txt (filesystem) ----"
-            [ -f build-info.txt ] && cat build-info.txt || echo "build-info.txt missing on disk"
-
-            # Write a second obvious marker
-            echo "deployed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) commit=${GITHUB_SHA}" > _deployed.txt
-            chmod 644 _deployed.txt build-info.txt 2>/dev/null || true
-
-            # Try HTTP fetch from the runner (helps confirm DNS/HTTPS reachability)
-            echo "---- HTTP HEAD checks ----"
-            curl -sS -I https://school.sproutify.app/build-info.txt || true
-            curl -sS -I https://school.sproutify.app/_deployed.txt || true
+            echo "---- build-info.txt ----"
+            [ -f build-info.txt ] && cat build-info.txt || echo "missing"
+            echo "---- build-info.html ----"
+            [ -f build-info.html ] && head -n 10 build-info.html || echo "missing"
