@@ -52,7 +52,7 @@ export default function StudentLoginPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Student & Team Login or something</CardTitle>
+            <CardTitle className="text-2xl">Student & Team Login</CardTitle>
             <CardDescription>Enter your class name and PIN to begin.</CardDescription>
           </CardHeader>
           <CardContent>
