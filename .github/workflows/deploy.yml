@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Vite build-time env (must be set as GitHub repo secrets)
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
@@ -32,7 +31,7 @@ jobs:
           # Build stamp to verify live deploy
           echo "commit=${GITHUB_SHA}" > dist/build-info.txt
           date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ" >> dist/build-info.txt
-          # SPA routing for Apache
+          # SPA routing (Apache)
           cat > dist/.htaccess <<'EOF'
           <IfModule mod_rewrite.c>
             RewriteEngine On
@@ -47,25 +46,33 @@ jobs:
       - name: Deploy via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.0.0
         env:
-          # SSH connection (set these as repo secrets)
           SSH_PRIVATE_KEY: ${{ secrets.IONOS_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
 
-          # Your actual document root path in Plesk
-          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }} # e.g. /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
+          # ✅ Your docroot path (put this exact string in the secret)
+          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}  # /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
 
           # Copy the *contents* of dist into TARGET
           SOURCE: "dist/"
 
-          # Clean stale files, keep ACME challenges if present
+          # Clean stale files, keep ACME challenges
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
 
-          # Post-deploy sanity check
+          # Server-side sanity checks + make a second marker file
           SCRIPT_AFTER: |
             set -e
             cd "${TARGET}"
             echo "PWD: $(pwd)"
-            ls -la | sed -n '1,120p'
-            echo "---- build-info.txt ----"
-            [ -f build-info.txt ] && cat build-info.txt || echo "build-info.txt missing"
+            ls -la | sed -n '1,160p'
+            echo "---- build-info.txt (filesystem) ----"
+            [ -f build-info.txt ] && cat build-info.txt || echo "build-info.txt missing on disk"
+
+            # Write a second obvious marker
+            echo "deployed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) commit=${GITHUB_SHA}" > _deployed.txt
+            chmod 644 _deployed.txt build-info.txt 2>/dev/null || true
+
+            # Try HTTP fetch from the runner (helps confirm DNS/HTTPS reachability)
+            echo "---- HTTP HEAD checks ----"
+            curl -sS -I https://school.sproutify.app/build-info.txt || true
+            curl -sS -I https://school.sproutify.app/_deployed.txt || true
