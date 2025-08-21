@@ -36,7 +36,10 @@ jobs:
           username: ${{ secrets.IONOS_USERNAME }}
           password: ${{ secrets.IONOS_PASSWORD }}
           script: |
+            echo "-----> Verifying build output before deploy..."
+            # This next line is for debugging. It will show us all the files in the workspace.
+            ls -laR
+            
             echo "-----> Deploying to Live Server..."
-            # This is now correct because httpdocs is a dedicated public folder
             rsync -avz --delete ./dist/ ${{ secrets.IONOS_SCHOOL_PATH }}
             echo "-----> Deployment complete."
