@@ -33,7 +33,7 @@ export default function Login() {
 
   return (
     <div className="container max-w-xl py-10">
-      <SEO title="Sign In | Sproutify School" description="Sign in to Sproutify School." canonical="/auth/login" />
+      <SEO title="Sign In Now | Sproutify School" description="Sign in to Sproutify School." canonical="/auth/login" />
       <Card>
         <CardHeader>
           <CardTitle>Sign In</CardTitle>

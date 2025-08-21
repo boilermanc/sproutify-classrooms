@@ -2,42 +2,70 @@ name: Build and Deploy Sproutify Classrooms
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     env:
+      # Vite build-time env (must be set as GitHub repo secrets)
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: Install
         run: npm ci
 
-      - name: Build Project
-        run: npm run build
+      - name: Build
+        run: |
+          npm run build
+          # Build stamp to verify live deploy
+          echo "commit=${GITHUB_SHA}" > dist/build-info.txt
+          date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ" >> dist/build-info.txt
+          # SPA routing for Apache
+          cat > dist/.htaccess <<'EOF'
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+            RewriteRule ^index\.html$ - [L]
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+          </IfModule>
+          EOF
 
-      # The final, correct deployment step using the SSH key
-      - name: Deploy to Server with rsync
+      - name: Deploy via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.0.0
         env:
-          # These secrets are passed to the action for the connection
+          # SSH connection (set these as repo secrets)
           SSH_PRIVATE_KEY: ${{ secrets.IONOS_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
 
-          # This tells rsync what to copy and where to put it
+          # Your actual document root path in Plesk
+          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }} # e.g. /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
+
+          # Copy the *contents* of dist into TARGET
           SOURCE: "dist/"
-          TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
+
+          # Clean stale files, keep ACME challenges if present
+          ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
+
+          # Post-deploy sanity check
+          SCRIPT_AFTER: |
+            set -e
+            cd "${TARGET}"
+            echo "PWD: $(pwd)"
+            ls -la | sed -n '1,120p'
+            echo "---- build-info.txt ----"
+            [ -f build-info.txt ] && cat build-info.txt || echo "build-info.txt missing"
