@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
 import RegisterTeacher from "@/pages/auth/RegisterTeacher";
+import ResetPassword from "@/pages/auth/ResetPassword"; // NEW
 import DashboardHome from "@/pages/dashboard/Home";
 import TowersList from "@/pages/towers/TowersList";
 import NewTower from "@/pages/towers/NewTower";
@@ -15,12 +16,11 @@ import TowerDetail from "@/pages/towers/TowerDetail";
 import Leaderboard from "@/pages/leaderboard/Leaderboard";
 import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
 import PlantCatalog from "@/pages/catalog/PlantCatalog";
-import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
-import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
 import Classrooms from "@/pages/classrooms/Classrooms";
 import Kiosk from "@/pages/kiosk/Kiosk";
 import HelpCenter from "@/pages/help/HelpCenter";
 import Profile from "@/pages/profile/Profile";
+import AccountSettings from "@/pages/settings/AccountSettings"; // NEW
 import TermsOfService from "@/pages/legal/TermsOfService";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
@@ -57,6 +57,7 @@ const App = () => (
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
+            <Route path="reset-password" element={<ResetPassword />} /> {/* NEW */}
           </Route>
           
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
@@ -79,19 +80,13 @@ const App = () => (
               <Route path="new" element={<NewTower />} />
               <Route path=":id" element={<TowerDetail />} />
             </Route>
-            
-            {/* Plant Catalog Routes with Nested Pages */}
-            <Route path="catalog">
-              <Route index element={<PlantCatalog />} />
-              <Route path="global" element={<GlobalPlantCatalog />} />
-              <Route path="manage" element={<ManageClassroomCatalog />} />
-            </Route>
-            
+            <Route path="catalog" element={<PlantCatalog />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<AccountSettings />} /> {/* NEW */}
           </Route>
 
           {/* --- CATCH-ALL ROUTE --- */}

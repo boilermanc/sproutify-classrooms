@@ -4,6 +4,46 @@
 ### Added
 - Features in development
 
+## [1.2.0] - 2025-08-24
+### Added
+- **Complete Password Management System**
+  - Account Settings page (`/app/settings`) with secure password change functionality
+  - Current password verification before allowing password updates
+  - Password reset via email using secure token-based authentication
+  - "Forgot Password?" functionality integrated into login page
+  - Password reset confirmation page with session validation
+  - Account information display showing current email address
+  - Security tips and guidance for teachers
+
+### Enhanced
+- **Improved Authentication Security**
+  - Enhanced login page with integrated password recovery options
+  - Secure password validation (minimum length, confirmation matching)
+  - Professional user experience matching educational software standards
+  - Mobile-responsive design for classroom tablets and devices
+
+### Navigation & UX
+- **New Settings Navigation**
+  - Added Settings menu item to main application sidebar
+  - Clean separation between Profile (educational info) and Settings (security)
+  - Intuitive placement of account management features
+  - Consistent design language throughout password management flow
+
+### Technical Details
+- Implemented secure password change using `supabase.auth.updateUser()`
+- Added password reset flow using `supabase.auth.resetPasswordForEmail()`
+- Session validation for password reset links with URL parameter handling
+- Proper error handling and user feedback throughout authentication flows
+- Added new routes: `/auth/reset-password` and `/app/settings`
+- Enhanced `AppSidebar` component with Settings navigation
+- Full TypeScript implementation with proper type safety
+
+### Security Features
+- Current password verification before updates (prevents unauthorized changes)
+- Secure email-based password reset with expiring tokens
+- Input validation and sanitization throughout password flows
+- Professional security messaging and user guidance
+
 ## [1.1.1] - 2025-08-23
 ### Added
 - **Color-Based Vitals Input System**
@@ -12,11 +52,13 @@
   - Support for test strip color matching alongside numeric input
   - Student-friendly interface for easier data logging
   - Educational guidance for each color range and plant health impact
+
 ### Enhanced
 - Vitals logging now supports both numeric input and color-based selection
 - Improved accessibility for students using test strips instead of digital meters
 - Better user experience for both teachers and students in kiosk mode
 - Educational value added with color range explanations and plant health tips
+
 ### Technical Details
 - Enhanced `ColorNumberInput` component with dialog-based color picker
 - pH color mapping: Red (4.5) to Purple (7.2) with ideal range at Yellow-Green (5.5)
@@ -33,16 +75,19 @@
   - Advanced plant statistics and analytics dashboard
   - Search and filtering capabilities for plant discovery
   - Improved navigation between catalog, global, and management pages
+
 - **Technical Improvements**
   - React Query integration for optimized data fetching and caching
   - Custom Supabase RPC functions for efficient plant catalog queries
   - Enhanced TypeScript types for better development experience
   - Improved error handling and user feedback throughout catalog system
+
 ### Enhanced
 - Plant selection workflow now uses centralized catalog system
 - Students can only select from teacher-activated plants
 - Plant data consistency across all tower management features
 - Better performance with background data synchronization
+
 ### Technical Details
 - Added `is_active` field to `plant_catalog` table for visibility control
 - Implemented `get_global_plants_with_status()` RPC function
