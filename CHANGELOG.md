@@ -4,6 +4,25 @@
 ### Added
 - Features in development
 
+## [1.1.1] - 2025-08-23
+### Added
+- **Color-Based Vitals Input System**
+  - Color picker buttons for pH and EC measurements
+  - Interactive color selection dialogs with educational descriptions
+  - Support for test strip color matching alongside numeric input
+  - Student-friendly interface for easier data logging
+  - Educational guidance for each color range and plant health impact
+### Enhanced
+- Vitals logging now supports both numeric input and color-based selection
+- Improved accessibility for students using test strips instead of digital meters
+- Better user experience for both teachers and students in kiosk mode
+- Educational value added with color range explanations and plant health tips
+### Technical Details
+- Enhanced `ColorNumberInput` component with dialog-based color picker
+- pH color mapping: Red (4.5) to Purple (7.2) with ideal range at Yellow-Green (5.5)
+- EC color mapping: Clear (0.5) to Purple (2.8) with ideal range at Blue (1.6)
+- Maintains backward compatibility with existing numeric input functionality
+
 ## [1.1.0] - 2025-08-23
 ### Added
 - **Enhanced Plant Catalog System**
@@ -19,13 +38,11 @@
   - Custom Supabase RPC functions for efficient plant catalog queries
   - Enhanced TypeScript types for better development experience
   - Improved error handling and user feedback throughout catalog system
-
 ### Enhanced
 - Plant selection workflow now uses centralized catalog system
 - Students can only select from teacher-activated plants
 - Plant data consistency across all tower management features
 - Better performance with background data synchronization
-
 ### Technical Details
 - Added `is_active` field to `plant_catalog` table for visibility control
 - Implemented `get_global_plants_with_status()` RPC function
