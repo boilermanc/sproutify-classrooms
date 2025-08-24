@@ -15,6 +15,8 @@ import TowerDetail from "@/pages/towers/TowerDetail";
 import Leaderboard from "@/pages/leaderboard/Leaderboard";
 import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
 import PlantCatalog from "@/pages/catalog/PlantCatalog";
+import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
+import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
 import Classrooms from "@/pages/classrooms/Classrooms";
 import Kiosk from "@/pages/kiosk/Kiosk";
 import HelpCenter from "@/pages/help/HelpCenter";
@@ -32,8 +34,6 @@ import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
-
-// Import the new Photo form component
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
 const queryClient = new QueryClient();
@@ -79,7 +79,14 @@ const App = () => (
               <Route path="new" element={<NewTower />} />
               <Route path=":id" element={<TowerDetail />} />
             </Route>
-            <Route path="catalog" element={<PlantCatalog />} />
+            
+            {/* Plant Catalog Routes with Nested Pages */}
+            <Route path="catalog">
+              <Route index element={<PlantCatalog />} />
+              <Route path="global" element={<GlobalPlantCatalog />} />
+              <Route path="manage" element={<ManageClassroomCatalog />} />
+            </Route>
+            
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />

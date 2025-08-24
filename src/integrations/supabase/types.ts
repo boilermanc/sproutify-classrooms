@@ -160,42 +160,66 @@ export type Database = {
       }
       plant_catalog: {
         Row: {
+          category: string | null
           created_at: string
           description: string | null
           germination_days: number | null
+          global_plant_id: string | null
           harvest_days: number | null
           id: string
           image_url: string | null
+          is_active: boolean
           is_global: boolean
           name: string
           teacher_id: string | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description?: string | null
           germination_days?: number | null
+          global_plant_id?: string | null
           harvest_days?: number | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           is_global?: boolean
           name: string
           teacher_id?: string | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string | null
           germination_days?: number | null
+          global_plant_id?: string | null
           harvest_days?: number | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           is_global?: boolean
           name?: string
           teacher_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plant_catalog_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plant_catalog_global_plant_id_fkey"
+            columns: ["global_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plant_catalog"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       plantings: {
         Row: {
@@ -520,6 +544,78 @@ export type Database = {
         }
         Returns: boolean
       }
+      add_global_plant_to_classroom: {
+        Args: {
+          p_teacher_id: string
+          p_global_plant_id: string
+        }
+        Returns: string
+      }
+      get_global_plants_with_status: {
+        Args: {
+          p_teacher_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          description: string | null
+          germination_days: number | null
+          harvest_days: number | null
+          image_url: string | null
+          category: string | null
+          created_at: string
+          is_in_classroom: boolean
+          classroom_plant_id: string | null
+          is_active_in_classroom: boolean
+        }[]
+      }
+      get_classroom_catalog: {
+        Args: {
+          p_teacher_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          description: string | null
+          germination_days: number | null
+          harvest_days: number | null
+          image_url: string | null
+          category: string | null
+          is_active: boolean
+          is_custom: boolean
+          global_plant_name: string | null
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      get_active_classroom_plants: {
+        Args: {
+          p_teacher_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          description: string | null
+          germination_days: number | null
+          harvest_days: number | null
+          category: string | null
+        }[]
+      }
+      toggle_classroom_plant_active: {
+        Args: {
+          p_plant_id: string
+          p_teacher_id: string
+          p_is_active: boolean
+        }
+        Returns: boolean
+      }
+      remove_plant_from_classroom: {
+        Args: {
+          p_plant_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "teacher" | "student"
@@ -654,3 +750,42 @@ export const Constants = {
     },
   },
 } as const
+
+// Helper types for the new plant catalog functionality
+export type GlobalPlantWithStatus = {
+  id: string
+  name: string
+  description?: string | null
+  germination_days?: number | null
+  harvest_days?: number | null
+  image_url?: string | null
+  category?: string | null
+  created_at: string
+  is_in_classroom: boolean
+  classroom_plant_id?: string | null
+  is_active_in_classroom: boolean
+}
+
+export type ClassroomPlantWithSource = {
+  id: string
+  name: string
+  description?: string | null
+  germination_days?: number | null
+  harvest_days?: number | null
+  image_url?: string | null
+  category?: string | null
+  is_active: boolean
+  is_custom: boolean
+  global_plant_name?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ActiveClassroomPlant = {
+  id: string
+  name: string
+  description?: string | null
+  germination_days?: number | null
+  harvest_days?: number | null
+  category?: string | null
+}
