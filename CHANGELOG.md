@@ -1,8 +1,21 @@
 # Sproutify School Changelog
 
 ## [Unreleased]
-### Added
-- Features in development
+### Enhanced
+- **Improved Sidebar Navigation**
+  - Added proper hover effects for sidebar menu items with smooth color transitions
+  - Enhanced active state highlighting using built-in sidebar accent colors
+  - Added logo placeholder area at top of sidebar for Sproutify School branding
+  - Improved navigation with tooltips showing item names when sidebar is collapsed
+  - Better active route detection using React Router location for accurate highlighting
+  - Professional visual feedback throughout navigation interaction
+
+### Technical Details
+- Updated `AppSidebar` component to use shadcn/ui sidebar's built-in `isActive` prop
+- Replaced custom `getNavCls` function with proper active state detection
+- Added `SidebarHeader` component with logo placeholder and branding area
+- Implemented `useLocation` hook for accurate route matching
+- Enhanced collapsed state with meaningful tooltips for all navigation items
 
 ## [1.2.0] - 2025-08-24
 ### Added

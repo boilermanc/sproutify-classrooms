@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle, User, LogOut, Settings } from "lucide-react";
 import {
   Sidebar,
@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
+  SidebarHeader,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,9 +31,15 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50";
+  // Check if current path matches the item URL
+  const isActiveItem = (itemUrl: string) => {
+    if (itemUrl === "/app") {
+      return location.pathname === "/app";
+    }
+    return location.pathname.startsWith(itemUrl);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -44,16 +51,36 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className={collapsed ? "w-14" : "w-60"}>
       {/* Make the content a flex column that fills height */}
       <SidebarContent className="flex h-full flex-col">
+        {/* Header with logo placeholder */}
+        <SidebarHeader className="border-b pb-2">
+          <div className="flex items-center gap-3 px-2">
+            {/* Logo placeholder - replace src with your actual logo */}
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Sprout className="h-5 w-5" />
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">Sproutify School</span>
+                <span className="text-xs text-muted-foreground">Garden Management</span>
+              </div>
+            )}
+          </div>
+        </SidebarHeader>
+
         {/* Top nav group */}
         <SidebarGroup>
-          <SidebarGroupLabel>Sproutify School</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="mr-2 h-4 w-4" />
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={isActiveItem(item.url)}
+                    tooltip={collapsed ? item.title : undefined}
+                  >
+                    <NavLink to={item.url} end={item.url === "/app"}>
+                      <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -71,8 +98,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                <SidebarMenuButton 
+                  onClick={handleLogout}
+                  tooltip={collapsed ? "Logout" : undefined}
+                >
+                  <LogOut className="h-4 w-4" />
                   {!collapsed && <span>Logout</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
