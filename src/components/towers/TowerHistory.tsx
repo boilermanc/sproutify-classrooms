@@ -9,7 +9,7 @@ interface TowerHistoryProps {
   refreshKey?: number;
 }
 
-export default function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryProps) {
+export function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryProps) {
   const [vitalsData, setVitalsData] = useState<any[]>([]);
   const [harvestsData, setHarvestsData] = useState<any[]>([]);
   const [wasteData, setWasteData] = useState<any[]>([]);

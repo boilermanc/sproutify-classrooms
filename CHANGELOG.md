@@ -1,5 +1,50 @@
 # Sproutify School Changelog
 
+## [1.4.0] - 2025-08-24
+### Added
+- **Enhanced Pest Management System**
+  - Comprehensive pest logging interface with dedicated fields for observations, actions, and notes
+  - Student pest observation form accessible through kiosk interface
+  - Secure Supabase Edge Function (`student-log-pest`) for authenticated student data submission
+  - Visual pest report component with bug icons and color-coded urgency indicators
+  - Student tower integration allowing pest observation logging from kiosk dashboard
+  - Action cards for students to easily access pest logging functionality
+
+### Enhanced
+- **Improved Pest Logging Workflow**
+  - Upgraded PestsTab interface with separate textarea fields for detailed logging
+  - Better placeholder text and educational examples (e.g., "Aphids on row 2", "Released ladybugs")
+  - Enhanced pest history display with improved typography and visual hierarchy
+  - Color-coded pest reports with left border styling and proper spacing
+  - Loading states and skeleton placeholders for better user experience
+
+- **Student Engagement Features**
+  - Integrated pest observation capabilities into student tower detail views
+  - Comprehensive pest history accessible to students for educational purposes
+  - Seamless navigation between pest logging and dashboard views
+  - Educational messaging encouraging proper teacher supervision
+
+- **Teacher Dashboard Experience**
+  - Enhanced pest management within tower detail tabs
+  - Improved pest log history with better date formatting and data organization
+  - Professional error handling and success notifications for pest logging
+  - Consistent design language throughout pest management interface
+
+### Technical Details
+- Added `StudentPestForm` component with comprehensive validation and error handling
+- Implemented secure server-side pest logging with ownership verification
+- Enhanced `PestReport` component with visual improvements and bug icons
+- Upgraded database queries with proper error handling and loading states
+- Added CORS support for cross-origin pest data submission
+- Improved TypeScript types for pest log data structures
+- Added proper routing for student pest observation workflows
+
+### Security & Data Protection
+- Server-side tower ownership verification before allowing pest data submission
+- Secure authentication flow for student pest logging through Edge Functions
+- Proper data validation and sanitization for all pest log inputs
+- Educational data protection with appropriate access controls
+
 ## [Unreleased]
 ### Enhanced
 - **Improved Sidebar Navigation**
@@ -107,7 +152,7 @@
 ### Security Features
 - Current password verification before updates (prevents unauthorized changes)
 - Secure email-based password reset with expiring tokens
-- Input validation and sanitization throughout password flows
+- Proper data validation and sanitization throughout password flows
 - Professional security messaging and user guidance
 
 ## [1.1.1] - 2025-08-23

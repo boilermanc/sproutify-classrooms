@@ -14,7 +14,7 @@ interface TowerVitalsFormProps {
   onVitalsSaved?: () => void;
 }
 
-export default function TowerVitalsForm({ towerId, teacherId, onVitalsSaved }: TowerVitalsFormProps) {
+export function TowerVitalsForm({ towerId, teacherId, onVitalsSaved }: TowerVitalsFormProps) {
   const { toast } = useToast();
   const [ph, setPh] = useState<number | undefined>();
   const [ec, setEc] = useState<number | undefined>();

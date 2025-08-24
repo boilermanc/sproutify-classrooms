@@ -1,3 +1,6 @@
+// REPLACE: src/integrations/supabase/types.ts
+// Complete updated types file with enhanced scouting system
+
 export type Json =
   | string
   | number
@@ -7,11 +10,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
-  }
   public: {
     Tables: {
       classrooms: {
@@ -48,6 +46,9 @@ export type Database = {
           harvested_at: string
           id: string
           notes: string | null
+          plant_name: string | null
+          plant_quantity: number | null
+          planting_id: string | null
           teacher_id: string
           tower_id: string
           weight_grams: number
@@ -58,6 +59,9 @@ export type Database = {
           harvested_at?: string
           id?: string
           notes?: string | null
+          plant_name?: string | null
+          plant_quantity?: number | null
+          planting_id?: string | null
           teacher_id: string
           tower_id: string
           weight_grams: number
@@ -68,18 +72,28 @@ export type Database = {
           harvested_at?: string
           id?: string
           notes?: string | null
+          plant_name?: string | null
+          plant_quantity?: number | null
+          planting_id?: string | null
           teacher_id?: string
           tower_id?: string
           weight_grams?: number
         }
         Relationships: [
           {
+            foreignKeyName: "harvests_planting_id_fkey"
+            columns: ["planting_id"]
+            isOneToOne: false
+            referencedRelation: "plantings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "harvests_tower_id_fkey"
             columns: ["tower_id"]
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       join_codes: {
@@ -111,51 +125,177 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classrooms"
             referencedColumns: ["id"]
-          },
+          }
+        ]
+      }
+      pest_catalog: {
+        Row: {
+          common_locations: string[]
+          created_at: string
+          description: string
+          id: string
+          identification_tips: string[]
+          name: string
+          prevention_tips: string[]
+          safe_for_schools: boolean
+          scientific_name: string | null
+          seasonal_info: string | null
+          severity_levels: Json[]
+          symptoms: string[]
+          treatment_options: Json[]
+          type: "disease" | "environmental" | "insect" | "nutrient"
+          updated_at: string
+        }
+        Insert: {
+          common_locations?: string[]
+          created_at?: string
+          description: string
+          id?: string
+          identification_tips: string[]
+          name: string
+          prevention_tips: string[]
+          safe_for_schools?: boolean
+          scientific_name?: string | null
+          seasonal_info?: string | null
+          severity_levels?: Json[]
+          symptoms: string[]
+          treatment_options?: Json[]
+          type: "disease" | "environmental" | "insect" | "nutrient"
+          updated_at?: string
+        }
+        Update: {
+          common_locations?: string[]
+          created_at?: string
+          description?: string
+          id?: string
+          identification_tips?: string[]
+          name?: string
+          prevention_tips?: string[]
+          safe_for_schools?: boolean
+          scientific_name?: string | null
+          seasonal_info?: string | null
+          severity_levels?: Json[]
+          symptoms?: string[]
+          treatment_options?: Json[]
+          type?: "disease" | "environmental" | "insect" | "nutrient"
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pest_catalog_images: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          image_type: "lifecycle" | "pest" | "symptom" | "treatment" | null
+          image_url: string
+          pest_catalog_id: string
+          sort_order: number
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          image_type?: "lifecycle" | "pest" | "symptom" | "treatment" | null
+          image_url: string
+          pest_catalog_id: string
+          sort_order?: number
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          image_type?: "lifecycle" | "pest" | "symptom" | "treatment" | null
+          image_url?: string
+          pest_catalog_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pest_catalog_images_pest_catalog_id_fkey"
+            columns: ["pest_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "pest_catalog"
+            referencedColumns: ["id"]
+          }
         ]
       }
       pest_logs: {
         Row: {
           action: string | null
+          affected_plants: string[] | null
           created_at: string
+          follow_up_date: string | null
+          follow_up_needed: boolean
           id: string
+          images: string[] | null
+          location_on_tower: string | null
           notes: string | null
           observed_at: string
           pest: string
+          pest_catalog_id: string | null
+          resolved: boolean
+          resolved_at: string | null
           severity: number | null
           teacher_id: string
           tower_id: string
+          treatment_applied: Json[] | null
         }
         Insert: {
           action?: string | null
+          affected_plants?: string[] | null
           created_at?: string
+          follow_up_date?: string | null
+          follow_up_needed?: boolean
           id?: string
+          images?: string[] | null
+          location_on_tower?: string | null
           notes?: string | null
           observed_at?: string
           pest: string
+          pest_catalog_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
           severity?: number | null
           teacher_id: string
           tower_id: string
+          treatment_applied?: Json[] | null
         }
         Update: {
           action?: string | null
+          affected_plants?: string[] | null
           created_at?: string
+          follow_up_date?: string | null
+          follow_up_needed?: boolean
           id?: string
+          images?: string[] | null
+          location_on_tower?: string | null
           notes?: string | null
           observed_at?: string
           pest?: string
+          pest_catalog_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
           severity?: number | null
           teacher_id?: string
           tower_id?: string
+          treatment_applied?: Json[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pest_logs_pest_catalog_id_fkey"
+            columns: ["pest_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "pest_catalog"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pest_logs_tower_id_fkey"
             columns: ["tower_id"]
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       plant_catalog: {
@@ -164,11 +304,9 @@ export type Database = {
           created_at: string
           description: string | null
           germination_days: number | null
-          global_plant_id: string | null
           harvest_days: number | null
           id: string
           image_url: string | null
-          is_active: boolean
           is_global: boolean
           name: string
           teacher_id: string | null
@@ -179,11 +317,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           germination_days?: number | null
-          global_plant_id?: string | null
           harvest_days?: number | null
           id?: string
           image_url?: string | null
-          is_active?: boolean
           is_global?: boolean
           name: string
           teacher_id?: string | null
@@ -194,32 +330,15 @@ export type Database = {
           created_at?: string
           description?: string | null
           germination_days?: number | null
-          global_plant_id?: string | null
           harvest_days?: number | null
           id?: string
           image_url?: string | null
-          is_active?: boolean
           is_global?: boolean
           name?: string
           teacher_id?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "plant_catalog_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plant_catalog_global_plant_id_fkey"
-            columns: ["global_plant_id"]
-            isOneToOne: false
-            referencedRelation: "plant_catalog"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       plantings: {
         Row: {
@@ -287,7 +406,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
@@ -295,9 +414,12 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           district: string | null
+          first_name: string | null
           full_name: string | null
           id: string
+          last_name: string | null
           phone: string | null
+          school_id: string | null
           school_image_url: string | null
           school_name: string | null
           settings: Json
@@ -308,9 +430,12 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           district?: string | null
+          first_name?: string | null
           full_name?: string | null
           id: string
+          last_name?: string | null
           phone?: string | null
+          school_id?: string | null
           school_image_url?: string | null
           school_name?: string | null
           settings?: Json
@@ -321,12 +446,53 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           district?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
+          school_id?: string | null
           school_image_url?: string | null
           school_name?: string | null
           settings?: Json
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      schools: {
+        Row: {
+          created_at: string | null
+          district: string | null
+          id: string
+          image_url: string | null
+          name: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          district?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          district?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
           timezone?: string | null
           updated_at?: string | null
         }
@@ -361,7 +527,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classrooms"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       tower_photos: {
@@ -402,7 +568,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       tower_vitals: {
@@ -443,13 +609,14 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       towers: {
         Row: {
           created_at: string
           id: string
+          location: "greenhouse" | "indoor" | "outdoor"
           name: string
           ports: number
           teacher_id: string
@@ -458,6 +625,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          location?: "greenhouse" | "indoor" | "outdoor"
           name: string
           ports: number
           teacher_id: string
@@ -466,6 +634,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          location?: "greenhouse" | "indoor" | "outdoor"
           name?: string
           ports?: number
           teacher_id?: string
@@ -501,6 +670,9 @@ export type Database = {
           id: string
           logged_at: string
           notes: string | null
+          plant_name: string | null
+          plant_quantity: number | null
+          planting_id: string | null
           teacher_id: string
           tower_id: string
         }
@@ -510,6 +682,9 @@ export type Database = {
           id?: string
           logged_at?: string
           notes?: string | null
+          plant_name?: string | null
+          plant_quantity?: number | null
+          planting_id?: string | null
           teacher_id: string
           tower_id: string
         }
@@ -519,17 +694,27 @@ export type Database = {
           id?: string
           logged_at?: string
           notes?: string | null
+          plant_name?: string | null
+          plant_quantity?: number | null
+          planting_id?: string | null
           teacher_id?: string
           tower_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "waste_logs_planting_id_fkey"
+            columns: ["planting_id"]
+            isOneToOne: false
+            referencedRelation: "plantings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "waste_logs_tower_id_fkey"
             columns: ["tower_id"]
             isOneToOne: false
             referencedRelation: "towers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
     }
@@ -537,255 +722,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
-      add_global_plant_to_classroom: {
-        Args: {
-          p_teacher_id: string
-          p_global_plant_id: string
-        }
-        Returns: string
-      }
-      get_global_plants_with_status: {
-        Args: {
-          p_teacher_id: string
-        }
-        Returns: {
-          id: string
-          name: string
-          description: string | null
-          germination_days: number | null
-          harvest_days: number | null
-          image_url: string | null
-          category: string | null
-          created_at: string
-          is_in_classroom: boolean
-          classroom_plant_id: string | null
-          is_active_in_classroom: boolean
-        }[]
-      }
-      get_classroom_catalog: {
-        Args: {
-          p_teacher_id: string
-        }
-        Returns: {
-          id: string
-          name: string
-          description: string | null
-          germination_days: number | null
-          harvest_days: number | null
-          image_url: string | null
-          category: string | null
-          is_active: boolean
-          is_custom: boolean
-          global_plant_name: string | null
-          created_at: string
-          updated_at: string
-        }[]
-      }
-      get_active_classroom_plants: {
-        Args: {
-          p_teacher_id: string
-        }
-        Returns: {
-          id: string
-          name: string
-          description: string | null
-          germination_days: number | null
-          harvest_days: number | null
-          category: string | null
-        }[]
-      }
-      toggle_classroom_plant_active: {
-        Args: {
-          p_plant_id: string
-          p_teacher_id: string
-          p_is_active: boolean
-        }
-        Returns: boolean
-      }
-      remove_plant_from_classroom: {
-        Args: {
-          p_plant_id: string
-          p_teacher_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student"
+      app_role: "admin" | "student" | "teacher"
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
-}
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      app_role: ["admin", "teacher", "student"],
-    },
-  },
-} as const
-
-// Helper types for the new plant catalog functionality
-export type GlobalPlantWithStatus = {
-  id: string
-  name: string
-  description?: string | null
-  germination_days?: number | null
-  harvest_days?: number | null
-  image_url?: string | null
-  category?: string | null
-  created_at: string
-  is_in_classroom: boolean
-  classroom_plant_id?: string | null
-  is_active_in_classroom: boolean
-}
-
-export type ClassroomPlantWithSource = {
-  id: string
-  name: string
-  description?: string | null
-  germination_days?: number | null
-  harvest_days?: number | null
-  image_url?: string | null
-  category?: string | null
-  is_active: boolean
-  is_custom: boolean
-  global_plant_name?: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type ActiveClassroomPlant = {
-  id: string
-  name: string
-  description?: string | null
-  germination_days?: number | null
-  harvest_days?: number | null
-  category?: string | null
 }

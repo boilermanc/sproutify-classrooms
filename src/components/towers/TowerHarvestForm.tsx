@@ -5,33 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"; // 1. Import useToast for better feedback
 
-interface TowerWasteFormProps {
+interface TowerHarvestFormProps {
   towerId: string;
   teacherId: string;
-  onWasteLogged?: () => void;
+  onHarvested?: () => void;
 }
 
-type Planting = {
-  name: string;
-  quantity: number;
-};
-
-export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: TowerWasteFormProps) {
-  const { toast } = useToast();
-  const [plantings, setPlantings] = useState<Planting[]>([]);
+export function TowerHarvestForm({ towerId, teacherId, onHarvested }: TowerHarvestFormProps) {
+  const { toast } = useToast(); // 2. Initialize toast
+  const [plantings, setPlantings] = useState<any[]>([]);
   const [selectedPlantName, setSelectedPlantName] = useState<string>("");
   const [availableQuantity, setAvailableQuantity] = useState<number>(0);
   const [plantQuantity, setPlantQuantity] = useState<number>(0);
-  const [grams, setGrams] = useState<number>(0);
+  const [weightGrams, setWeightGrams] = useState<number>(0);
+  const [destination, setDestination] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
   useEffect(() => {
     const fetchPlantings = async () => {
-      if (!teacherId) return; // Guard clause in case prop isn't ready
-
-      // 1. The important change: adding .eq("teacher_id", teacherId)
+      // 3. The important change is here: adding .eq("teacher_id", teacherId)
       const { data, error } = await supabase
         .from("plantings")
         .select("name, quantity")
@@ -41,47 +35,59 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
 
       if (error) {
         console.error("Error fetching plantings:", error);
-        toast({ title: "Error", description: "Could not fetch active plants.", variant: "destructive" });
+        toast({
+            title: "Error",
+            description: "Could not fetch active plants for harvesting.",
+            variant: "destructive",
+        });
       } else {
         setPlantings(data);
       }
     };
 
     fetchPlantings();
-  }, [towerId, teacherId, toast]); // 2. Add teacherId to the dependency array
+  }, [towerId, teacherId, toast]); // 4. Add teacherId and toast to the dependency array
 
   const handlePlantSelect = (plantName: string) => {
     setSelectedPlantName(plantName);
     const selected = plantings.find((p) => p.name === plantName);
     setAvailableQuantity(selected?.quantity || 0);
     setPlantQuantity(0);
-    setGrams(0);
+    setWeightGrams(0);
   };
 
   const handleSubmit = async () => {
-    if (!selectedPlantName || plantQuantity <= 0 || grams <= 0) return;
+    if (!selectedPlantName || plantQuantity <= 0 || weightGrams <= 0) return;
 
-    // This part was already correct, using the teacherId prop
-    const { error } = await supabase.from("waste_logs").insert({
+    const { error } = await supabase.from("harvests").insert({
       teacher_id: teacherId,
       tower_id: towerId,
       plant_name: selectedPlantName,
       plant_quantity: plantQuantity,
-      grams: grams,
+      weight_grams: weightGrams,
+      destination,
       notes,
     });
 
     if (error) {
-      console.error("Error inserting waste log:", error);
-      toast({ title: "Error", description: "Failed to log waste. Please try again.", variant: "destructive" });
+      console.error("Error inserting harvest:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit harvest. Please try again.",
+        variant: "destructive",
+      });
     } else {
-      toast({ title: "Success", description: "Waste has been logged." });
-      if (onWasteLogged) onWasteLogged();
+      toast({
+        title: "Success!",
+        description: "Your harvest has been recorded.",
+      });
+      if (onHarvested) onHarvested();
       // reset form
       setSelectedPlantName("");
       setAvailableQuantity(0);
       setPlantQuantity(0);
-      setGrams(0);
+      setWeightGrams(0);
+      setDestination("");
       setNotes("");
     }
   };
@@ -89,7 +95,7 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
   return (
     <div className="space-y-4">
       <div>
-        <Label>Select Plant to Discard</Label>
+        <Label>Select Plant</Label>
         <Select value={selectedPlantName} onValueChange={handlePlantSelect}>
           <SelectTrigger>
             <SelectValue placeholder="Choose plant" />
@@ -97,7 +103,7 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
           <SelectContent>
             {plantings.map((p) => (
               <SelectItem key={p.name} value={p.name}>
-                {p.name} ({p.quantity} available)
+                {p.name} ({p.quantity})
               </SelectItem>
             ))}
           </SelectContent>
@@ -118,28 +124,29 @@ export default function TowerWasteForm({ towerId, teacherId, onWasteLogged }: To
           </div>
 
           <div>
-            <Label>Waste Weight (grams)</Label>
+            <Label>Weight (grams)</Label>
             <Input
               type="number"
               min={1}
-              value={grams}
-              onChange={(e) => setGrams(Number(e.target.value))}
+              value={weightGrams}
+              onChange={(e) => setWeightGrams(Number(e.target.value))}
             />
           </div>
 
           <div className="col-span-2">
-            <Label>Notes (Reason for Waste)</Label>
-            <Textarea 
-              value={notes} 
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g., Pest damage, bolted, experimental failure..."
-            />
+            <Label>Destination</Label>
+            <Input value={destination} onChange={(e) => setDestination(e.target.value)} />
+          </div>
+
+          <div className="col-span-2">
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
       )}
 
-      <Button onClick={handleSubmit} disabled={!selectedPlantName || plantQuantity <= 0 || grams <= 0}>
-        Log Waste
+      <Button onClick={handleSubmit} disabled={!selectedPlantName || plantQuantity <= 0 || weightGrams <= 0}>
+        Submit Harvest
       </Button>
     </div>
   );

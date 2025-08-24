@@ -1,28 +1,41 @@
-// Enhanced PlantsTab component for TowerDetail.tsx
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+// Complete TowerDetail.tsx with Enhanced PlantsTab and Scouting
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAppStore } from "@/context/AppStore";
+import { useToast } from "@/hooks/use-toast";
+import { SEO } from "@/components/SEO";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  Leaf, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  AlertTriangle, 
-  CheckCircle, 
-  Plus,
-  Edit,
-  Trash2,
-  Globe,
-  Loader2
-} from "lucide-react";
+import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2 } from "lucide-react";
+
+// Import existing components
+import { TowerVitalsForm } from "@/components/towers/TowerVitalsForm";
+import { TowerHarvestForm } from "@/components/towers/TowerHarvestForm";
+import { TowerWasteForm } from "@/components/towers/TowerWasteForm";
+import { TowerPhotosTab } from "@/components/towers/TowerPhotosTab";
+import { TowerHistory } from "@/components/towers/TowerHistory";
+
+// Import enhanced scouting components
+import { EnhancedScoutingForm } from "@/components/scouting/EnhancedScoutingForm";
+
+interface Tower {
+  id: string;
+  name: string;
+  ports: number;
+  location?: 'indoor' | 'greenhouse' | 'outdoor';
+  created_at: string;
+  updated_at: string;
+  teacher_id: string;
+}
 
 type PlantingWithCatalog = {
   id: string;
@@ -48,6 +61,318 @@ type PlantingWithCatalog = {
   };
 };
 
+export default function TowerDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const { state } = useAppStore();
+  
+  // Debug logging
+  console.log("TowerDetail - ID:", id);
+  console.log("TowerDetail - AppStore state:", state);
+  
+  const [tower, setTower] = useState<Tower | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+
+  const initialTab = searchParams.get("tab") || "vitals";
+
+  // Enhanced authentication handling
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id ?? null;
+      console.log("Auth state changed - User ID:", userId);
+      setTeacherId(userId);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const userId = session?.user?.id ?? null;
+      console.log("Initial session - User ID:", userId);
+      setTeacherId(userId);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    console.log("Effect triggered - ID:", id, "Teacher ID:", teacherId);
+    if (id && teacherId) {
+      fetchTower();
+    }
+  }, [id, teacherId]);
+
+  const fetchTower = async () => {
+    if (!id || !teacherId) {
+      console.log("Missing ID or teacherId:", { id, teacherId });
+      return;
+    }
+
+    console.log("Fetching tower with ID:", id, "Teacher ID:", teacherId);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("towers")
+        .select("*")
+        .eq("id", id)
+        .eq("teacher_id", teacherId)
+        .single();
+
+      console.log("Tower fetch result:", { data, error: fetchError });
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          setError("Tower not found or you do not have permission to view it.");
+        } else {
+          console.error("Supabase error:", fetchError);
+          throw fetchError;
+        }
+        return;
+      }
+
+      setTower(data);
+    } catch (error: any) {
+      console.error("Error fetching tower:", error);
+      setError("Failed to load tower details. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshData = () => {
+    setRefreshKey(prev => prev + 1);
+    fetchTower();
+  };
+
+  const getLocationIcon = (location?: string) => {
+    switch (location) {
+      case 'greenhouse':
+        return <Leaf className="h-4 w-4 text-green-600" />;
+      case 'outdoor':
+        return <Sun className="h-4 w-4 text-yellow-600" />;
+      case 'indoor':
+      default:
+        return <Building className="h-4 w-4 text-blue-600" />;
+    }
+  };
+
+  const getLocationLabel = (location?: string) => {
+    switch (location) {
+      case 'greenhouse':
+        return 'Greenhouse';
+      case 'outdoor':
+        return 'Outdoor';
+      case 'indoor':
+      default:
+        return 'Indoor';
+    }
+  };
+
+  console.log("Render state:", { loading, error, tower, teacherId });
+
+  if (loading) {
+    return (
+      <div className="container py-8 space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-6 w-20" />
+        </div>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (error || !tower) {
+    return (
+      <div className="container py-8">
+        <Alert variant="destructive">
+          <AlertDescription>
+            {error || "Tower not found or you do not have permission to view it."} Please try refreshing the page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <SEO
+        title={`${tower.name} - Tower Details`}
+        description={`Monitor vitals, plants, and observations for ${tower.name}. Track pH, EC, lighting, and manage your hydroponic tower garden.`}
+      />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">{tower.name}</h1>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="flex items-center gap-2">
+              {getLocationIcon(tower.location)}
+              {getLocationLabel(tower.location)}
+            </Badge>
+            <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
+          </div>
+        </div>
+        
+        <Tabs defaultValue={initialTab}>
+          <TabsList>
+            <TabsTrigger value="vitals">Vitals</TabsTrigger>
+            <TabsTrigger value="plants">Plants</TabsTrigger>
+            <TabsTrigger value="scouting">Scouting</TabsTrigger>
+            <TabsTrigger value="harvests">Harvests</TabsTrigger>
+            <TabsTrigger value="waste">Waste</TabsTrigger>
+            <TabsTrigger value="photos">Photos</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="vitals" className="mt-4">
+            <TowerVitalsForm 
+              towerId={tower.id} 
+              teacherId={teacherId} 
+              onVitalsSaved={refreshData} 
+            />
+          </TabsContent>
+          
+          <TabsContent value="plants" className="mt-4">
+            <PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
+          </TabsContent>
+          
+          <TabsContent value="scouting" className="mt-4">
+            <ScoutingTab 
+              towerId={tower.id} 
+              teacherId={teacherId} 
+              towerLocation={tower.location || 'indoor'}
+              onScoutingSaved={refreshData}
+            />
+          </TabsContent>
+          
+          <TabsContent value="harvests" className="mt-4">
+            <TowerHarvestForm
+              towerId={tower.id}
+              teacherId={teacherId}
+              onHarvested={refreshData}
+            />
+          </TabsContent>
+          
+          <TabsContent value="waste" className="mt-4">
+            <TowerWasteForm
+              towerId={tower.id}
+              teacherId={teacherId}
+              onWasteLogged={refreshData}
+            />
+          </TabsContent>
+          
+          <TabsContent value="photos" className="mt-4">
+            <TowerPhotosTab towerId={tower.id} />
+          </TabsContent>
+          
+          <TabsContent value="history" className="mt-4">
+            <TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
+  );
+}
+
+// Enhanced Scouting Tab Component
+interface ScoutingTabProps {
+  towerId: string;
+  teacherId: string;
+  towerLocation: 'indoor' | 'greenhouse' | 'outdoor';
+  onScoutingSaved: () => void;
+}
+
+function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: ScoutingTabProps) {
+  const [activeEntries, setActiveEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadActiveEntries();
+  }, [towerId, teacherId]);
+
+  const loadActiveEntries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pest_logs')
+        .select(`
+          *,
+          pest_catalog(name, type)
+        `)
+        .eq('tower_id', towerId)
+        .eq('teacher_id', teacherId)
+        .eq('resolved', false)
+        .order('observed_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setActiveEntries(data || []);
+    } catch (error) {
+      console.error('Error loading active scouting entries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleScoutingSaved = () => {
+    loadActiveEntries();
+    onScoutingSaved();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Enhanced Scouting Entry Form */}
+      <EnhancedScoutingForm
+        towerId={towerId}
+        teacherId={teacherId}
+        towerLocation={towerLocation}
+        onScoutingSaved={handleScoutingSaved}
+      />
+
+      {/* Active Scouting Entries */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-medium mb-4">Recent Observations for This Tower</h3>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : activeEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active observations for this tower.</p>
+          ) : (
+            <div className="space-y-4">
+              {activeEntries.map((entry) => (
+                <div key={entry.id} className="p-3 border rounded-md">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium">{entry.pest}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(entry.observed_at).toLocaleDateString()}
+                      </div>
+                      {entry.notes && (
+                        <div className="text-sm mt-1 line-clamp-2">{entry.notes}</div>
+                      )}
+                    </div>
+                    {entry.follow_up_needed && (
+                      <Badge variant="outline" className="text-yellow-600">
+                        Follow-up needed
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Enhanced Plants Tab Component
 interface PlantsTabProps {
   towerId: string;
   teacherId: string;
@@ -74,7 +399,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
     const fetchPlantings = async () => {
       try {
         setLoading(true);
-        // Enhanced query to include catalog information
         const { data, error } = await supabase
           .from('plantings')
           .select(`
@@ -153,8 +477,7 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
     }
   };
 
-  // Calculate harvest status and days remaining
-  const getHarvestStatus = (expectedDate?: string, seededDate?: string, catalogDays?: number) => {
+  const getHarvestStatus = (expectedDate?: string) => {
     if (!expectedDate) {
       return { status: 'unknown', daysRemaining: null, color: 'default' };
     }
@@ -356,17 +679,12 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
           ) : (
             <div className="space-y-4">
               {plantings.map((plant) => {
-                const harvestInfo = getHarvestStatus(
-                  plant.expected_harvest_date, 
-                  plant.seeded_at, 
-                  plant.plant_catalog?.harvest_days
-                );
+                const harvestInfo = getHarvestStatus(plant.expected_harvest_date);
 
                 return (
                   <Card key={plant.id} className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="space-y-3 flex-1">
-                        {/* Plant Name & Category */}
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium text-lg">{plant.name}</h4>
                           {plant.plant_catalog && (
@@ -386,14 +704,12 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
                           )}
                         </div>
 
-                        {/* Plant Description */}
                         {plant.plant_catalog?.description && (
                           <p className="text-sm text-muted-foreground">
                             {plant.plant_catalog.description}
                           </p>
                         )}
 
-                        {/* Basic Info Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -420,7 +736,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
                           )}
                         </div>
 
-                        {/* Harvest Status - THE KEY FEATURE! */}
                         {plant.expected_harvest_date && (
                           <Alert className={`border-l-4 ${
                             harvestInfo.status === 'overdue' ? 'border-l-red-500 bg-red-50' :
@@ -442,7 +757,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
                           </Alert>
                         )}
 
-                        {/* Additional Details */}
                         {(plant.growth_rate || plant.outcome) && (
                           <div className="grid md:grid-cols-2 gap-4 text-sm pt-2 border-t">
                             {plant.growth_rate && (
@@ -461,7 +775,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
                         )}
                       </div>
 
-                      {/* Action Buttons */}
                       <div className="flex gap-2 ml-4">
                         <Button variant="ghost" size="sm">
                           <Edit className="h-4 w-4" />

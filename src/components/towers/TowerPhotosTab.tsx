@@ -19,7 +19,7 @@ type Photo = {
   taken_at: string;
 };
 
-export default function TowerPhotosTab({ towerId }: Props) {
+export function TowerPhotosTab({ towerId }: Props) {
   const { toast } = useToast(); // Initialize toast
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
