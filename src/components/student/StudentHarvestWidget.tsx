@@ -1,14 +1,10 @@
-// src/pages/kiosk/StudentDashboard.tsx - Complete with Harvest Widget
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// 1. StudentHarvestWidget.tsx - Shared component for both student pages
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { SEO } from "@/components/SEO";
-import Leaderboard from "@/pages/leaderboard/Leaderboard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Leaf, 
   Calendar, 
@@ -19,13 +15,7 @@ import {
   Trophy,
   Target
 } from "lucide-react";
-
-// Define a type for our tower data
-type Tower = {
-  id: string;
-  name: string;
-  ports: number;
-};
+import { supabase } from "@/integrations/supabase/client";
 
 type StudentHarvestItem = {
   id: string;
@@ -38,35 +28,28 @@ type StudentHarvestItem = {
   portNumber?: number;
 };
 
-// A component for displaying a single tower card
-const TowerCard = ({ tower }: { tower: Tower }) => (
-  <Link to={`/student/tower/${tower.id}`}>
-    <Card className="hover:bg-muted/50 hover:border-primary transition-all h-full">
-      <CardHeader>
-        <CardTitle>{tower.name}</CardTitle>
-        <CardDescription>{tower.ports} ports</CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
-);
-
-// Student Harvest Widget Component
-function StudentHarvestWidget({ 
-  classroomId, 
-  teacherId, 
-  maxItems = 6
-}: {
+interface StudentHarvestWidgetProps {
   classroomId: string;
   teacherId: string;
+  showTitle?: boolean;
   maxItems?: number;
-}) {
+  towerId?: string; // If specified, only show harvests for this tower
+}
+
+export function StudentHarvestWidget({ 
+  classroomId, 
+  teacherId, 
+  showTitle = true, 
+  maxItems = 6,
+  towerId 
+}: StudentHarvestWidgetProps) {
   const [harvests, setHarvests] = useState<StudentHarvestItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchHarvests = async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('plantings')
           .select(`
             id,
@@ -78,7 +61,14 @@ function StudentHarvestWidget({
           `)
           .eq('teacher_id', teacherId)
           .eq('status', 'active')
-          .not('expected_harvest_date', 'is', null)
+          .not('expected_harvest_date', 'is', null);
+
+        // If towerId is specified, filter to just that tower
+        if (towerId) {
+          query = query.eq('tower_id', towerId);
+        }
+
+        const { data, error } = await query
           .order('expected_harvest_date', { ascending: true })
           .limit(maxItems);
 
@@ -115,10 +105,8 @@ function StudentHarvestWidget({
       }
     };
 
-    if (teacherId && classroomId) {
-      fetchHarvests();
-    }
-  }, [classroomId, teacherId, maxItems]);
+    fetchHarvests();
+  }, [classroomId, teacherId, maxItems, towerId]);
 
   const getStatusEmoji = (status: string) => {
     switch (status) {
@@ -157,8 +145,8 @@ function StudentHarvestWidget({
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center gap-2">
-            <Skeleton className="w-4 h-4 rounded" />
-            <Skeleton className="w-32 h-4 rounded" />
+            <div className="w-4 h-4 bg-muted animate-pulse rounded" />
+            <div className="w-32 h-4 bg-muted animate-pulse rounded" />
           </div>
         </CardContent>
       </Card>
@@ -168,12 +156,14 @@ function StudentHarvestWidget({
   if (harvests.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-green-600" />
-            Class Harvest Calendar
-          </CardTitle>
-        </CardHeader>
+        {showTitle && (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-green-600" />
+              Harvest Calendar
+            </CardTitle>
+          </CardHeader>
+        )}
         <CardContent>
           <div className="text-center py-6">
             <Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
@@ -189,12 +179,14 @@ function StudentHarvestWidget({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-green-600" />
-          What Can We Harvest?
-        </CardTitle>
-      </CardHeader>
+      {showTitle && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-green-600" />
+            {towerId ? 'Tower Harvest Calendar' : 'Class Harvest Calendar'}
+          </CardTitle>
+        </CardHeader>
+      )}
       <CardContent className="space-y-4">
         {/* Ready Now Section */}
         {readyNow.length > 0 && (
@@ -285,112 +277,64 @@ function StudentHarvestWidget({
             </div>
           </div>
         )}
-
-        <Alert>
-          <Leaf className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Students:</strong> Look for plants marked "Ready to Harvest!" - these need your help! 
-            Ask your teacher before harvesting anything.
-          </AlertDescription>
-        </Alert>
       </CardContent>
     </Card>
   );
 }
 
-export default function StudentDashboard() {
-  // State now holds an array of towers, not just one ID
-  const [towers, setTowers] = useState<Tower[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [classroomId, setClassroomId] = useState<string>("");
-  const [teacherId, setTeacherId] = useState<string>("");
-
-  useEffect(() => {
-    const storedClassroomId = localStorage.getItem("student_classroom_id");
-    if (!storedClassroomId) {
-      setLoading(false);
-      return;
-    }
-
-    setClassroomId(storedClassroomId);
-
-    const fetchTowersForClass = async () => {
-      // First, get the teacher_id for the classroom
-      const { data: classroomData, error: classError } = await supabase
-        .from("classrooms")
-        .select("teacher_id")
-        .eq("id", storedClassroomId)
-        .single();
-      
-      if (classError || !classroomData) {
-        console.error("Could not find classroom's teacher");
-        setLoading(false);
-        return;
-      }
-
-      const currentTeacherId = classroomData.teacher_id;
-      setTeacherId(currentTeacherId);
-      localStorage.setItem("teacher_id_for_tower", currentTeacherId);
-      
-      // Now, fetch ALL towers belonging to that teacher
-      const { data: towerData, error: towerError } = await supabase
-        .from("towers")
-        .select("id, name, ports") // Get all the info we need for the cards
-        .eq("teacher_id", currentTeacherId);
-      
-      if (towerError) {
-        console.error("Could not find towers for this class:", towerError);
-      } else {
-        setTowers(towerData || []);
-      }
-      setLoading(false);
-    };
-
-    fetchTowersForClass();
-  }, []);
-
+// 2. Usage in StudentDashboard.tsx - ADD THIS TO THE DASHBOARD
+export function StudentDashboardHarvestSection({ classroomId, teacherId }: { classroomId: string; teacherId: string }) {
   return (
-    <div className="container py-8 space-y-8">
-      <SEO title="Student Dashboard | Sproutify School" />
-      <div>
-        <h1 className="text-3xl font-bold">Student Dashboard</h1>
-        <p className="text-muted-foreground">Check harvest schedule and select a tower to log data.</p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Target className="h-5 w-5 text-green-600" />
+          What Can We Harvest?
+        </h2>
       </div>
+      
+      <StudentHarvestWidget 
+        classroomId={classroomId} 
+        teacherId={teacherId}
+        showTitle={false}
+        maxItems={8}
+      />
 
-      {/* Harvest Schedule Section */}
-      {teacherId && classroomId && (
-        <div className="space-y-4">
-          <StudentHarvestWidget 
-            classroomId={classroomId} 
-            teacherId={teacherId}
-            maxItems={8}
-          />
-        </div>
-      )}
+      <Alert>
+        <Leaf className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Students:</strong> Look for plants marked "Ready to Harvest!" - these need your help! 
+          Ask your teacher before harvesting anything.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
 
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Class Towers</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loading ? (
-            // Show skeleton loaders while fetching
-            Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                </CardHeader>
-              </Card>
-            ))
-          ) : towers.length > 0 ? (
-            // Map over the towers and display a card for each
-            towers.map(tower => <TowerCard key={tower.id} tower={tower} />)
-          ) : (
-            <p className="text-muted-foreground col-span-full">No towers have been added for this class yet.</p>
-          )}
-        </div>
-      </div>
-
-      <Leaderboard />
+// 3. Usage in StudentTowerDetail.tsx - ADD THIS TO TOWER DETAIL
+export function StudentTowerHarvestSection({ 
+  towerId, 
+  teacherId, 
+  classroomId 
+}: { 
+  towerId: string; 
+  teacherId: string; 
+  classroomId: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium flex items-center gap-2">
+        <Calendar className="h-5 w-5 text-green-600" />
+        This Tower's Harvest Schedule
+      </h3>
+      
+      <StudentHarvestWidget 
+        classroomId={classroomId} 
+        teacherId={teacherId}
+        showTitle={false}
+        maxItems={5}
+        towerId={towerId}
+      />
     </div>
   );
 }

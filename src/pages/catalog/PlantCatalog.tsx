@@ -1,4 +1,4 @@
-// src/pages/catalog/PlantCatalog.tsx - Fixed to use React Query hooks
+// src/pages/catalog/PlantCatalog.tsx - Complete Enhanced Version
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/SEO";
@@ -25,10 +25,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Globe, Settings, Plus, Leaf, Clock, Calendar } from "lucide-react";
+import { AlertCircle, Globe, Settings, Plus, Leaf, Clock, Calendar, MapPin } from "lucide-react";
 import { useActiveClassroomPlants, usePlantStats } from "@/hooks/usePlantCatalog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+type PlantType = {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  germination_days?: number;
+  harvest_days?: number;
+  image_url?: string;
+  is_global?: boolean;
+};
 
 export default function PlantCatalog() {
   const [params] = useSearchParams();
@@ -41,7 +52,9 @@ export default function PlantCatalog() {
   const [selectedTower, setSelectedTower] = useState<string | undefined>(addToTowerId);
   const [seededAt, setSeededAt] = useState<string>("");
   const [plantedAt, setPlantedAt] = useState<string>("");
+  const [expectedHarvestDate, setExpectedHarvestDate] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
+  const [portNumber, setPortNumber] = useState<number | undefined>();
   const [towers, setTowers] = useState<{ id: string; name: string }[]>([]);
   const [towersLoading, setTowersLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -87,9 +100,36 @@ export default function PlantCatalog() {
     fetchTowers();
   }, []);
 
+  // Auto-calculate expected harvest date when seeded date and harvest days are available
+  const calculateExpectedHarvest = (seededDate: string, harvestDays?: number) => {
+    if (!seededDate || !harvestDays) return "";
+    
+    const seeded = new Date(seededDate);
+    const harvest = new Date(seeded.getTime() + (harvestDays * 24 * 60 * 60 * 1000));
+    return harvest.toISOString().split('T')[0];
+  };
+
+  // Update expected harvest when seeded date changes
+  const handleSeededAtChange = (value: string, plant: PlantType) => {
+    setSeededAt(value);
+    if (value && plant.harvest_days) {
+      const expectedDate = calculateExpectedHarvest(value, plant.harvest_days);
+      setExpectedHarvestDate(expectedDate);
+    } else {
+      setExpectedHarvestDate("");
+    }
+  };
+
   // Handle adding plant to tower
-  const onConfirm = async (plantName: string, catalogId: string) => {
-    if (!selectedTower) return;
+  const onConfirm = async (plant: PlantType) => {
+    if (!selectedTower) {
+      toast({
+        title: "Tower Required",
+        description: "Please select a tower first.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -103,38 +143,72 @@ export default function PlantCatalog() {
         return;
       }
 
-      const { error } = await supabase.from("plantings").insert({
+      // Prepare the planting data
+      const plantingData = {
         tower_id: selectedTower,
         teacher_id: user.id,
-        catalog_id: catalogId,
-        name: plantName,
+        catalog_id: plant.id,
+        name: plant.name,
         quantity: quantity,
         seeded_at: seededAt || null,
         planted_at: plantedAt || null,
-      });
+        expected_harvest_date: expectedHarvestDate || null,
+        port_number: portNumber || null,
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from("plantings").insert(plantingData);
 
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      // Reset form state
       setOpenFor(null);
       setSeededAt("");
       setPlantedAt("");
+      setExpectedHarvestDate("");
       setQuantity(1);
+      setPortNumber(undefined);
 
       toast({
-        title: "Plant Added",
-        description: `${plantName} has been added to your tower.`
+        title: "Plant Added Successfully",
+        description: `${plant.name} has been added to your tower${portNumber ? ` at port ${portNumber}` : ""}.`
       });
 
+      // Navigate to tower with plants tab selected
       navigate(`/app/towers/${selectedTower}?tab=plants`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding plant:", error);
+      
+      // More specific error handling
+      let errorMessage = "Failed to add plant. Please try again.";
+      if (error.message?.includes("foreign key")) {
+        errorMessage = "Invalid tower selected. Please refresh and try again.";
+      } else if (error.message?.includes("duplicate")) {
+        errorMessage = "This plant may already exist at this port number.";
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to add plant. Please try again.",
+        title: "Error Adding Plant",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Reset form when dialog closes
+  const handleDialogClose = (open: boolean, plantId: string) => {
+    setOpenFor(open ? plantId : null);
+    if (!open) {
+      setSeededAt("");
+      setPlantedAt("");
+      setExpectedHarvestDate("");
+      setQuantity(1);
+      setPortNumber(undefined);
+      setSelectedTower(addToTowerId); // Reset to URL param if available
     }
   };
 
@@ -289,14 +363,22 @@ export default function PlantCatalog() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center justify-between">
                   <span>{plant.name}</span>
-                  {plant.category && (
-                    <Badge variant="outline" className="text-xs">
-                      {plant.category}
-                    </Badge>
-                  )}
+                  <div className="flex gap-1">
+                    {plant.category && (
+                      <Badge variant="outline" className="text-xs">
+                        {plant.category}
+                      </Badge>
+                    )}
+                    {plant.is_global && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Globe className="h-3 w-3 mr-1" />
+                        Global
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
                 {plant.description && (
-                  <p className="text-xs text-muted-foreground">{plant.description}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{plant.description}</p>
                 )}
               </CardHeader>
               <CardContent>
@@ -306,37 +388,48 @@ export default function PlantCatalog() {
                     {plant.germination_days && (
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Germination: {plant.germination_days}d
+                        <span>{plant.germination_days}d germination</span>
                       </div>
                     )}
                     {plant.harvest_days && (
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Harvest: {plant.harvest_days}d
+                        <span>{plant.harvest_days}d harvest</span>
                       </div>
                     )}
                   </div>
                 )}
 
                 {/* Add to Tower Button */}
-                <Dialog open={openFor === plant.id} onOpenChange={(o) => setOpenFor(o ? plant.id : null)}>
+                <Dialog 
+                  open={openFor === plant.id} 
+                  onOpenChange={(open) => handleDialogClose(open, plant.id)}
+                >
                   <DialogTrigger asChild>
-                    <Button size="sm" className="w-full">Add to Tower</Button>
+                    <Button size="sm" className="w-full">
+                      Add to Tower
+                    </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Add {plant.name} to a tower</DialogTitle>
+                      <DialogTitle>Add {plant.name} to Tower</DialogTitle>
                       <DialogDescription>
-                        Choose a tower and planting details for this plant.
+                        Configure the planting details for this {plant.category?.toLowerCase() || 'plant'}.
+                        {plant.harvest_days && " Expected harvest will be calculated automatically."}
                       </DialogDescription>
                     </DialogHeader>
+                    
                     <div className="space-y-4">
+                      {/* Tower Selection */}
                       <div className="space-y-2">
-                        <Label>Select tower</Label>
-                        <Select value={selectedTower} onValueChange={setSelectedTower}>
-                          <SelectTrigger>
+                        <Label htmlFor="tower-select">Select Tower</Label>
+                        <Select 
+                          value={selectedTower} 
+                          onValueChange={setSelectedTower}
+                        >
+                          <SelectTrigger id="tower-select">
                             <SelectValue
-                              placeholder={towersLoading ? "Loading towers..." : "Choose tower"}
+                              placeholder={towersLoading ? "Loading towers..." : "Choose a tower"}
                             />
                           </SelectTrigger>
                           <SelectContent>
@@ -346,12 +439,12 @@ export default function PlantCatalog() {
                               </SelectItem>
                             ) : towers.length === 0 ? (
                               <SelectItem value="none" disabled>
-                                No towers yet
+                                No towers available
                               </SelectItem>
                             ) : (
-                              towers.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {t.name}
+                              towers.map((tower) => (
+                                <SelectItem key={tower.id} value={tower.id}>
+                                  {tower.name}
                                 </SelectItem>
                               ))
                             )}
@@ -359,49 +452,83 @@ export default function PlantCatalog() {
                         </Select>
                       </div>
                       
-                      <div className="grid md:grid-cols-3 gap-4">
+                      {/* Quantity and Port */}
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Seeded at</Label>
+                          <Label htmlFor="quantity">Quantity</Label>
                           <Input
-                            type="date"
-                            value={seededAt}
-                            onChange={(e) => setSeededAt(e.target.value)}
+                            id="quantity"
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={quantity}
+                            onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Planted at</Label>
+                          <Label htmlFor="port">Port # (Optional)</Label>
                           <Input
+                            id="port"
+                            type="number"
+                            min="1"
+                            max="32"
+                            value={portNumber || ""}
+                            onChange={(e) => setPortNumber(e.target.value ? Number(e.target.value) : undefined)}
+                            placeholder="1-32"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Dates */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="seeded">Seeded Date</Label>
+                          <Input
+                            id="seeded"
+                            type="date"
+                            value={seededAt}
+                            onChange={(e) => handleSeededAtChange(e.target.value, plant)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="planted">Planted Date</Label>
+                          <Input
+                            id="planted"
                             type="date"
                             value={plantedAt}
                             onChange={(e) => setPlantedAt(e.target.value)}
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label>Quantity</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(Number(e.target.value))}
-                          />
-                        </div>
                       </div>
+
+                      {/* Expected Harvest (Auto-calculated) */}
+                      {expectedHarvestDate && (
+                        <div className="space-y-2">
+                          <Label htmlFor="expected">Expected Harvest (Auto-calculated)</Label>
+                          <Input
+                            id="expected"
+                            type="date"
+                            value={expectedHarvestDate}
+                            onChange={(e) => setExpectedHarvestDate(e.target.value)}
+                            className="bg-muted"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Based on {plant.harvest_days} day growing period
+                          </p>
+                        </div>
+                      )}
                     </div>
                     
                     <DialogFooter>
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setOpenFor(null);
-                          setSeededAt("");
-                          setPlantedAt("");
-                          setQuantity(1);
-                        }}
+                        onClick={() => handleDialogClose(false, plant.id)}
+                        disabled={submitting}
                       >
                         Cancel
                       </Button>
                       <Button 
-                        onClick={() => onConfirm(plant.name, plant.id)} 
+                        onClick={() => onConfirm(plant)} 
                         disabled={!selectedTower || submitting}
                       >
                         {submitting ? "Adding..." : "Add to Tower"}
@@ -424,6 +551,7 @@ export default function PlantCatalog() {
               <h4 className="font-medium mb-1">Your Classroom Plant Catalog</h4>
               <p className="text-sm text-muted-foreground mb-3">
                 This shows only the <strong>active plants</strong> in your classroom catalog - the ones students can select when logging activities.
+                Plants marked as "Global" are available to all teachers.
               </p>
               <div className="flex gap-2">
                 <Button asChild size="sm" variant="outline">

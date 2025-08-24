@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 const items = [
   { title: "Dashboard", url: "/app", icon: Gauge },
-  { title: "Classrooms", url: "/app/classrooms", icon: Users },
+  { title: "My Classrooms", url: "/app/classrooms", icon: Users },
   { title: "Towers", url: "/app/towers", icon: Sprout },
   { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },

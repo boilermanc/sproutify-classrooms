@@ -17,6 +17,59 @@
 - Implemented `useLocation` hook for accurate route matching
 - Enhanced collapsed state with meaningful tooltips for all navigation items
 
+## [1.3.0] - 2025-08-24
+### Added
+- **Harvest Dashboard & Student Engagement System**
+  - Teacher harvest dashboard widget on main dashboard showing priority harvest schedule
+  - Student harvest calendar on kiosk dashboard with class-wide harvest visibility
+  - Tower-specific harvest schedules for focused student engagement
+  - Smart harvest status alerts: overdue, ready today, coming soon, and upcoming
+  - Priority-based harvest organization with color-coded urgency indicators
+  - Direct action buttons for students to help with harvest activities
+  - Educational messaging encouraging teacher guidance before harvesting
+
+- **Enhanced Plant Catalog Integration**
+  - Fixed critical `catalog_id` relationship bug in plant-to-tower addition
+  - Auto-calculation of expected harvest dates based on seeding date and catalog harvest days
+  - Improved plant catalog workflow with proper database relationships
+  - Port number support for precise plant location tracking
+
+### Enhanced
+- **Teacher Dashboard Experience**
+  - Centralized harvest overview across all classroom towers
+  - Urgent harvest alerts with overdue plant notifications
+  - Coming week harvest preview for lesson planning
+  - Direct links to tower management for quick access
+  - Visual priority indicators (red=urgent, yellow=soon, blue=upcoming)
+
+- **Student Kiosk Experience**
+  - Engaging harvest calendar with emoji indicators and student-friendly language
+  - "What Can We Harvest?" section highlighting ready plants
+  - Tower-specific harvest information for focused activities
+  - Gamified interface encouraging student participation in harvest activities
+  - Clear educational guidance about asking teachers before harvesting
+
+- **Tower Plant Management**
+  - Enhanced PlantsTab with rich plant information display
+  - Catalog relationship indicators (global vs custom plants)
+  - Harvest status cards with visual alert system
+  - Improved plant metadata display including categories and descriptions
+  - Better plant lifecycle tracking with expected harvest prominence
+
+### Technical Details
+- Enhanced teacher dashboard (`src/pages/dashboard/Home.tsx`) with integrated harvest widget
+- Added comprehensive student harvest widgets to kiosk dashboard and tower detail pages
+- Implemented harvest status calculation algorithm with day-based priority grouping
+- Fixed plant catalog integration ensuring proper `catalog_id` foreign key relationships
+- Added auto-calculation of `expected_harvest_date` based on catalog `harvest_days`
+- Improved database queries with proper joins to plant catalog table
+- Enhanced student interface with engaging visual indicators and actionable harvest information
+
+### Bug Fixes
+- **Critical Plant Catalog Bug**: Fixed missing `catalog_id` when adding plants from catalog to towers
+- Resolved plant catalog metadata not being preserved in tower plantings
+- Fixed expected harvest date auto-calculation from catalog plant data
+
 ## [1.2.0] - 2025-08-24
 ### Added
 - **Complete Password Management System**
