@@ -3,16 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Mail, Shield } from "lucide-react";
+import { Lock, Mail, Shield, Scale, Info } from "lucide-react";
 
 export default function AccountSettings() {
   const { toast } = useToast();
   const [userEmail, setUserEmail] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   
   // Password change form state
@@ -21,12 +23,28 @@ export default function AccountSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Load current user info
+  // Weight unit preference state
+  const [weightUnit, setWeightUnit] = useState<'grams' | 'ounces'>('grams');
+  const [savingWeightUnit, setSavingWeightUnit] = useState(false);
+
+  // Load current user info and preferences
   useEffect(() => {
     const loadUserInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
         setUserEmail(user.email);
+        setUserId(user.id);
+        
+        // Load current weight unit preference from profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("preferred_weight_unit")
+          .eq("id", user.id)
+          .single();
+          
+        if (profileData?.preferred_weight_unit) {
+          setWeightUnit(profileData.preferred_weight_unit as 'grams' | 'ounces');
+        }
       }
       setLoading(false);
     };
@@ -108,6 +126,44 @@ export default function AccountSettings() {
     }
   };
 
+  const handleWeightUnitChange = async (newUnit: 'grams' | 'ounces') => {
+    setSavingWeightUnit(true);
+    
+    try {
+      // Update profile with new weight unit preference
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ preferred_weight_unit: newUnit })
+        .eq("id", userId);
+
+      if (profileError) throw profileError;
+
+      // Also update all classrooms owned by this teacher
+      const { error: classroomError } = await supabase
+        .from("classrooms")
+        .update({ preferred_weight_unit: newUnit })
+        .eq("teacher_id", userId);
+
+      if (classroomError) throw classroomError;
+
+      setWeightUnit(newUnit);
+      toast({
+        title: "Preference saved",
+        description: `Weight unit updated to ${newUnit}. This applies to all your harvest and waste forms.`
+      });
+
+    } catch (error: any) {
+      console.error("Weight unit update error:", error);
+      toast({
+        title: "Update failed",
+        description: "Could not save weight unit preference. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingWeightUnit(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -127,7 +183,7 @@ export default function AccountSettings() {
     <div className="space-y-6">
       <SEO 
         title="Account Settings | Sproutify School" 
-        description="Manage your account security and password settings" 
+        description="Manage your account security and teaching preferences" 
         canonical="/app/settings" 
       />
       
@@ -157,6 +213,58 @@ export default function AccountSettings() {
               Your email address cannot be changed. Contact support if you need to update it.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Teaching Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            Teaching Preferences
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Preferred Weight Unit</Label>
+            <Select 
+              value={weightUnit} 
+              onValueChange={(value) => handleWeightUnitChange(value as 'grams' | 'ounces')}
+              disabled={savingWeightUnit}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="grams">
+                  <div className="flex items-center justify-between w-full">
+                    <span>Grams (g)</span>
+                    <span className="text-xs text-muted-foreground ml-2">Metric</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="ounces">
+                  <div className="flex items-center justify-between w-full">
+                    <span>Ounces (oz)</span>
+                    <span className="text-xs text-muted-foreground ml-2">Imperial</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                This setting applies to all harvest and waste forms in your classrooms. 
+                Data is stored consistently but displayed in your preferred unit.
+                <br />
+                <strong>Conversion:</strong> 1 ounce = 28.35 grams
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          {savingWeightUnit && (
+            <div className="text-sm text-muted-foreground">Saving preference...</div>
+          )}
         </CardContent>
       </Card>
 

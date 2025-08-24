@@ -1,5 +1,77 @@
 # Sproutify School Changelog
 
+## [1.5.0] - 2025-08-24
+### Added
+- **Enhanced Harvest & Waste System**
+  - Pull vs Cut harvest methods for different plant types (lettuce=pull, herbs=cut)
+  - Flexible weight unit support with grams and ounces conversion
+  - Automatic plant quantity reduction for accurate tower tracking
+  - Smart harvest method suggestions based on plant type recognition
+  - Enhanced harvest forms with visual method selection and icons
+  - Quick-select waste reason dropdown with common agricultural issues
+  - Real-time plant quantity validation and availability display
+
+- **Teaching Preferences & Classroom Settings**
+  - Weight unit preference setting in Account Settings page
+  - Teacher-level measurement unit control (grams or ounces)
+  - Automatic weight unit application across all harvest and waste forms
+  - Clear educational information about unit conversion and consistency
+
+### Enhanced
+- **Critical Plant Counting Fix**
+  - Resolved major issue where plant quantities weren't decreasing after harvest/waste operations
+  - Database triggers now automatically update plant quantities in real-time
+  - Plant status updates to 'harvested' or 'wasted' when quantities reach zero
+  - Accurate tower plant tracking throughout plant lifecycle
+
+- **Improved Form User Experience**
+  - Enhanced TowerHarvestForm with method selection, weight units, and smart validation
+  - Enhanced TowerWasteForm with reason tracking and better waste management
+  - Visual harvest method selection with icons and educational descriptions
+  - Plant selection with quantity badges showing available plants
+  - Auto-refresh plant data after successful harvest/waste operations
+  - Better form validation with specific error messages and guidance
+
+- **Agricultural Accuracy**
+  - Pull harvests reduce plant quantity (whole plant removal)
+  - Cut harvests maintain plant quantity (plant continues growing)
+  - Waste logging always reduces plant quantity regardless of reason
+  - Proper handling of different harvest strategies for educational accuracy
+
+### Technical Details
+- **Database Schema Enhancements**
+  - Added `harvest_method` column to harvests table with pull/cut options
+  - Added `preferred_weight_unit` columns to profiles and classrooms tables
+  - Implemented `update_plant_quantities()` database function with trigger system
+  - Added proper constraints and indexes for performance optimization
+  - Enhanced Supabase types with new fields and utility functions
+
+- **Component Architecture Improvements**  
+  - Completely rewritten harvest and waste form components with enhanced functionality
+  - Added weight conversion utilities and formatting functions
+  - Integrated classroom weight unit preference detection
+  - Enhanced TypeScript interfaces with validation helpers and type guards
+  - Added common waste reason constants for consistency
+
+- **Data Management**
+  - All weights stored consistently as grams in database with automatic conversion
+  - Real-time plant quantity updates via database triggers
+  - Enhanced plant selection queries with quantity filtering
+  - Improved error handling and user feedback throughout forms
+  - Auto-refresh mechanisms for immediate UI updates after operations
+
+### Bug Fixes
+- **Critical Plant Quantity Bug**: Fixed plant counts not decreasing after harvest or waste logging
+- Resolved plant availability display showing incorrect quantities in tower views
+- Fixed plant status not updating when all plants were harvested or wasted
+- Enhanced database consistency with proper foreign key relationships
+
+### Migration Notes
+- Existing harvest and waste data remains fully compatible
+- New database columns include sensible defaults (pull method, grams unit)
+- Enhanced forms maintain backward compatibility with existing workflows
+- Teachers can immediately access new features without data migration
+
 ## [1.4.0] - 2025-08-24
 ### Added
 - **Enhanced Pest Management System**
