@@ -1,5 +1,5 @@
 // src/integrations/supabase/types.ts
-// Complete updated types file with harvest & waste enhancements
+// Complete updated types file with harvest, waste, and disease enhancements
 
 export type Json =
   | string
@@ -149,8 +149,15 @@ export type Database = {
           severity_levels: Json[]
           symptoms: string[]
           treatment_options: Json[]
-          type: "disease" | "environmental" | "insect" | "nutrient"
+          type: "disease" | "environmental" | "nutrient" | "pest" // UPDATED to include 'pest' and 'disease'
           updated_at: string
+          // NEW ENHANCED DISEASE SUPPORT COLUMNS
+          appearance_details: string | null
+          damage_caused: string[] | null
+          omri_remedies: string[] | null
+          management_strategies: string[] | null
+          prevention_methods: string[] | null
+          video_url: string | null
         }
         Insert: {
           common_locations?: string[]
@@ -166,8 +173,15 @@ export type Database = {
           severity_levels?: Json[]
           symptoms: string[]
           treatment_options?: Json[]
-          type: "disease" | "environmental" | "insect" | "nutrient"
+          type: "disease" | "environmental" | "nutrient" | "pest" // UPDATED
           updated_at?: string
+          // NEW ENHANCED DISEASE SUPPORT COLUMNS
+          appearance_details?: string | null
+          damage_caused?: string[] | null
+          omri_remedies?: string[] | null
+          management_strategies?: string[] | null
+          prevention_methods?: string[] | null
+          video_url?: string | null
         }
         Update: {
           common_locations?: string[]
@@ -183,8 +197,15 @@ export type Database = {
           severity_levels?: Json[]
           symptoms?: string[]
           treatment_options?: Json[]
-          type?: "disease" | "environmental" | "insect" | "nutrient"
+          type?: "disease" | "environmental" | "nutrient" | "pest" // UPDATED
           updated_at?: string
+          // NEW ENHANCED DISEASE SUPPORT COLUMNS
+          appearance_details?: string | null
+          damage_caused?: string[] | null
+          omri_remedies?: string[] | null
+          management_strategies?: string[] | null
+          prevention_methods?: string[] | null
+          video_url?: string | null
         }
         Relationships: []
       }
@@ -749,6 +770,7 @@ export type Database = {
 // Helper types for the enhanced system
 export type HarvestMethod = 'pull' | 'cut'
 export type WeightUnit = 'grams' | 'ounces'
+export type PestDiseaseType = 'pest' | 'disease' | 'environmental' | 'nutrient'
 
 // Enhanced interfaces for better type safety
 export interface EnhancedHarvest {
@@ -803,6 +825,134 @@ export interface PlantingWithQuantity {
 }
 
 // ========================================
+// PEST & DISEASE SYSTEM TYPES
+// ========================================
+
+export interface PestCatalogItem {
+  id: string
+  name: string
+  scientific_name?: string | null
+  type: PestDiseaseType
+  description: string
+  identification_tips: string[]
+  appearance_details?: string | null // Enhanced appearance description
+  symptoms: string[]
+  damage_caused?: string[] | null // What damage this pest/disease causes
+  severity_levels: Array<{
+    level: number
+    description: string
+    color: string
+    action: string
+  }>
+  treatment_options: Array<{
+    method: string
+    safe_for_schools: boolean
+    effectiveness: 'low' | 'medium' | 'high'
+    location_suitable: string[]
+    instructions: string
+    materials?: string[]
+    precautions?: string[]
+  }>
+  omri_remedies?: string[] | null // OMRI-approved specific treatments
+  management_strategies?: string[] | null // General management approaches
+  prevention_methods?: string[] | null // How to prevent this pest/disease
+  prevention_tips: string[]
+  seasonal_info?: string | null
+  video_url?: string | null // URL to educational video
+  common_locations: string[]
+  safe_for_schools: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface PestCatalogImage {
+  id: string
+  pest_catalog_id: string
+  image_url: string
+  caption?: string | null
+  image_type: 'symptom' | 'pest' | 'treatment' | 'lifecycle' | null
+  sort_order: number
+  created_at: string
+}
+
+export interface PestDiseaseLog {
+  id: string
+  teacher_id: string
+  tower_id: string
+  observed_at: string
+  pest: string // Can be pest or disease name
+  action: string | null
+  notes: string | null
+  severity: number | null
+  created_at: string
+  pest_catalog_id: string | null
+  affected_plants: string[] | null
+  location_on_tower: string | null
+  treatment_applied: Json[] | null
+  follow_up_needed: boolean
+  follow_up_date: string | null
+  resolved: boolean
+  resolved_at: string | null
+  images: string[] | null
+}
+
+// Filter types for pest/disease catalog
+export type PestDiseaseFilterType = 'all' | 'pest' | 'disease' | 'environmental' | 'nutrient'
+
+// Search and filter interface
+export interface PestDiseaseSearchParams {
+  query?: string
+  type?: PestDiseaseFilterType
+  sortBy?: 'name' | 'type' | 'updated_at'
+  sortOrder?: 'asc' | 'desc'
+}
+
+// ========================================
+// CONSTANTS & LABELS
+// ========================================
+
+export const PEST_DISEASE_TYPES = {
+  PEST: 'pest' as const,
+  DISEASE: 'disease' as const,
+  ENVIRONMENTAL: 'environmental' as const,
+  NUTRIENT: 'nutrient' as const,
+  ALL: 'all' as const,
+} as const
+
+export const PEST_DISEASE_TYPE_LABELS = {
+  [PEST_DISEASE_TYPES.PEST]: 'Pests',
+  [PEST_DISEASE_TYPES.DISEASE]: 'Diseases',
+  [PEST_DISEASE_TYPES.ENVIRONMENTAL]: 'Environmental',
+  [PEST_DISEASE_TYPES.NUTRIENT]: 'Nutrient',
+  [PEST_DISEASE_TYPES.ALL]: 'All Issues',
+} as const
+
+// Severity levels for logging
+export enum SeverityLevel {
+  LOW = 1,
+  MODERATE = 2,
+  HIGH = 3,
+  SEVERE = 4,
+  CRITICAL = 5,
+}
+
+export const SEVERITY_LABELS = {
+  [SeverityLevel.LOW]: 'Low',
+  [SeverityLevel.MODERATE]: 'Moderate',
+  [SeverityLevel.HIGH]: 'High',
+  [SeverityLevel.SEVERE]: 'Severe',
+  [SeverityLevel.CRITICAL]: 'Critical',
+} as const
+
+export const SEVERITY_COLORS = {
+  [SeverityLevel.LOW]: 'text-green-600',
+  [SeverityLevel.MODERATE]: 'text-yellow-600',
+  [SeverityLevel.HIGH]: 'text-orange-600',
+  [SeverityLevel.SEVERE]: 'text-red-600',
+  [SeverityLevel.CRITICAL]: 'text-red-800',
+} as const
+
+// ========================================
 // UTILITY FUNCTIONS
 // ========================================
 
@@ -842,6 +992,49 @@ export const getHarvestMethodIcon = (method: HarvestMethod | null): string => {
     case 'pull': return 'Trash2'
     case 'cut': return 'Scissors'
     default: return 'Trash2' // Default fallback
+  }
+}
+
+/**
+ * Generate correct video URL based on pest/disease type and name
+ */
+export const generateVideoUrl = (name: string, type: PestDiseaseType): string => {
+  const cleanName = name.toLowerCase().replace(/\s+/g, '-')
+  const bucket = type === 'disease' ? 'disease-videos' : 'pest-videos'
+  return `${bucket}/${cleanName}-identification-management.mp4`
+}
+
+/**
+ * Get appropriate bucket name for the given type
+ */
+export const getVideoBucket = (type: PestDiseaseType): string => {
+  return type === 'disease' ? 'disease-videos' : 'pest-videos'
+}
+
+/**
+ * Format video filename consistently
+ */
+export const formatVideoFilename = (name: string): string => {
+  return `${name.toLowerCase().replace(/\s+/g, '-')}-identification-management.mp4`
+}
+
+/**
+ * Type guards for pest/disease distinction
+ */
+export const isPest = (item: { type: string }): boolean => item.type === 'pest'
+export const isDisease = (item: { type: string }): boolean => item.type === 'disease'
+
+/**
+ * Get appropriate terminology based on type
+ */
+export const getTypeTerminology = (type: PestDiseaseType) => {
+  return {
+    singular: type === 'disease' ? 'disease' : type === 'pest' ? 'pest' : type,
+    plural: type === 'disease' ? 'diseases' : type === 'pest' ? 'pests' : `${type} issues`,
+    infestation: type === 'disease' ? 'infection' : type === 'pest' ? 'infestation' : 'issue',
+    infestations: type === 'disease' ? 'infections' : type === 'pest' ? 'infestations' : 'issues',
+    verbForm: type === 'disease' ? 'is' : 'are',
+    lookVerb: type === 'disease' ? 'does' : 'do'
   }
 }
 
@@ -956,3 +1149,36 @@ export const isPlantingWithQuantity = (obj: any): obj is PlantingWithQuantity =>
          typeof obj.name === 'string' &&
          typeof obj.quantity === 'number'
 }
+
+export const isPestCatalogItem = (obj: any): obj is PestCatalogItem => {
+  return obj && typeof obj === 'object' && 
+         typeof obj.id === 'string' &&
+         typeof obj.name === 'string' &&
+         typeof obj.type === 'string' &&
+         Array.isArray(obj.identification_tips)
+}
+
+/**
+ * Get appropriate icon for pest/disease type
+ */
+export const getTypeIcon = (type: PestDiseaseType): string => {
+  switch (type) {
+    case 'pest': return 'Bug'
+    case 'disease': return 'Leaf'
+    case 'nutrient': return 'Droplets'
+    case 'environmental': return 'Thermometer'
+    default: return 'Bug'
+  }
+}
+
+/**
+ * Get appropriate color class for pest/disease type
+ */
+export const getTypeColor = (type: PestDiseaseType): string => {
+  switch (type) {
+    case 'pest': return 'bg-red-100 text-red-800'
+    case 'disease': return 'bg-orange-100 text-orange-800'
+    case 'nutrient': return 'bg-blue-100 text-blue-800'
+    case 'environmental': return 'bg-green-100 text-green-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }

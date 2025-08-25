@@ -43,7 +43,7 @@ interface PestCatalogItem {
   id: string;
   name: string;
   scientific_name?: string;
-  type: 'insect' | 'disease' | 'nutrient' | 'environmental';
+  type: 'pest' | 'disease' | 'nutrient' | 'environmental'; // Updated to support 'pest' and 'disease'
   description: string;
   identification_tips: string[];
   appearance_details?: string; // Detailed appearance description
@@ -234,7 +234,7 @@ export function PestIdentificationModal({
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'insect': return <Bug className="h-4 w-4" />;
+      case 'pest': return <Bug className="h-4 w-4" />;
       case 'disease': return <Leaf className="h-4 w-4" />;
       case 'nutrient': return <Droplets className="h-4 w-4" />;
       case 'environmental': return <Thermometer className="h-4 w-4" />;
@@ -244,7 +244,7 @@ export function PestIdentificationModal({
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'insect': return 'bg-red-100 text-red-800';
+      case 'pest': return 'bg-red-100 text-red-800';
       case 'disease': return 'bg-orange-100 text-orange-800';
       case 'nutrient': return 'bg-blue-100 text-blue-800';
       case 'environmental': return 'bg-green-100 text-green-800';
@@ -287,7 +287,7 @@ export function PestIdentificationModal({
                 />
               </div>
               <div className="flex gap-2">
-                {['all', 'insect', 'disease', 'nutrient', 'environmental'].map((type) => (
+                {['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (
                   <Button
                     key={type}
                     variant={selectedType === type ? "default" : "outline"}
@@ -296,7 +296,7 @@ export function PestIdentificationModal({
                     className="capitalize"
                   >
                     {type !== 'all' && getTypeIcon(type)}
-                    <span className="ml-1">{type}</span>
+                    <span className="ml-1">{type === 'pest' ? 'Pests' : type === 'disease' ? 'Diseases' : type}</span>
                   </Button>
                 ))}
               </div>
@@ -374,11 +374,11 @@ export function PestIdentificationModal({
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="details" className="space-y-4 h-[600px]">
+          <TabsContent value="details" className="space-y-4 h-[600px] flex flex-col">
             {selectedPest && (
-              <div className="flex flex-col h-full">
+              <>
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-2xl font-bold">{selectedPest.name}</h2>
                     {selectedPest.scientific_name && (
@@ -405,8 +405,8 @@ export function PestIdentificationModal({
                   </Button>
                 </div>
 
-                {/* Details Tabs */}
-                <Tabs value={detailsTab} onValueChange={setDetailsTab} className="flex-1">
+                {/* Details Tabs - Now flex-1 to take remaining space */}
+                <Tabs value={detailsTab} onValueChange={setDetailsTab} className="flex-1 flex flex-col">
                   <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="identification" className="flex items-center gap-2">
                       <Eye className="h-4 w-4" />
@@ -434,418 +434,427 @@ export function PestIdentificationModal({
                     </TabsTrigger>
                   </TabsList>
 
-                  <ScrollArea className="flex-1 mt-4">
-                    <TabsContent value="identification" className="mt-0 space-y-4">
-                      {/* Image Carousel */}
-                      {pestImages.length > 0 && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-lg">Visual Identification</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="relative">
-                              <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                                <img
-                                  src={pestImages[currentImageIndex].image_url}
-                                  alt={pestImages[currentImageIndex].caption || `${selectedPest.name} identification`}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              {pestImages.length > 1 && (
-                                <div className="absolute inset-y-0 left-2 right-2 flex items-center justify-between">
-                                  <Button
-                                    onClick={prevImage}
-                                    variant="secondary"
-                                    size="icon"
-                                    className="opacity-80 hover:opacity-100"
-                                  >
-                                    <ChevronLeft className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    onClick={nextImage}
-                                    variant="secondary"
-                                    size="icon"
-                                    className="opacity-80 hover:opacity-100"
-                                  >
-                                    <ChevronRight className="h-4 w-4" />
-                                  </Button>
+                  {/* Scrollable content area - key fix for video scrolling issue */}
+                  <div className="flex-1 overflow-hidden">
+                    <ScrollArea className="h-full pr-4">
+                      <div className="pt-4">
+                        <TabsContent value="identification" className="mt-0 space-y-4">
+                          {/* Image Carousel */}
+                          {pestImages.length > 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Visual Identification</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="relative">
+                                  <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                                    <img
+                                      src={pestImages[currentImageIndex].image_url}
+                                      alt={pestImages[currentImageIndex].caption || `${selectedPest.name} identification`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  {pestImages.length > 1 && (
+                                    <div className="absolute inset-y-0 left-2 right-2 flex items-center justify-between">
+                                      <Button
+                                        onClick={prevImage}
+                                        variant="secondary"
+                                        size="icon"
+                                        className="opacity-80 hover:opacity-100"
+                                      >
+                                        <ChevronLeft className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        onClick={nextImage}
+                                        variant="secondary"
+                                        size="icon"
+                                        className="opacity-80 hover:opacity-100"
+                                      >
+                                        <ChevronRight className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {pestImages[currentImageIndex].caption && (
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                      {pestImages[currentImageIndex].caption}
+                                    </p>
+                                  )}
+                                  {pestImages.length > 1 && (
+                                    <div className="flex justify-center mt-2 space-x-1">
+                                      {pestImages.map((_, index) => (
+                                        <button
+                                          key={index}
+                                          onClick={() => setCurrentImageIndex(index)}
+                                          className={`w-2 h-2 rounded-full transition-colors ${
+                                            index === currentImageIndex ? 'bg-primary' : 'bg-muted'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                              {pestImages[currentImageIndex].caption && (
-                                <p className="text-sm text-muted-foreground mt-2">
-                                  {pestImages[currentImageIndex].caption}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* Description */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">
+                                What {selectedPest.type === 'disease' ? 'is' : 'are'} {selectedPest.name}?
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm leading-relaxed">{selectedPest.description}</p>
+                            </CardContent>
+                          </Card>
+
+                          {/* Appearance Details */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">
+                                What {selectedPest.type === 'disease' ? 'does' : 'do'} {selectedPest.name} Look Like?
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm leading-relaxed mb-4">
+                                {selectedPest.appearance_details || "Detailed appearance information not available."}
+                              </p>
+                              
+                              <h4 className="font-medium mb-2">Key Identification Features:</h4>
+                              <ul className="space-y-2">
+                                {selectedPest.identification_tips.map((tip, index) => (
+                                  <li key={index} className="flex items-start text-sm">
+                                    <span className="w-2 h-2 bg-primary rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
+                                    {tip}
+                                  </li>
+                                ))}
+                              </ul>
+                            </CardContent>
+                          </Card>
+
+                          {/* Symptoms */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Symptoms to Look For</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <ul className="space-y-2">
+                                {selectedPest.symptoms.map((symptom, index) => (
+                                  <li key={index} className="flex items-start text-sm">
+                                    <span className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
+                                    {symptom}
+                                  </li>
+                                ))}
+                              </ul>
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
+
+                        <TabsContent value="damage" className="mt-0 space-y-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Damage Caused by {selectedPest.name}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
+                                <ul className="space-y-3">
+                                  {selectedPest.damage_caused.map((damage, index) => (
+                                    <li key={index} className="flex items-start">
+                                      <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 mr-3 flex-shrink-0" />
+                                      <span className="text-sm">{damage}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Specific damage information is not available for this issue.
                                 </p>
                               )}
-                              {pestImages.length > 1 && (
-                                <div className="flex justify-center mt-2 space-x-1">
-                                  {pestImages.map((_, index) => (
-                                    <button
-                                      key={index}
-                                      onClick={() => setCurrentImageIndex(index)}
-                                      className={`w-2 h-2 rounded-full transition-colors ${
-                                        index === currentImageIndex ? 'bg-primary' : 'bg-muted'
-                                      }`}
-                                    />
+                            </CardContent>
+                          </Card>
+
+                          {/* Severity Assessment */}
+                          {selectedPest.severity_levels.length > 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Severity Assessment</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-3">
+                                  {selectedPest.severity_levels.map((level) => (
+                                    <div key={level.level} className="flex items-center p-3 border rounded-lg">
+                                      <div className={`w-4 h-4 rounded-full mr-3 bg-${level.color}-500`}></div>
+                                      <div className="flex-1">
+                                        <div className="font-medium text-sm">
+                                          Level {level.level}: {level.description}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Recommended Action: {level.action}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="remedies" className="mt-0 space-y-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">OMRI Rated Remedies for {selectedPest.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                Safe, organic treatments approved by the Organic Materials Review Institute
+                              </p>
+                            </CardHeader>
+                            <CardContent>
+                              {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
+                                <div className="space-y-3">
+                                  {selectedPest.omri_remedies.map((remedy, index) => (
+                                    <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                                      <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                      <span className="text-sm flex-1">{remedy}</span>
+                                      <Badge variant="secondary">OMRI</Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {selectedPest.treatment_options.filter(t => t.safe_for_schools).map((treatment, index) => (
+                                    <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                                      <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                      <div className="flex-1">
+                                        <div className="font-medium text-sm">{treatment.method}</div>
+                                        <div className="text-xs text-muted-foreground">{treatment.instructions}</div>
+                                      </div>
+                                      <Badge className={
+                                        treatment.effectiveness === 'high' ? 'bg-green-100 text-green-800' :
+                                        treatment.effectiveness === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-blue-100 text-blue-800'
+                                      }>
+                                        {treatment.effectiveness}
+                                      </Badge>
+                                    </div>
                                   ))}
                                 </div>
                               )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
 
-                      {/* Description */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">What are {selectedPest.name}?</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm leading-relaxed">{selectedPest.description}</p>
-                        </CardContent>
-                      </Card>
+                              <Alert className="mt-4">
+                                <Shield className="h-4 w-4" />
+                                <AlertDescription>
+                                  <strong>Safety Reminder:</strong> Always read and follow label instructions. 
+                                  Even organic treatments should be applied with proper supervision and safety measures.
+                                </AlertDescription>
+                              </Alert>
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
 
-                      {/* Appearance Details */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">What do {selectedPest.name} Look Like?</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm leading-relaxed mb-4">
-                            {selectedPest.appearance_details || "Detailed appearance information not available."}
-                          </p>
-                          
-                          <h4 className="font-medium mb-2">Key Identification Features:</h4>
-                          <ul className="space-y-2">
-                            {selectedPest.identification_tips.map((tip, index) => (
-                              <li key={index} className="flex items-start text-sm">
-                                <span className="w-2 h-2 bg-primary rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                {tip}
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-
-                      {/* Symptoms */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Symptoms to Look For</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2">
-                            {selectedPest.symptoms.map((symptom, index) => (
-                              <li key={index} className="flex items-start text-sm">
-                                <span className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                {symptom}
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="damage" className="mt-0 space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Damage Caused by {selectedPest.name}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
-                            <ul className="space-y-3">
-                              {selectedPest.damage_caused.map((damage, index) => (
-                                <li key={index} className="flex items-start">
-                                  <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 mr-3 flex-shrink-0" />
-                                  <span className="text-sm">{damage}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              Specific damage information is not available for this issue.
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {/* Severity Assessment */}
-                      {selectedPest.severity_levels.length > 0 && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-lg">Severity Assessment</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              {selectedPest.severity_levels.map((level) => (
-                                <div key={level.level} className="flex items-center p-3 border rounded-lg">
-                                  <div className={`w-4 h-4 rounded-full mr-3 bg-${level.color}-500`}></div>
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">
-                                      Level {level.level}: {level.description}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Recommended Action: {level.action}
-                                    </div>
-                                  </div>
+                        <TabsContent value="management" className="mt-0 space-y-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">How to Manage {selectedPest.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                Integrated {selectedPest.type} management approaches for effective control
+                              </p>
+                            </CardHeader>
+                            <CardContent>
+                              {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
+                                <div className="space-y-3">
+                                  <h4 className="font-medium">Management Strategies:</h4>
+                                  <ul className="space-y-3">
+                                    {selectedPest.management_strategies.map((strategy, index) => (
+                                      <li key={index} className="flex items-start">
+                                        <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                                        <span className="text-sm">{strategy}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="remedies" className="mt-0 space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">OMRI Rated Remedies for {selectedPest.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Safe, organic treatments approved by the Organic Materials Review Institute
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
-                            <div className="space-y-3">
-                              {selectedPest.omri_remedies.map((remedy, index) => (
-                                <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                                  <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
-                                  <span className="text-sm flex-1">{remedy}</span>
-                                  <Badge variant="secondary">OMRI</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {selectedPest.treatment_options.filter(t => t.safe_for_schools).map((treatment, index) => (
-                                <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                                  <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">{treatment.method}</div>
-                                    <div className="text-xs text-muted-foreground">{treatment.instructions}</div>
-                                  </div>
-                                  <Badge className={
-                                    treatment.effectiveness === 'high' ? 'bg-green-100 text-green-800' :
-                                    treatment.effectiveness === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-blue-100 text-blue-800'
-                                  }>
-                                    {treatment.effectiveness}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <Alert className="mt-4">
-                            <Shield className="h-4 w-4" />
-                            <AlertDescription>
-                              <strong>Safety Reminder:</strong> Always read and follow label instructions. 
-                              Even organic treatments should be applied with proper supervision and safety measures.
-                            </AlertDescription>
-                          </Alert>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="management" className="mt-0 space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">How to Manage {selectedPest.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Integrated pest management approaches for effective control
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
-                            <div className="space-y-3">
-                              <h4 className="font-medium">Management Strategies:</h4>
-                              <ul className="space-y-3">
-                                {selectedPest.management_strategies.map((strategy, index) => (
-                                  <li key={index} className="flex items-start">
-                                    <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-                                    <span className="text-sm">{strategy}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <h4 className="font-medium">Available Treatment Options:</h4>
-                              <ul className="space-y-3">
-                                {selectedPest.treatment_options.map((treatment, index) => (
-                                  <li key={index} className="flex items-start">
-                                    <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-                                    <div className="flex-1">
-                                      <div className="font-medium text-sm">{treatment.method}</div>
-                                      <div className="text-sm text-muted-foreground">{treatment.instructions}</div>
-                                      {treatment.materials && treatment.materials.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {treatment.materials.map((material, idx) => (
-                                            <Badge key={idx} variant="outline" className="text-xs">
-                                              {material}
-                                            </Badge>
-                                          ))}
+                              ) : (
+                                <div className="space-y-3">
+                                  <h4 className="font-medium">Available Treatment Options:</h4>
+                                  <ul className="space-y-3">
+                                    {selectedPest.treatment_options.map((treatment, index) => (
+                                      <li key={index} className="flex items-start">
+                                        <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <div className="font-medium text-sm">{treatment.method}</div>
+                                          <div className="text-sm text-muted-foreground">{treatment.instructions}</div>
+                                          {treatment.materials && treatment.materials.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                              {treatment.materials.map((material, idx) => (
+                                                <Badge key={idx} variant="outline" className="text-xs">
+                                                  {material}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
 
-                    <TabsContent value="prevention" className="mt-0 space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Prevention & Control Strategies</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Proactive measures to prevent {selectedPest.name} infestations
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
-                            <div className="space-y-4">
+                        <TabsContent value="prevention" className="mt-0 space-y-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Prevention & Control Strategies</CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                Proactive measures to prevent {selectedPest.name} {selectedPest.type === 'disease' ? 'infections' : 'infestations'}
+                              </p>
+                            </CardHeader>
+                            <CardContent>
+                              {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
+                                <div className="space-y-4">
+                                  <div>
+                                    <h4 className="font-medium mb-2">Prevention Methods:</h4>
+                                    <ul className="space-y-2">
+                                      {selectedPest.prevention_methods.map((method, index) => (
+                                        <li key={index} className="flex items-start text-sm">
+                                          <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
+                                          {method}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                  <Separator />
+                                </div>
+                              ) : null}
+
                               <div>
-                                <h4 className="font-medium mb-2">Prevention Methods:</h4>
+                                <h4 className="font-medium mb-2">General Prevention Tips:</h4>
                                 <ul className="space-y-2">
-                                  {selectedPest.prevention_methods.map((method, index) => (
+                                  {selectedPest.prevention_tips.map((tip, index) => (
                                     <li key={index} className="flex items-start text-sm">
                                       <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                      {method}
+                                      {tip}
                                     </li>
                                   ))}
                                 </ul>
                               </div>
-                              <Separator />
-                            </div>
-                          ) : null}
 
-                          <div>
-                            <h4 className="font-medium mb-2">General Prevention Tips:</h4>
-                            <ul className="space-y-2">
-                              {selectedPest.prevention_tips.map((tip, index) => (
-                                <li key={index} className="flex items-start text-sm">
-                                  <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                  {tip}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          {selectedPest.seasonal_info && (
-                            <>
-                              <Separator />
-                              <div>
-                                <h4 className="font-medium mb-2">Seasonal Information:</h4>
-                                <p className="text-sm text-muted-foreground">{selectedPest.seasonal_info}</p>
-                              </div>
-                            </>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="video" className="mt-0 space-y-4">
-                      {selectedPest.video_url ? (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-lg">Educational Video: {selectedPest.name}</CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                              Learn about identification, damage, and management through video demonstration
-                            </p>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              {/* Video Player */}
-                              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                                <video
-                                  ref={videoRef}
-                                  className="w-full h-full"
-                                  onTimeUpdate={handleTimeUpdate}
-                                  onLoadedMetadata={handleTimeUpdate}
-                                  onEnded={() => setIsPlaying(false)}
-                                >
-                                  <source src={selectedPest.video_url} type="video/mp4" />
-                                  Your browser does not support the video tag.
-                                </video>
-                                
-                                {/* Play/Pause Overlay */}
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Button
-                                    onClick={togglePlay}
-                                    size="lg"
-                                    className="bg-black/50 hover:bg-black/70 text-white"
-                                  >
-                                    {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Video Controls */}
-                              <div className="space-y-2">
-                                {/* Progress Bar */}
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-xs text-muted-foreground w-12">
-                                    {formatTime(currentTime)}
-                                  </span>
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max={duration || 0}
-                                    value={currentTime}
-                                    onChange={handleSeek}
-                                    className="flex-1 h-1 bg-muted rounded-lg appearance-none cursor-pointer"
-                                  />
-                                  <span className="text-xs text-muted-foreground w-12">
-                                    {formatTime(duration)}
-                                  </span>
-                                </div>
-
-                                {/* Control Buttons */}
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <Button onClick={togglePlay} size="sm" variant="outline">
-                                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                    </Button>
-                                    <Button onClick={toggleMute} size="sm" variant="outline">
-                                      {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                                    </Button>
+                              {selectedPest.seasonal_info && (
+                                <>
+                                  <Separator />
+                                  <div>
+                                    <h4 className="font-medium mb-2">Seasonal Information:</h4>
+                                    <p className="text-sm text-muted-foreground">{selectedPest.seasonal_info}</p>
                                   </div>
-                                  <Button size="sm" variant="outline">
-                                    <Maximize className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </TabsContent>
 
-                              {/* Video Description */}
-                              <Alert>
-                                <PlayCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  This educational video demonstrates how to identify {selectedPest.name}, 
-                                  recognize the damage they cause, and apply appropriate management techniques 
-                                  suitable for hydroponic systems.
-                                </AlertDescription>
-                              </Alert>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <Card>
-                          <CardContent className="p-8 text-center">
-                            <PlayCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                            <p className="text-muted-foreground">
-                              No educational video is currently available for {selectedPest.name}.
-                            </p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-                  </ScrollArea>
+                        <TabsContent value="video" className="mt-0 space-y-4">
+                          {selectedPest.video_url ? (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Educational Video: {selectedPest.name}</CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                  Learn about identification, damage, and management through video demonstration
+                                </p>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  {/* Video Player */}
+                                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                                    <video
+                                      ref={videoRef}
+                                      className="w-full h-full"
+                                      onTimeUpdate={handleTimeUpdate}
+                                      onLoadedMetadata={handleTimeUpdate}
+                                      onEnded={() => setIsPlaying(false)}
+                                    >
+                                      <source src={selectedPest.video_url} type="video/mp4" />
+                                      Your browser does not support the video tag.
+                                    </video>
+                                    
+                                    {/* Play/Pause Overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <Button
+                                        onClick={togglePlay}
+                                        size="lg"
+                                        className="bg-black/50 hover:bg-black/70 text-white"
+                                      >
+                                        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {/* Video Controls */}
+                                  <div className="space-y-2">
+                                    {/* Progress Bar */}
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-xs text-muted-foreground w-12">
+                                        {formatTime(currentTime)}
+                                      </span>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max={duration || 0}
+                                        value={currentTime}
+                                        onChange={handleSeek}
+                                        className="flex-1 h-1 bg-muted rounded-lg appearance-none cursor-pointer"
+                                      />
+                                      <span className="text-xs text-muted-foreground w-12">
+                                        {formatTime(duration)}
+                                      </span>
+                                    </div>
+
+                                    {/* Control Buttons */}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        <Button onClick={togglePlay} size="sm" variant="outline">
+                                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                        </Button>
+                                        <Button onClick={toggleMute} size="sm" variant="outline">
+                                          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                                        </Button>
+                                      </div>
+                                      <Button size="sm" variant="outline">
+                                        <Maximize className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {/* Video Description */}
+                                  <Alert>
+                                    <PlayCircle className="h-4 w-4" />
+                                    <AlertDescription>
+                                      This educational video demonstrates how to identify {selectedPest.name}, 
+                                      recognize the damage they cause, and apply appropriate management techniques 
+                                      suitable for hydroponic systems.
+                                    </AlertDescription>
+                                  </Alert>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            <Card>
+                              <CardContent className="p-8 text-center">
+                                <PlayCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                <p className="text-muted-foreground">
+                                  No educational video is currently available for {selectedPest.name}.
+                                </p>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </TabsContent>
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </Tabs>
 
                 {/* Action Buttons */}
-                <div className="flex justify-between pt-4 border-t mt-4">
+                <div className="flex justify-between pt-4 border-t">
                   <Button onClick={() => setActiveTab("browse")} variant="outline">
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Choose Different Issue
@@ -855,7 +864,7 @@ export function PestIdentificationModal({
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 </div>
-              </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
