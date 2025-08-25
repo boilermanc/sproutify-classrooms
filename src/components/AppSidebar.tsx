@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle, User, LogOut, Settings } from "lucide-react";
+import { Sprout, Gauge, Trophy, BookOpen, Users, HelpCircle, User, LogOut, Settings, Bug } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,9 +20,10 @@ const items = [
   { title: "My Classrooms", url: "/app/classrooms", icon: Users },
   { title: "Towers", url: "/app/towers", icon: Sprout },
   { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
+  { title: "Pest & Disease Guide", url: "/app/pest-disease-guide", icon: Bug },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },
   { title: "Profile", url: "/app/profile", icon: User },
-  { title: "Settings", url: "/app/settings", icon: Settings }, // NEW
+  { title: "Settings", url: "/app/settings", icon: Settings },
   { title: "Help", url: "/app/help", icon: HelpCircle },
 ];
 

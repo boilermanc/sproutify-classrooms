@@ -3,7 +3,7 @@
 import { useEffect, useState, PropsWithChildren } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Book } from "lucide-react";
 
 export default function StudentLayout({ children }: PropsWithChildren) {
   const navigate = useNavigate();
@@ -40,10 +40,18 @@ export default function StudentLayout({ children }: PropsWithChildren) {
           <Link to="/student/dashboard" className="font-bold text-xl">
             {className}
           </Link>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Log Out
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/student/pest-disease-guide">
+                <Book className="mr-2 h-4 w-4" />
+                Learning Guide
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log Out
+            </Button>
+          </div>
         </div>
       </header>
       <main className="flex-grow">

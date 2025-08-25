@@ -8,7 +8,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
 import RegisterTeacher from "@/pages/auth/RegisterTeacher";
-import ResetPassword from "@/pages/auth/ResetPassword"; // NEW
+import ResetPassword from "@/pages/auth/ResetPassword";
 import DashboardHome from "@/pages/dashboard/Home";
 import TowersList from "@/pages/towers/TowersList";
 import NewTower from "@/pages/towers/NewTower";
@@ -20,7 +20,7 @@ import Classrooms from "@/pages/classrooms/Classrooms";
 import Kiosk from "@/pages/kiosk/Kiosk";
 import HelpCenter from "@/pages/help/HelpCenter";
 import Profile from "@/pages/profile/Profile";
-import AccountSettings from "@/pages/settings/AccountSettings"; // NEW
+import AccountSettings from "@/pages/settings/AccountSettings";
 import TermsOfService from "@/pages/legal/TermsOfService";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
@@ -35,6 +35,10 @@ import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
+
+// NEW: Pest & Disease Guide imports
+import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
+import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
 
 const queryClient = new QueryClient();
 
@@ -57,7 +61,7 @@ const App = () => (
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
-            <Route path="reset-password" element={<ResetPassword />} /> {/* NEW */}
+            <Route path="reset-password" element={<ResetPassword />} />
           </Route>
           
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
@@ -70,6 +74,7 @@ const App = () => (
             <Route path="pests" element={<StudentPestForm />} />
             <Route path="add-plant" element={<StudentPlantForm />} />
             <Route path="photos" element={<StudentPhotoForm />} />
+            <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} /> {/* NEW */}
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
@@ -81,12 +86,13 @@ const App = () => (
               <Route path=":id" element={<TowerDetail />} />
             </Route>
             <Route path="catalog" element={<PlantCatalog />} />
+            <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} /> {/* NEW */}
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="settings" element={<AccountSettings />} /> {/* NEW */}
+            <Route path="settings" element={<AccountSettings />} />
           </Route>
 
           {/* --- CATCH-ALL ROUTE --- */}
