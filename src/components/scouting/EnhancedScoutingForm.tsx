@@ -13,8 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Bug, Search, AlertTriangle, Camera, HelpCircle } from "lucide-react";
-import { PestIdentificationModal } from "./PestIdentificationModal";
-import { TreatmentRecommendations } from "./TreatmentRecommendations";
+import PestIdentificationModal from "./PestIdentificationModal";
+import TreatmentRecommendations from "./TreatmentRecommendations";
 
 interface EnhancedScoutingFormProps {
   towerId: string;
@@ -546,9 +546,7 @@ export function EnhancedScoutingForm({
       <PestIdentificationModal
         isOpen={showPestModal}
         onClose={() => setShowPestModal(false)}
-        onSelectPest={handlePestSelection}
-        pestCatalog={filteredPestCatalog}
-        towerLocation={towerLocation}
+        onSelect={handlePestSelection}
       />
     </>
   );
