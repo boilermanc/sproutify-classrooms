@@ -1,873 +1,356 @@
-// src/components/scouting/PestIdentificationModal.tsx
-
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
-  DialogDescription 
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Search, 
-  Bug, 
-  Leaf, 
-  Droplets, 
-  Thermometer,
-  ArrowLeft,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Eye,
-  AlertTriangle,
-  Shield,
-  Zap,
-  PlayCircle
-} from "lucide-react";
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
+// Fixed interface to match your database schema
 interface PestCatalogItem {
   id: string;
   name: string;
-  scientific_name?: string;
-  type: 'pest' | 'disease' | 'nutrient' | 'environmental'; // Updated to support 'pest' and 'disease'
+  scientific_name?: string | null;
+  type: 'pest' | 'disease' | 'nutrient' | 'environmental'; // Fixed: now expects 'pest' not 'insect'
   description: string;
-  identification_tips: string[];
-  appearance_details?: string; // Detailed appearance description
-  symptoms: string[];
-  damage_caused?: string[]; // What damage this pest causes
-  severity_levels: Array<{
-    level: number;
-    description: string;
-    color: string;
-    action: string;
-  }>;
-  treatment_options: Array<{
-    method: string;
-    safe_for_schools: boolean;
-    effectiveness: 'low' | 'medium' | 'high';
-    location_suitable: string[];
-    instructions: string;
-    materials?: string[];
-    precautions?: string[];
-  }>;
-  omri_remedies?: string[]; // OMRI-approved specific treatments
-  management_strategies?: string[]; // General management approaches
-  prevention_methods?: string[]; // How to prevent this pest
-  prevention_tips: string[];
-  seasonal_info?: string;
-  video_url?: string; // URL to educational video
-}
-
-interface PestCatalogImage {
-  id: string;
-  image_url: string;
-  caption?: string;
-  image_type: 'symptom' | 'pest' | 'treatment' | 'lifecycle';
+  identification_tips?: string[] | null;
+  symptoms?: string[] | null;
+  severity_levels: any;
+  treatment_options: any;
+  prevention_tips?: string[] | null;
+  safe_for_schools: boolean;
+  common_locations?: string[] | null;
+  seasonal_info?: string | null;
+  video_url?: string | null;
+  appearance_details?: string | null;
+  damage_caused?: string[] | null;
+  omri_remedies?: string[] | null;
+  management_strategies?: string[] | null;
+  prevention_methods?: string[] | null;
 }
 
 interface PestIdentificationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectPest: (pest: PestCatalogItem) => void;
-  pestCatalog: PestCatalogItem[];
-  towerLocation: 'indoor' | 'greenhouse' | 'outdoor';
+  onSelect?: (pest: PestCatalogItem) => void;
 }
 
-export function PestIdentificationModal({
-  isOpen,
-  onClose,
-  onSelectPest,
-  pestCatalog,
-  towerLocation
-}: PestIdentificationModalProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("all");
-  const [selectedPest, setSelectedPest] = useState<PestCatalogItem | null>(null);
-  const [pestImages, setPestImages] = useState<PestCatalogImage[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState("browse");
-  const [detailsTab, setDetailsTab] = useState("identification");
+// Helper function to check if an item is safe for schools
+const isSchoolSafe = (item: PestCatalogItem): boolean => {
+  // Check multiple sources for school safety
+  if (item.safe_for_schools === true) return true;
   
-  // Video player state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Filter pest catalog based on search and type
-  const filteredPests = pestCatalog.filter(pest => {
-    const matchesSearch = searchTerm === "" || 
-      pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pest.identification_tips.some(tip => tip.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      pest.symptoms.some(symptom => symptom.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesType = selectedType === "all" || pest.type === selectedType;
-    
-    // Only show pests with treatments suitable for this tower location
-    const hasAppropriateTreatment = pest.treatment_options.some(treatment => 
-      treatment.safe_for_schools && treatment.location_suitable.includes(towerLocation)
+  // Check treatment_options array
+  if (Array.isArray(item.treatment_options)) {
+    return item.treatment_options.some((treatment: any) => 
+      treatment?.safe_for_schools === true
     );
-    
-    return matchesSearch && matchesType && hasAppropriateTreatment;
-  });
+  }
+  
+  // Check if treatment_options is an object
+  if (typeof item.treatment_options === 'object' && item.treatment_options !== null) {
+    return item.treatment_options.safe_for_schools === true;
+  }
+  
+  // Default to true for educational environment
+  return true;
+};
 
-  // Load images for selected pest
+// Helper function to check location suitability
+const isLocationSuitable = (item: PestCatalogItem): boolean => {
+  // Check treatment_options array
+  if (Array.isArray(item.treatment_options)) {
+    return item.treatment_options.some((treatment: any) => 
+      treatment?.location_suitable === true
+    );
+  }
+  
+  // Check if treatment_options is an object
+  if (typeof item.treatment_options === 'object' && item.treatment_options !== null) {
+    return item.treatment_options.location_suitable === true;
+  }
+  
+  // Default to true if no specific location restrictions
+  return true;
+};
+
+export default function PestIdentificationModal({ 
+  isOpen, 
+  onClose, 
+  onSelect 
+}: PestIdentificationModalProps) {
+  const [pestCatalog, setPestCatalog] = useState<PestCatalogItem[]>([]);
+  const [filteredCatalog, setFilteredCatalog] = useState<PestCatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string>('all');
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  // Fetch pest catalog data
   useEffect(() => {
-    if (selectedPest) {
-      loadPestImages(selectedPest.id);
-      resetVideoPlayer();
-    }
-  }, [selectedPest]);
+    if (!isOpen) return;
 
-  const loadPestImages = async (pestId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('pest_catalog_images')
-        .select('*')
-        .eq('pest_catalog_id', pestId)
-        .order('sort_order', { ascending: true });
-      
-      if (error) throw error;
-      setPestImages(data || []);
-      setCurrentImageIndex(0);
-    } catch (error) {
-      console.error('Error loading pest images:', error);
-      setPestImages([]);
-    }
-  };
+    const fetchPestCatalog = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('pest_catalog')
+          .select('*')
+          .order('name');
 
-  const resetVideoPlayer = () => {
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-    }
-  };
+        if (error) {
+          console.error('Error fetching pest catalog:', error);
+          setError(`Database error: ${error.message}`);
+          return;
+        }
 
-  const handlePestSelect = (pest: PestCatalogItem) => {
-    setSelectedPest(pest);
-    setActiveTab("details");
-    setDetailsTab("identification");
-  };
-
-  const handleConfirmSelection = () => {
-    if (selectedPest) {
-      onSelectPest(selectedPest);
-      onClose();
-      // Reset state
-      setSelectedPest(null);
-      setSearchTerm("");
-      setSelectedType("all");
-      setActiveTab("browse");
-      setDetailsTab("identification");
-    }
-  };
-
-  // Video player controls
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
+        console.log('Raw pest catalog data:', data);
+        
+        // Debug info for troubleshooting
+        const debugMessages = [
+          `✅ Fetched ${data?.length || 0} total entries`,
+          data?.length ? `📊 Types found: ${[...new Set(data.map(item => item.type))].join(', ')}` : '⚠️ No data found',
+          data?.length ? `🔒 Safe for schools: ${data.filter(item => isSchoolSafe(item)).length}` : '',
+          data?.length ? `📍 Location suitable: ${data.filter(item => isLocationSuitable(item)).length}` : '',
+        ].filter(Boolean);
+        
+        setDebugInfo(debugMessages.join('\n'));
+        setPestCatalog(data || []);
+        
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred while loading pest data.');
+      } finally {
+        setLoading(false);
       }
-      setIsPlaying(!isPlaying);
+    };
+
+    fetchPestCatalog();
+  }, [isOpen]);
+
+  // Filter catalog based on selected type and school safety
+  useEffect(() => {
+    if (!pestCatalog.length) {
+      setFilteredCatalog([]);
+      return;
     }
+
+    let filtered = pestCatalog.filter(item => {
+      // Must be safe for schools
+      const schoolSafe = isSchoolSafe(item);
+      if (!schoolSafe) return false;
+
+      // Type filter
+      if (selectedType !== 'all' && item.type !== selectedType) return false;
+
+      return true;
+    });
+
+    console.log(`Filtered results: ${filtered.length} items for type "${selectedType}"`);
+    setFilteredCatalog(filtered);
+  }, [pestCatalog, selectedType]);
+
+  const handleSelect = (item: PestCatalogItem) => {
+    onSelect?.(item);
+    onClose();
   };
 
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+  const renderTreatmentOptions = (item: PestCatalogItem) => {
+    // Handle different treatment_options structures
+    if (Array.isArray(item.treatment_options) && item.treatment_options.length > 0) {
+      return (
+        <div className="space-y-2">
+          {item.treatment_options.map((treatment: any, index: number) => (
+            <div key={index} className="text-sm p-2 bg-blue-50 rounded">
+              {treatment.method && <strong>{treatment.method}:</strong>} {treatment.description || 'Treatment available'}
+            </div>
+          ))}
+        </div>
+      );
     }
-  };
 
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-      setDuration(videoRef.current.duration || 0);
+    // Check for OMRI remedies
+    if (item.omri_remedies && item.omri_remedies.length > 0) {
+      return (
+        <div className="space-y-2">
+          <strong className="text-sm">OMRI Approved:</strong>
+          <ul className="text-sm list-disc list-inside">
+            {item.omri_remedies.map((remedy, index) => (
+              <li key={index}>{remedy}</li>
+            ))}
+          </ul>
+        </div>
+      );
     }
-  };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-      setCurrentTime(time);
+    // Check for management strategies
+    if (item.management_strategies && item.management_strategies.length > 0) {
+      return (
+        <div className="space-y-2">
+          <strong className="text-sm">Management:</strong>
+          <ul className="text-sm list-disc list-inside">
+            {item.management_strategies.map((strategy, index) => (
+              <li key={index}>{strategy}</li>
+            ))}
+          </ul>
+        </div>
+      );
     }
-  };
 
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const nextImage = () => {
-    if (pestImages.length > 0) {
-      setCurrentImageIndex((prev) => (prev + 1) % pestImages.length);
-    }
-  };
-
-  const prevImage = () => {
-    if (pestImages.length > 0) {
-      setCurrentImageIndex((prev) => (prev - 1 + pestImages.length) % pestImages.length);
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'pest': return <Bug className="h-4 w-4" />;
-      case 'disease': return <Leaf className="h-4 w-4" />;
-      case 'nutrient': return <Droplets className="h-4 w-4" />;
-      case 'environmental': return <Thermometer className="h-4 w-4" />;
-      default: return <Bug className="h-4 w-4" />;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'pest': return 'bg-red-100 text-red-800';
-      case 'disease': return 'bg-orange-100 text-orange-800';
-      case 'nutrient': return 'bg-blue-100 text-blue-800';
-      case 'environmental': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    return <div className="text-sm text-muted-foreground">Contact your teacher for treatment options.</div>;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bug className="h-5 w-5" />
-            Pest & Disease Identification Guide
+            <AlertTriangle className="h-5 w-5" />
+            Pest & Issue Identification Guide
           </DialogTitle>
-          <DialogDescription>
-            Comprehensive guide for identifying and managing hydroponic pests and diseases. 
-            Showing recommendations suitable for {towerLocation} growing.
-          </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="browse">Browse Catalog</TabsTrigger>
-            <TabsTrigger value="details" disabled={!selectedPest}>
-              {selectedPest ? selectedPest.name : "Issue Details"}
-            </TabsTrigger>
+        {/* Debug Info - Remove this in production */}
+        {debugInfo && (
+          <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <details>
+                <summary className="cursor-pointer font-medium">Debug Info (Click to expand)</summary>
+                <pre className="text-xs mt-2 whitespace-pre-line">{debugInfo}</pre>
+              </details>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Type Filter Tabs */}
+        <Tabs value={selectedType} onValueChange={setSelectedType} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all">All ({pestCatalog.length})</TabsTrigger>
+            <TabsTrigger value="pest">Pests ({pestCatalog.filter(p => p.type === 'pest').length})</TabsTrigger>
+            <TabsTrigger value="disease">Diseases ({pestCatalog.filter(p => p.type === 'disease').length})</TabsTrigger>
+            <TabsTrigger value="nutrient">Nutrients ({pestCatalog.filter(p => p.type === 'nutrient').length})</TabsTrigger>
+            <TabsTrigger value="environmental">Environmental ({pestCatalog.filter(p => p.type === 'environmental').length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="browse" className="space-y-4 h-[600px]">
-            {/* Search and Filter Controls */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, symptoms, or description..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                {['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (
-                  <Button
-                    key={type}
-                    variant={selectedType === type ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedType(type)}
-                    className="capitalize"
-                  >
-                    {type !== 'all' && getTypeIcon(type)}
-                    <span className="ml-1">{type === 'pest' ? 'Pests' : type === 'disease' ? 'Diseases' : type}</span>
+          <TabsContent value={selectedType} className="flex-1">
+            <ScrollArea className="h-[50vh]">
+              {loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </CardHeader>
+                      <CardContent>
+                        <Skeleton className="h-16 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : error ? (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : filteredCatalog.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No issues found for "{selectedType}"</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Try selecting a different category or check if data has been added to the pest catalog.
+                  </p>
+                  <Button variant="outline" onClick={() => setSelectedType('all')}>
+                    View All Categories
                   </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Pest Grid */}
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredPests.map((pest) => (
-                  <Card 
-                    key={pest.id} 
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''
-                    }`}
-                    onClick={() => handlePestSelect(pest)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium text-lg">{pest.name}</h3>
-                        <div className="flex gap-2">
-                          <Badge className={getTypeColor(pest.type)}>
-                            {getTypeIcon(pest.type)}
-                            <span className="ml-1 capitalize">{pest.type}</span>
-                          </Badge>
-                          {pest.video_url && (
-                            <Badge variant="outline" className="text-blue-600">
-                              <PlayCircle className="h-3 w-3 mr-1" />
-                              Video
-                            </Badge>
-                          )}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {filteredCatalog.map((item) => (
+                    <Card key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSelect(item)}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{item.name}</CardTitle>
+                            {item.scientific_name && (
+                              <p className="text-sm italic text-muted-foreground">{item.scientific_name}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary">{item.type}</Badge>
+                            {isSchoolSafe(item) && (
+                              <Badge variant="default" className="bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                School Safe
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      
-                      {pest.scientific_name && (
-                        <p className="text-sm text-muted-foreground italic mb-2">
-                          {pest.scientific_name}
-                        </p>
-                      )}
-                      
-                      <p className="text-sm mb-3">{pest.description}</p>
-                      
-                      <div className="space-y-2">
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Key Signs
-                          </h4>
-                          <ul className="text-xs space-y-1 mt-1">
-                            {pest.identification_tips.slice(0, 2).map((tip, index) => (
-                              <li key={index} className="flex items-start">
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
-                                {tip}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm">{item.description}</p>
                         
-                        {pest.identification_tips.length > 2 && (
-                          <p className="text-xs text-primary">
-                            +{pest.identification_tips.length - 2} more signs...
-                          </p>
+                        {item.identification_tips && item.identification_tips.length > 0 && (
+                          <div>
+                            <strong className="text-sm">Identification:</strong>
+                            <ul className="text-sm list-disc list-inside mt-1">
+                              {item.identification_tips.map((tip, index) => (
+                                <li key={index}>{tip}</li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {filteredPests.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bug className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No issues found matching your search.</p>
-                  <p className="text-sm mt-2">Try different keywords or browse all categories.</p>
+
+                        {item.symptoms && item.symptoms.length > 0 && (
+                          <div>
+                            <strong className="text-sm">Symptoms:</strong>
+                            <ul className="text-sm list-disc list-inside mt-1">
+                              {item.symptoms.map((symptom, index) => (
+                                <li key={index}>{symptom}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div>
+                          <strong className="text-sm">Treatment Options:</strong>
+                          <div className="mt-1">
+                            {renderTreatmentOptions(item)}
+                          </div>
+                        </div>
+
+                        {item.video_url && (
+                          <div>
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={item.video_url} target="_blank" rel="noopener noreferrer">
+                                Watch Video Guide
+                              </a>
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </ScrollArea>
           </TabsContent>
-
-          <TabsContent value="details" className="space-y-4 h-[600px] flex flex-col">
-            {selectedPest && (
-              <>
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedPest.name}</h2>
-                    {selectedPest.scientific_name && (
-                      <p className="text-muted-foreground italic">
-                        {selectedPest.scientific_name}
-                      </p>
-                    )}
-                    <div className="flex gap-2 mt-2">
-                      <Badge className={getTypeColor(selectedPest.type)}>
-                        {getTypeIcon(selectedPest.type)}
-                        <span className="ml-1 capitalize">{selectedPest.type}</span>
-                      </Badge>
-                      {selectedPest.video_url && (
-                        <Badge variant="outline" className="text-blue-600">
-                          <PlayCircle className="h-3 w-3 mr-1" />
-                          Educational Video Available
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Button onClick={() => setActiveTab("browse")} variant="ghost" size="sm">
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Back to Browse
-                  </Button>
-                </div>
-
-                {/* Details Tabs - Now flex-1 to take remaining space */}
-                <Tabs value={detailsTab} onValueChange={setDetailsTab} className="flex-1 flex flex-col">
-                  <TabsList className="grid w-full grid-cols-6">
-                    <TabsTrigger value="identification" className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      <span className="hidden sm:inline">Identification</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="damage" className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      <span className="hidden sm:inline">Damage</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="remedies" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <span className="hidden sm:inline">Remedies</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="management" className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" />
-                      <span className="hidden sm:inline">Management</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="prevention" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <span className="hidden sm:inline">Prevention</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="video" disabled={!selectedPest.video_url} className="flex items-center gap-2">
-                      <PlayCircle className="h-4 w-4" />
-                      <span className="hidden sm:inline">Video</span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Scrollable content area - key fix for video scrolling issue */}
-                  <div className="flex-1 overflow-hidden">
-                    <ScrollArea className="h-full pr-4">
-                      <div className="pt-4">
-                        <TabsContent value="identification" className="mt-0 space-y-4">
-                          {/* Image Carousel */}
-                          {pestImages.length > 0 && (
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="text-lg">Visual Identification</CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="relative">
-                                  <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                                    <img
-                                      src={pestImages[currentImageIndex].image_url}
-                                      alt={pestImages[currentImageIndex].caption || `${selectedPest.name} identification`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  {pestImages.length > 1 && (
-                                    <div className="absolute inset-y-0 left-2 right-2 flex items-center justify-between">
-                                      <Button
-                                        onClick={prevImage}
-                                        variant="secondary"
-                                        size="icon"
-                                        className="opacity-80 hover:opacity-100"
-                                      >
-                                        <ChevronLeft className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        onClick={nextImage}
-                                        variant="secondary"
-                                        size="icon"
-                                        className="opacity-80 hover:opacity-100"
-                                      >
-                                        <ChevronRight className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                  {pestImages[currentImageIndex].caption && (
-                                    <p className="text-sm text-muted-foreground mt-2">
-                                      {pestImages[currentImageIndex].caption}
-                                    </p>
-                                  )}
-                                  {pestImages.length > 1 && (
-                                    <div className="flex justify-center mt-2 space-x-1">
-                                      {pestImages.map((_, index) => (
-                                        <button
-                                          key={index}
-                                          onClick={() => setCurrentImageIndex(index)}
-                                          className={`w-2 h-2 rounded-full transition-colors ${
-                                            index === currentImageIndex ? 'bg-primary' : 'bg-muted'
-                                          }`}
-                                        />
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-
-                          {/* Description */}
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">
-                                What {selectedPest.type === 'disease' ? 'is' : 'are'} {selectedPest.name}?
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-sm leading-relaxed">{selectedPest.description}</p>
-                            </CardContent>
-                          </Card>
-
-                          {/* Appearance Details */}
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">
-                                What {selectedPest.type === 'disease' ? 'does' : 'do'} {selectedPest.name} Look Like?
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-sm leading-relaxed mb-4">
-                                {selectedPest.appearance_details || "Detailed appearance information not available."}
-                              </p>
-                              
-                              <h4 className="font-medium mb-2">Key Identification Features:</h4>
-                              <ul className="space-y-2">
-                                {selectedPest.identification_tips.map((tip, index) => (
-                                  <li key={index} className="flex items-start text-sm">
-                                    <span className="w-2 h-2 bg-primary rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                    {tip}
-                                  </li>
-                                ))}
-                              </ul>
-                            </CardContent>
-                          </Card>
-
-                          {/* Symptoms */}
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">Symptoms to Look For</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <ul className="space-y-2">
-                                {selectedPest.symptoms.map((symptom, index) => (
-                                  <li key={index} className="flex items-start text-sm">
-                                    <span className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                    {symptom}
-                                  </li>
-                                ))}
-                              </ul>
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="damage" className="mt-0 space-y-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">Damage Caused by {selectedPest.name}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
-                                <ul className="space-y-3">
-                                  {selectedPest.damage_caused.map((damage, index) => (
-                                    <li key={index} className="flex items-start">
-                                      <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 mr-3 flex-shrink-0" />
-                                      <span className="text-sm">{damage}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">
-                                  Specific damage information is not available for this issue.
-                                </p>
-                              )}
-                            </CardContent>
-                          </Card>
-
-                          {/* Severity Assessment */}
-                          {selectedPest.severity_levels.length > 0 && (
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="text-lg">Severity Assessment</CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="space-y-3">
-                                  {selectedPest.severity_levels.map((level) => (
-                                    <div key={level.level} className="flex items-center p-3 border rounded-lg">
-                                      <div className={`w-4 h-4 rounded-full mr-3 bg-${level.color}-500`}></div>
-                                      <div className="flex-1">
-                                        <div className="font-medium text-sm">
-                                          Level {level.level}: {level.description}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          Recommended Action: {level.action}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </TabsContent>
-
-                        <TabsContent value="remedies" className="mt-0 space-y-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">OMRI Rated Remedies for {selectedPest.name}</CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                Safe, organic treatments approved by the Organic Materials Review Institute
-                              </p>
-                            </CardHeader>
-                            <CardContent>
-                              {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
-                                <div className="space-y-3">
-                                  {selectedPest.omri_remedies.map((remedy, index) => (
-                                    <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                                      <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
-                                      <span className="text-sm flex-1">{remedy}</span>
-                                      <Badge variant="secondary">OMRI</Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  {selectedPest.treatment_options.filter(t => t.safe_for_schools).map((treatment, index) => (
-                                    <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                                      <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
-                                      <div className="flex-1">
-                                        <div className="font-medium text-sm">{treatment.method}</div>
-                                        <div className="text-xs text-muted-foreground">{treatment.instructions}</div>
-                                      </div>
-                                      <Badge className={
-                                        treatment.effectiveness === 'high' ? 'bg-green-100 text-green-800' :
-                                        treatment.effectiveness === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-blue-100 text-blue-800'
-                                      }>
-                                        {treatment.effectiveness}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              <Alert className="mt-4">
-                                <Shield className="h-4 w-4" />
-                                <AlertDescription>
-                                  <strong>Safety Reminder:</strong> Always read and follow label instructions. 
-                                  Even organic treatments should be applied with proper supervision and safety measures.
-                                </AlertDescription>
-                              </Alert>
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="management" className="mt-0 space-y-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">How to Manage {selectedPest.name}</CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                Integrated {selectedPest.type} management approaches for effective control
-                              </p>
-                            </CardHeader>
-                            <CardContent>
-                              {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
-                                <div className="space-y-3">
-                                  <h4 className="font-medium">Management Strategies:</h4>
-                                  <ul className="space-y-3">
-                                    {selectedPest.management_strategies.map((strategy, index) => (
-                                      <li key={index} className="flex items-start">
-                                        <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-                                        <span className="text-sm">{strategy}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  <h4 className="font-medium">Available Treatment Options:</h4>
-                                  <ul className="space-y-3">
-                                    {selectedPest.treatment_options.map((treatment, index) => (
-                                      <li key={index} className="flex items-start">
-                                        <Zap className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-                                        <div className="flex-1">
-                                          <div className="font-medium text-sm">{treatment.method}</div>
-                                          <div className="text-sm text-muted-foreground">{treatment.instructions}</div>
-                                          {treatment.materials && treatment.materials.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                              {treatment.materials.map((material, idx) => (
-                                                <Badge key={idx} variant="outline" className="text-xs">
-                                                  {material}
-                                                </Badge>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="prevention" className="mt-0 space-y-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg">Prevention & Control Strategies</CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                Proactive measures to prevent {selectedPest.name} {selectedPest.type === 'disease' ? 'infections' : 'infestations'}
-                              </p>
-                            </CardHeader>
-                            <CardContent>
-                              {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
-                                <div className="space-y-4">
-                                  <div>
-                                    <h4 className="font-medium mb-2">Prevention Methods:</h4>
-                                    <ul className="space-y-2">
-                                      {selectedPest.prevention_methods.map((method, index) => (
-                                        <li key={index} className="flex items-start text-sm">
-                                          <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                          {method}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                  <Separator />
-                                </div>
-                              ) : null}
-
-                              <div>
-                                <h4 className="font-medium mb-2">General Prevention Tips:</h4>
-                                <ul className="space-y-2">
-                                  {selectedPest.prevention_tips.map((tip, index) => (
-                                    <li key={index} className="flex items-start text-sm">
-                                      <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 mr-3 flex-shrink-0"></span>
-                                      {tip}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-
-                              {selectedPest.seasonal_info && (
-                                <>
-                                  <Separator />
-                                  <div>
-                                    <h4 className="font-medium mb-2">Seasonal Information:</h4>
-                                    <p className="text-sm text-muted-foreground">{selectedPest.seasonal_info}</p>
-                                  </div>
-                                </>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </TabsContent>
-
-                        <TabsContent value="video" className="mt-0 space-y-4">
-                          {selectedPest.video_url ? (
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="text-lg">Educational Video: {selectedPest.name}</CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                  Learn about identification, damage, and management through video demonstration
-                                </p>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="space-y-4">
-                                  {/* Video Player */}
-                                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                                    <video
-                                      ref={videoRef}
-                                      className="w-full h-full"
-                                      onTimeUpdate={handleTimeUpdate}
-                                      onLoadedMetadata={handleTimeUpdate}
-                                      onEnded={() => setIsPlaying(false)}
-                                    >
-                                      <source src={selectedPest.video_url} type="video/mp4" />
-                                      Your browser does not support the video tag.
-                                    </video>
-                                    
-                                    {/* Play/Pause Overlay */}
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <Button
-                                        onClick={togglePlay}
-                                        size="lg"
-                                        className="bg-black/50 hover:bg-black/70 text-white"
-                                      >
-                                        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  {/* Video Controls */}
-                                  <div className="space-y-2">
-                                    {/* Progress Bar */}
-                                    <div className="flex items-center space-x-2">
-                                      <span className="text-xs text-muted-foreground w-12">
-                                        {formatTime(currentTime)}
-                                      </span>
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max={duration || 0}
-                                        value={currentTime}
-                                        onChange={handleSeek}
-                                        className="flex-1 h-1 bg-muted rounded-lg appearance-none cursor-pointer"
-                                      />
-                                      <span className="text-xs text-muted-foreground w-12">
-                                        {formatTime(duration)}
-                                      </span>
-                                    </div>
-
-                                    {/* Control Buttons */}
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center space-x-2">
-                                        <Button onClick={togglePlay} size="sm" variant="outline">
-                                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                        </Button>
-                                        <Button onClick={toggleMute} size="sm" variant="outline">
-                                          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                                        </Button>
-                                      </div>
-                                      <Button size="sm" variant="outline">
-                                        <Maximize className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  {/* Video Description */}
-                                  <Alert>
-                                    <PlayCircle className="h-4 w-4" />
-                                    <AlertDescription>
-                                      This educational video demonstrates how to identify {selectedPest.name}, 
-                                      recognize the damage they cause, and apply appropriate management techniques 
-                                      suitable for hydroponic systems.
-                                    </AlertDescription>
-                                  </Alert>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ) : (
-                            <Card>
-                              <CardContent className="p-8 text-center">
-                                <PlayCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                                <p className="text-muted-foreground">
-                                  No educational video is currently available for {selectedPest.name}.
-                                </p>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </TabsContent>
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </Tabs>
-
-                {/* Action Buttons */}
-                <div className="flex justify-between pt-4 border-t">
-                  <Button onClick={() => setActiveTab("browse")} variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Choose Different Issue
-                  </Button>
-                  <Button onClick={handleConfirmSelection} className="bg-primary">
-                    Select This Issue
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </>
-            )}
-          </TabsContent>
         </Tabs>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
