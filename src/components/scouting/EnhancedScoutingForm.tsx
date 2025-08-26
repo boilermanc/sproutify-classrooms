@@ -1,6 +1,6 @@
 // src/components/scouting/EnhancedScoutingForm.tsx
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -136,33 +136,6 @@ export function EnhancedScoutingForm({
     
     return matchesSearch && matchesType && matchesLocation;
   });
-
-  // FIXED: Using useCallback to ensure stable function reference
-  const handlePestSelection = useCallback((pest: string) => {
-    console.log("=== FORM handlePestSelection called ===");
-    console.log("Received pest:", pest);
-    
-    // Create a simple pest object from the string
-    const simplePest: PestCatalogItem = {
-      id: `custom-${Date.now()}`,
-      name: pest,
-      type: 'pest',
-      description: `Custom observation: ${pest}`,
-      severity_levels: [
-        { level: 1, description: 'Low', color: 'green', action: 'Monitor closely' },
-        { level: 2, description: 'Medium', color: 'yellow', action: 'Take action soon' },
-        { level: 3, description: 'High', color: 'red', action: 'Immediate action needed' }
-      ],
-      treatment_options: []
-    };
-
-    console.log("Setting selected pest:", simplePest);
-    setSelectedPest(simplePest);
-    setCustomPest("");
-    setShowPestModal(false);
-    setSeverity(1);
-    console.log("=== FORM handlePestSelection complete ===");
-  }, []);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -315,10 +288,6 @@ export function EnhancedScoutingForm({
   const severityInfo = getCurrentSeverityInfo();
   const recommendedTreatments = getRecommendedTreatments();
 
-  // Debug log right before render
-  console.log("Form render - handlePestSelection type:", typeof handlePestSelection);
-  console.log("Form render - showPestModal:", showPestModal);
-
   return (
     <>
       <Card>
@@ -340,10 +309,7 @@ export function EnhancedScoutingForm({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => {
-                  console.log("Opening modal...");
-                  setShowPestModal(true);
-                }}
+                onClick={() => setShowPestModal(true)}
                 className="flex items-center gap-2"
               >
                 <HelpCircle className="h-4 w-4" />
@@ -565,14 +531,30 @@ export function EnhancedScoutingForm({
         </CardContent>
       </Card>
 
-      {/* Pest Identification Modal - FIXED: Explicit function passing */}
+      {/* Pest Identification Modal - PRODUCTION FIX */}
       <PestIdentificationModal
         isOpen={showPestModal}
-        onClose={() => {
-          console.log("Modal onClose called");
+        onClose={() => setShowPestModal(false)}
+        onSelect={(pest) => {
+          // Direct inline implementation - no external function calls
+          const simplePest: PestCatalogItem = {
+            id: `custom-${Date.now()}`,
+            name: pest,
+            type: 'pest',
+            description: `Custom observation: ${pest}`,
+            severity_levels: [
+              { level: 1, description: 'Low', color: 'green', action: 'Monitor closely' },
+              { level: 2, description: 'Medium', color: 'yellow', action: 'Take action soon' },
+              { level: 3, description: 'High', color: 'red', action: 'Immediate action needed' }
+            ],
+            treatment_options: []
+          };
+          
+          setSelectedPest(simplePest);
+          setCustomPest("");
           setShowPestModal(false);
+          setSeverity(1);
         }}
-        onSelect={handlePestSelection}
       />
     </>
   );
