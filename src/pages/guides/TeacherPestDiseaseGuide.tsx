@@ -1,4 +1,4 @@
-// src/pages/guides/TeacherPestDiseaseGuide.tsx - CORRECTED
+// src/pages/guides/TeacherPestDiseaseGuide.tsx - CORRECTEd
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
