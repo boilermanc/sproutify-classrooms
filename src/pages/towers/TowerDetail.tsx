@@ -103,7 +103,7 @@ interface PestCatalogItem {
 }
 
 /* =========================
-   Minimal VideoPlayer (native controls)
+   Minimal VideoPlayer (native controls) - REVISED
    ========================= */
 
 const guessMimeFromUrl = (url: string) => {
@@ -112,7 +112,7 @@ const guessMimeFromUrl = (url: string) => {
   if (u.endsWith(".webm")) return "video/webm";
   if (u.endsWith(".mov")) return "video/quicktime";
   if (u.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
-  return "video/mp4";
+  return "video/mp4"; // Default fallback
 };
 
 interface VideoPlayerProps {
@@ -121,74 +121,75 @@ interface VideoPlayerProps {
 }
 
 function VideoPlayer({ src, title }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // This effect simply resets the state when the video source changes.
+  // The video element itself will be re-created due to the `key` prop.
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-
     setLoading(true);
     setError(null);
-
-    const onCanPlay = () => setLoading(false);
-    const onLoadedData = () => setLoading(false);
-    const onError = () => {
-      const code = v.error?.code;
-      const msg =
-        code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted" :
-        code === MediaError.MEDIA_ERR_NETWORK ? "Network error occurred" :
-        code === MediaError.MEDIA_ERR_DECODE ? "Video cannot be decoded" :
-        code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "Video source not supported" :
-        "Failed to load video";
-      setError(msg);
-      setLoading(false);
-    };
-
-    v.addEventListener("canplay", onCanPlay);
-    v.addEventListener("loadeddata", onLoadedData);
-    v.addEventListener("error", onError);
-    v.load();
-
-    return () => {
-      v.removeEventListener("canplay", onCanPlay);
-      v.removeEventListener("loadeddata", onLoadedData);
-      v.removeEventListener("error", onError);
-    };
   }, [src]);
 
-  if (loading) {
-    return (
-      <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
-        <p className="ml-2 text-sm text-white">Loading video…</p>
-      </div>
-    );
-  }
+  const handleCanPlay = () => {
+    setLoading(false);
+  };
 
-  if (error) {
-    return (
-      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border border-dashed">
-        <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
-        <span className="text-red-600">{error}</span>
-      </div>
-    );
-  }
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    setLoading(false);
+    const video = e.currentTarget;
+    switch (video.error?.code) {
+      case MediaError.MEDIA_ERR_ABORTED:
+        setError("Video loading was aborted.");
+        break;
+      case MediaError.MEDIA_ERR_NETWORK:
+        setError("A network error occurred.");
+        break;
+      case MediaError.MEDIA_ERR_DECODE:
+        setError("The video cannot be decoded.");
+        break;
+      case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+        setError("The video format is not supported.");
+        break;
+      default:
+        setError("An unknown error occurred.");
+        break;
+    }
+  };
 
   return (
     <div className="space-y-3">
       {title && <h4 className="font-semibold">{title}</h4>}
-      <video
-        ref={videoRef}
-        className="w-full h-auto rounded-lg bg-black"
-        controls
-        playsInline
-        preload="metadata"
-      >
-        <source src={src} type={guessMimeFromUrl(src)} />
-        Your browser does not support the video tag.
-      </video>
+      <div className="relative aspect-video w-full rounded-lg bg-black">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+            <p className="ml-2 text-sm text-white">Loading video…</p>
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-gray-100 p-4 text-center">
+            <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
+            <span className="text-red-600">{error}</span>
+          </div>
+        )}
+        <video
+          // KEY FIX: Using a `key` tells React to create a new video element
+          // when the src changes. This is the most reliable way to avoid
+          // state issues with the native video player.
+          key={src}
+          className={`h-full w-full rounded-lg transition-opacity ${loading || error ? "opacity-0" : "opacity-100"}`}
+          controls
+          playsInline
+          preload="metadata"
+          // We use declarative JSX event handlers instead of `addEventListener`.
+          onCanPlay={handleCanPlay}
+          onError={handleError}
+        >
+          <source src={src} type={guessMimeFromUrl(src)} />
+          Your browser does not support the video tag.
+        </video>
+      </div>
     </div>
   );
 }
