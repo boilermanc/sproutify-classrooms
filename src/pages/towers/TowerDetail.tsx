@@ -17,8 +17,32 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe,
-  Loader2, Bug, Search, Eye, Shield, Target, Video as VideoIcon, Microscope, Droplets, Play, Pause, Volume2, VolumeX, PlayCircle
+  Building,
+  Leaf,
+  Sun,
+  Calendar,
+  Clock,
+  MapPin,
+  AlertTriangle,
+  CheckCircle,
+  Plus,
+  Edit,
+  Trash2,
+  Globe,
+  Loader2,
+  Bug,
+  Search,
+  Eye,
+  Shield,
+  Target,
+  Video as VideoIcon,
+  Microscope,
+  Droplets,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  PlayCircle
 } from "lucide-react";
 
 // Import existing components
@@ -27,6 +51,7 @@ import { TowerHarvestForm } from "@/components/towers/TowerHarvestForm";
 import { TowerWasteForm } from "@/components/towers/TowerWasteForm";
 import { TowerPhotosTab } from "@/components/towers/TowerPhotosTab";
 import { TowerHistory } from "@/components/towers/TowerHistory";
+
 
 interface Tower {
   id: string;
@@ -126,6 +151,9 @@ async function resolvePublicVideoUrl(src: string): Promise<{ url: string; isYouT
    Simplified & Robust VideoPlayer
    ----------------------------- */
 
+// ...imports unchanged...
+import { Play, Pause, Volume2, VolumeX, Loader2, AlertTriangle } from "lucide-react";
+
 interface VideoPlayerProps {
   src: string;
   title?: string;
@@ -133,130 +161,70 @@ interface VideoPlayerProps {
 
 function VideoPlayer({ src, title }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [resolvedUrl, setResolvedUrl] = useState<string>("");
-  const [mimeType, setMimeType] = useState<string>("video/mp4");
-  const [isYouTube, setIsYouTube] = useState(false);
-
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // start muted for autoplay policy
+  const [isMuted, setIsMuted] = useState(true); // start muted
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve the incoming src into a playable browser URL
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setResolvedUrl("");
-
-    (async () => {
-      try {
-        const { url, isYouTube } = await resolvePublicVideoUrl(src);
-        if (cancelled) return;
-        setResolvedUrl(url);
-        setIsYouTube(isYouTube);
-        setMimeType(guessMimeFromUrl(url));
-        setLoading(false);
-      } catch (e: any) {
-        if (cancelled) return;
-        setError(e?.message ?? "Could not resolve video URL");
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  // Wire up native video events once URL is set and it's not YouTube
-  useEffect(() => {
-    if (!resolvedUrl || isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
 
-    setLoading(true);
-    setError(null);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setProgress(0);
-
     const handleTimeUpdate = () => {
-      if (!isNaN(video.currentTime) && !isNaN(video.duration) && video.duration > 0) {
-        setCurrentTime(video.currentTime);
+      setCurrentTime(video.currentTime);
+      if (!isNaN(video.duration)) {
         setProgress((video.currentTime / video.duration) * 100);
       }
     };
+
     const handleLoadedMetadata = () => {
-      if (!isNaN(video.duration)) {
-        setDuration(video.duration);
-        setLoading(false);
-        setError(null);
-      }
-    };
-    const handleCanPlay = () => {
-      setLoading(false);
-      setError(null);
-    };
-    const handleError = () => {
-      const code = video.error?.code;
-      const msg =
-        code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted" :
-        code === MediaError.MEDIA_ERR_NETWORK ? "Network error occurred" :
-        code === MediaError.MEDIA_ERR_DECODE ? "Video format not supported" :
-        code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "Video source not supported" :
-        "Video failed to load";
-      setError(msg);
+      setDuration(video.duration);
       setLoading(false);
     };
+
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
-    const handleWaiting = () => setLoading(true);
-    const handlePlaying = () => setLoading(false);
+    const handleError = () => {
+      setError("Failed to load video");
+      setLoading(false);
+    };
 
     video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("canplay", handleCanPlay);
-    video.addEventListener("error", handleError);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
-    video.addEventListener("waiting", handleWaiting);
-    video.addEventListener("playing", handlePlaying);
+    video.addEventListener("error", handleError);
 
-    // Force reload when the resolved URL changes
+    // load the file
     video.load();
 
     return () => {
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("canplay", handleCanPlay);
-      video.removeEventListener("error", handleError);
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
-      video.removeEventListener("waiting", handleWaiting);
-      video.removeEventListener("playing", handlePlaying);
+      video.removeEventListener("error", handleError);
     };
-  }, [resolvedUrl, isYouTube]);
+  }, [src]);
 
   const togglePlay = async () => {
-    if (isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
-
-    try {
-      if (isPlaying) video.pause();
-      else await video.play();
-    } catch {
-      setError("Unable to play video");
+    if (isPlaying) {
+      video.pause();
+    } else {
+      try {
+        await video.play();
+      } catch {
+        setError("Unable to play video");
+      }
     }
   };
 
   const toggleMute = () => {
-    if (isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
     video.muted = !video.muted;
@@ -264,63 +232,35 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isYouTube) return;
     const video = videoRef.current;
     if (!video || !duration) return;
-
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
-    video.currentTime = percentage * duration;
+    const newTime = (clickX / rect.width) * duration;
+    video.currentTime = newTime;
   };
 
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (s: number) => {
+    if (isNaN(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
   };
 
   if (loading) {
     return (
       <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-white">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p className="text-sm">Loading video...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <p className="ml-2 text-sm text-white">Loading video...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-        <div className="flex flex-col items-center gap-3 p-4 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-500" />
-          <div>
-            <p className="text-sm font-medium text-red-700 mb-1">Failed to load video</p>
-            <p className="text-xs text-red-600">{error}</p>
-          </div>
-          {resolvedUrl && (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.open(resolvedUrl, '_blank')}>
-                Open Direct Link
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  const video = videoRef.current;
-                  if (video) video.load();
-                }}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-        </div>
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border border-dashed">
+        <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
+        <span className="text-red-600">{error}</span>
       </div>
     );
   }
@@ -328,89 +268,63 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   return (
     <div className="space-y-4">
       {title && <h4 className="font-semibold">{title}</h4>}
-
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
-        {isYouTube ? (
-          <iframe
-            key={resolvedUrl}
-            className="w-full h-full"
-            src={resolvedUrl.includes("embed/")
-              ? resolvedUrl
-              : resolvedUrl.replace("watch?v=", "embed/")}
-            title={title || "Video"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            referrerPolicy="no-referrer"
-            allowFullScreen
-          />
-        ) : (
-          <video
-            key={resolvedUrl}
-            ref={videoRef}
-            className="w-full h-full object-contain"
-            onClick={togglePlay}
-            crossOrigin="anonymous"
-            playsInline
-            muted={isMuted}
-            preload="metadata"
-            controls={false}
-          >
-            <source src={resolvedUrl} type={mimeType} />
-          </video>
-        )}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          muted={isMuted}
+          playsInline
+          preload="metadata"
+        >
+          <source src={src} type="video/mp4" />
+        </video>
 
-        {/* Custom Controls Overlay */}
-        {!isYouTube && (
-          <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {/* Progress Bar */}
-              <div className="w-full h-2 bg-white/20 rounded-full cursor-pointer" onClick={handleProgressClick}>
-                <div className="h-full bg-white rounded-full transition-all duration-100" style={{ width: `${progress}%` }} />
-              </div>
-
-              {/* Control Buttons */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={togglePlay} className="text-white hover:bg-white/20">
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={toggleMute} className="text-white hover:bg-white/20">
-                    {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                  </Button>
-                  <span className="text-white text-sm">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-white text-xs bg-black/40 px-2 py-1 rounded">Educational Content</span>
-                </div>
-              </div>
+        {/* Controls Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
+            {/* Progress Bar */}
+            <div
+              className="w-full h-2 bg-white/20 rounded-full cursor-pointer"
+              onClick={handleProgressClick}
+            >
+              <div
+                className="h-full bg-white rounded-full"
+                style={{ width: `${progress}%` }}
+              />
             </div>
 
-            {/* Large Play Button When Paused */}
-            {!isPlaying && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onClick={togglePlay}
-                  className="bg-white/90 hover:bg-white text-black shadow-lg"
-                >
-                  <Play className="h-6 w-6 ml-1" />
-                </Button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-white">
+                <button onClick={togglePlay}>
+                  {isPlaying ? <Pause /> : <Play />}
+                </button>
+                <button onClick={toggleMute}>
+                  {isMuted ? <VolumeX /> : <Volume2 />}
+                </button>
+                <span className="text-sm">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               </div>
-            )}
-          </>
+            </div>
+          </div>
+        </div>
+
+        {/* Big Play Button */}
+        {!isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <button
+              onClick={togglePlay}
+              className="bg-white/90 hover:bg-white text-black rounded-full p-4 shadow-lg"
+            >
+              <Play className="h-6 w-6" />
+            </button>
+          </div>
         )}
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        Educational video content for identification and management techniques.
-      </p>
     </div>
   );
 }
+
 
 /* -----------------------------
    TowerDetail (unchanged logic)
