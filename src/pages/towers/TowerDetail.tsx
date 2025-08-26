@@ -74,7 +74,7 @@ interface PestCatalogItem {
   safe_for_schools: boolean;
 }
 
-// Fixed Video Player Component
+// Debug Video Player Component with Enhanced Logging
 interface VideoPlayerProps {
   src: string;
   title?: string;
@@ -89,26 +89,40 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
-  // Fixed URL handling function
+  // Enhanced URL handling with debugging
   const getVideoUrl = (src: string) => {
+    const info = [`Original URL: ${src}`];
+    
     try {
       // If it's already a complete URL, return as is
       if (src.startsWith('http://') || src.startsWith('https://')) {
+        info.push('URL type: Complete HTTPS URL');
+        info.push(`Final URL: ${src}`);
+        setDebugInfo(info);
         return src;
       }
       
       // If it's a Supabase storage path, construct the proper URL
       if (src.startsWith('pest-videos/')) {
         const { data } = supabase.storage.from('pest-videos').getPublicUrl(src);
+        info.push('URL type: Supabase storage path');
+        info.push(`Final URL: ${data.publicUrl}`);
+        setDebugInfo(info);
         return data.publicUrl;
       }
       
       // Default case - assume it's a storage path without the bucket prefix
       const { data } = supabase.storage.from('pest-videos').getPublicUrl(`pest-videos/${src}`);
+      info.push('URL type: Assumed storage path');
+      info.push(`Final URL: ${data.publicUrl}`);
+      setDebugInfo(info);
       return data.publicUrl;
     } catch (err) {
       console.error('Error constructing video URL:', err);
+      info.push(`Error: ${err}`);
+      setDebugInfo(info);
       return src; // Fallback to original URL
     }
   };
@@ -127,6 +141,9 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     setDuration(0);
     setProgress(0);
 
+    // Add debug logging
+    console.log('Video component initializing with URL:', videoUrl);
+
     const updateTime = () => {
       if (video) {
         setCurrentTime(video.currentTime);
@@ -138,26 +155,67 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
     const updateDuration = () => {
       if (video && video.duration) {
+        console.log('Video duration loaded:', video.duration);
         setDuration(video.duration);
         setLoading(false);
       }
     };
 
     const handleError = (e: Event) => {
-      console.error('Video error:', e);
-      setError("Unable to load video. Please check your connection.");
+      console.error('Video error event:', e);
+      console.error('Video error details:', video.error);
+      
+      let errorMessage = "Unable to load video";
+      if (video.error) {
+        switch (video.error.code) {
+          case 1:
+            errorMessage = "Video loading aborted";
+            break;
+          case 2:
+            errorMessage = "Network error loading video";
+            break;
+          case 3:
+            errorMessage = "Video format not supported";
+            break;
+          case 4:
+            errorMessage = "Video source not found";
+            break;
+          default:
+            errorMessage = `Video error (code ${video.error.code})`;
+        }
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     };
 
     const handleCanPlay = () => {
+      console.log('Video can play');
       setLoading(false);
       setError(null);
     };
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handleLoadStart = () => {
+      console.log('Video load started');
+    };
 
-    // Add event listeners
+    const handleLoadedData = () => {
+      console.log('Video data loaded');
+    };
+
+    const handlePlay = () => {
+      console.log('Video playing');
+      setIsPlaying(true);
+    };
+
+    const handlePause = () => {
+      console.log('Video paused');
+      setIsPlaying(false);
+    };
+
+    // Add event listeners with more comprehensive logging
+    video.addEventListener('loadstart', handleLoadStart);
+    video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('loadedmetadata', updateDuration);
     video.addEventListener('error', handleError);
@@ -167,6 +225,8 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
     return () => {
       // Clean up event listeners
+      video.removeEventListener('loadstart', handleLoadStart);
+      video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('loadedmetadata', updateDuration);
       video.removeEventListener('error', handleError);
@@ -242,6 +302,22 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
           <AlertTriangle className="h-8 w-8 text-red-500" />
           <p className="text-sm font-medium text-red-700">Video Loading Error</p>
           <p className="text-xs text-red-600">{error}</p>
+          
+          {/* Debug Information */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-3 bg-gray-50 rounded text-left text-xs">
+              <p className="font-semibold mb-2">Debug Info:</p>
+              {debugInfo.map((info, index) => (
+                <p key={index} className="text-gray-600">{info}</p>
+              ))}
+              <p className="mt-2 text-blue-600">
+                <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                  Test URL directly
+                </a>
+              </p>
+            </div>
+          )}
+          
           <Button 
             variant="outline" 
             size="sm" 
