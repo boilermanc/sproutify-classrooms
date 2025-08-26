@@ -1,4 +1,4 @@
-// TowerDetail.tsx — FINAL VERSION WITH VIDEO BADGE FIX
+// TowerDetail.tsx — FINAL VERSION WITH VIDEO BADGE FIXX
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
