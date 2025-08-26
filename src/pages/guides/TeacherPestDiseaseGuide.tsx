@@ -1,4 +1,4 @@
-// src/pages/guides/TeacherPestDiseaseGuide.tsx - FULLY RESTORED AND SELF-CONTAINED
+// src/pages/guides/TeacherPestDiseaseGuide.tsx - FINAL, COMPLETE, AND UNTRUNCATED
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -191,7 +191,26 @@ function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "c
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                       {filteredPests.map((pest) => (
                         <Card key={pest.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''}`} onClick={() => handlePestSelect(pest)}>
-                          <CardHeader className="pb-2"><div className="flex items-start justify-between"><div><CardTitle className="text-base">{pest.name}</CardTitle>{pest.scientific_name && <p className="text-sm text-muted-foreground italic">{pest.scientific_name}</p>}</div><Badge variant="secondary" className={getTypeColor(pest.type)}>{getTypeIcon(pest.type)}<span className="ml-1 capitalize">{pest.type}</span></Badge></div></CardHeader>
+                          <CardHeader className="pb-2">
+                              <div className="flex items-start justify-between">
+                                  <div>
+                                      <CardTitle className="text-base">{pest.name}</CardTitle>
+                                      {pest.scientific_name && <p className="text-sm text-muted-foreground italic">{pest.scientific_name}</p>}
+                                  </div>
+                                  <div className="flex flex-col gap-1 items-end">
+                                      <Badge variant="secondary" className={getTypeColor(pest.type)}>
+                                          {getTypeIcon(pest.type)}
+                                          <span className="ml-1 capitalize">{pest.type}</span>
+                                      </Badge>
+                                      {pest.video_url && (
+                                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                              <VideoIcon className="h-3 w-3 mr-1" />
+                                              Video
+                                          </Badge>
+                                      )}
+                                  </div>
+                              </div>
+                          </CardHeader>
                           <CardContent><p className="text-sm text-muted-foreground line-clamp-2">{pest.description}</p></CardContent>
                         </Card>
                       ))}
