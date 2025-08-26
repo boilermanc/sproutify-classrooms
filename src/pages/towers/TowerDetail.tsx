@@ -1,4 +1,5 @@
-// TowerDetail.tsx — fully updated with robust VideoPlayer + Supabase public URL resolver
+// TowerDetail.tsx — fully updated with working VideoPlayer
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +53,9 @@ import { TowerWasteForm } from "@/components/towers/TowerWasteForm";
 import { TowerPhotosTab } from "@/components/towers/TowerPhotosTab";
 import { TowerHistory } from "@/components/towers/TowerHistory";
 
+/* =========================
+   Types
+   ========================= */
 
 interface Tower {
   id: string;
@@ -102,57 +106,18 @@ interface PestCatalogItem {
   safe_for_schools: boolean;
 }
 
-/* -----------------------------
-   Video URL Resolver Utilities
-   ----------------------------- */
+/* =========================
+   VideoPlayer
+   ========================= */
 
-function guessMimeFromUrl(url: string): string {
+const guessMimeFromUrl = (url: string) => {
   const u = url.split("?")[0].toLowerCase();
   if (u.endsWith(".mp4")) return "video/mp4";
   if (u.endsWith(".webm")) return "video/webm";
   if (u.endsWith(".mov")) return "video/quicktime";
-  if (u.endsWith(".m3u8")) return "application/vnd.apple.mpegurl"; // HLS (Safari)
-  // fallback
+  if (u.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
   return "video/mp4";
-}
-
-/**
- * Accepts either:
- * - Full https URL (already public)
- * - "bucket/path/to/file.ext" or "bucket:path/to/file.ext"
- * Returns a stable PUBLIC URL suitable for <video src>.
- */
-async function resolvePublicVideoUrl(src: string): Promise<{ url: string; isYouTube: boolean }> {
-  // Already a full URL
-  if (/^https?:\/\//i.test(src)) {
-    const isYouTube = /(?:youtu\.be|youtube\.com)/i.test(src);
-    return { url: src, isYouTube };
-  }
-
-  // Support "bucket:path" or "bucket/path"
-  const match = src.match(/^([^:/]+)[:/](.+)$/);
-  if (match) {
-    const bucket = match[1];
-    const path = match[2];
-
-    // If bucket is public, get a public URL (no auth/cookies needed for <video>)
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    if (!data?.publicUrl) {
-      throw new Error("Could not derive public URL from Supabase Storage path.");
-    }
-    return { url: data.publicUrl, isYouTube: false };
-  }
-
-  // Last resort: pass through
-  return { url: src, isYouTube: false };
-}
-
-/* -----------------------------
-   Simplified & Robust VideoPlayer
-   ----------------------------- */
-
-// ...imports unchanged...
-import { Play, Pause, Volume2, VolumeX, Loader2, AlertTriangle } from "lucide-react";
+};
 
 interface VideoPlayerProps {
   src: string;
@@ -162,7 +127,7 @@ interface VideoPlayerProps {
 function VideoPlayer({ src, title }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // start muted
+  const [isMuted, setIsMuted] = useState(true); // start muted to satisfy autoplay rules if needed
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -173,40 +138,72 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleTimeUpdate = () => {
+    setLoading(true);
+    setError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setProgress(0);
+
+    const timeupdate = () => {
       setCurrentTime(video.currentTime);
-      if (!isNaN(video.duration)) {
+      if (!isNaN(video.duration) && video.duration > 0) {
         setProgress((video.currentTime / video.duration) * 100);
       }
     };
-
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
+    const loadedmetadata = () => {
+      if (!isNaN(video.duration)) setDuration(video.duration);
+    };
+    const canplay = () => setLoading(false);
+    const canplaythrough = () => setLoading(false);
+    const loadeddata = () => setLoading(false);
+    const playing = () => { setIsPlaying(true); setLoading(false); };
+    const pause = () => setIsPlaying(false);
+    const waiting = () => setLoading(true);
+    const stalled = () => setLoading(true);
+    const suspend = () => {}; // ignore
+    const emptied = () => setLoading(true);
+    const errorHandler = () => {
+      const code = video.error?.code;
+      const msg =
+        code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted" :
+        code === MediaError.MEDIA_ERR_NETWORK ? "Network error occurred" :
+        code === MediaError.MEDIA_ERR_DECODE ? "Video cannot be decoded" :
+        code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "Video source not supported" :
+        "Failed to load video";
+      setError(msg);
       setLoading(false);
     };
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleError = () => {
-      setError("Failed to load video");
-      setLoading(false);
-    };
+    video.addEventListener("timeupdate", timeupdate);
+    video.addEventListener("loadedmetadata", loadedmetadata);
+    video.addEventListener("canplay", canplay);
+    video.addEventListener("canplaythrough", canplaythrough);
+    video.addEventListener("loadeddata", loadeddata);
+    video.addEventListener("playing", playing);
+    video.addEventListener("pause", pause);
+    video.addEventListener("waiting", waiting);
+    video.addEventListener("stalled", stalled);
+    video.addEventListener("suspend", suspend);
+    video.addEventListener("emptied", emptied);
+    video.addEventListener("error", errorHandler);
 
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("play", handlePlay);
-    video.addEventListener("pause", handlePause);
-    video.addEventListener("error", handleError);
-
-    // load the file
+    // Force a fresh load if src changes
     video.load();
 
     return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("play", handlePlay);
-      video.removeEventListener("pause", handlePause);
-      video.removeEventListener("error", handleError);
+      video.removeEventListener("timeupdate", timeupdate);
+      video.removeEventListener("loadedmetadata", loadedmetadata);
+      video.removeEventListener("canplay", canplay);
+      video.removeEventListener("canplaythrough", canplaythrough);
+      video.removeEventListener("loadeddata", loadeddata);
+      video.removeEventListener("playing", playing);
+      video.removeEventListener("pause", pause);
+      video.removeEventListener("waiting", waiting);
+      video.removeEventListener("stalled", stalled);
+      video.removeEventListener("suspend", suspend);
+      video.removeEventListener("emptied", emptied);
+      video.removeEventListener("error", errorHandler);
     };
   }, [src]);
 
@@ -219,7 +216,8 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       try {
         await video.play();
       } catch {
-        setError("Unable to play video");
+        setError("Unable to start playback");
+        setLoading(false);
       }
     }
   };
@@ -236,8 +234,8 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     if (!video || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const newTime = (clickX / rect.width) * duration;
-    video.currentTime = newTime;
+    const pct = Math.min(Math.max(clickX / rect.width, 0), 1);
+    video.currentTime = pct * duration;
   };
 
   const formatTime = (s: number) => {
@@ -251,7 +249,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     return (
       <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
-        <p className="ml-2 text-sm text-white">Loading video...</p>
+        <p className="ml-2 text-sm text-white">Loading video…</p>
       </div>
     );
   }
@@ -270,13 +268,17 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       {title && <h4 className="font-semibold">{title}</h4>}
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
         <video
+          key={src}
           ref={videoRef}
           className="w-full h-full object-contain"
           muted={isMuted}
           playsInline
           preload="metadata"
+          crossOrigin="anonymous"
+          // Uncomment for quick debugging:
+          // controls
         >
-          <source src={src} type="video/mp4" />
+          <source src={src} type={guessMimeFromUrl(src)} />
         </video>
 
         {/* Controls Overlay */}
@@ -295,11 +297,11 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-white">
-                <button onClick={togglePlay}>
-                  {isPlaying ? <Pause /> : <Play />}
+                <button onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"}>
+                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                 </button>
-                <button onClick={toggleMute}>
-                  {isMuted ? <VolumeX /> : <Volume2 />}
+                <button onClick={toggleMute} aria-label={isMuted ? "Unmute" : "Mute"}>
+                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                 </button>
                 <span className="text-sm">
                   {formatTime(currentTime)} / {formatTime(duration)}
@@ -315,6 +317,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
             <button
               onClick={togglePlay}
               className="bg-white/90 hover:bg-white text-black rounded-full p-4 shadow-lg"
+              aria-label="Play"
             >
               <Play className="h-6 w-6" />
             </button>
@@ -325,16 +328,14 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   );
 }
 
-
-/* -----------------------------
-   TowerDetail (unchanged logic)
-   ----------------------------- */
+/* =========================
+   TowerDetail
+   ========================= */
 
 export default function TowerDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const { state } = useAppStore();
-
+  const { state } = useAppStore(); // OK if unused
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -527,9 +528,9 @@ export default function TowerDetail() {
   );
 }
 
-/* -----------------------------
-   PestIdentificationModal (uses VideoPlayer as-is)
-   ----------------------------- */
+/* =========================
+   PestIdentificationModal
+   ========================= */
 
 interface PestIdentificationModalProps {
   isOpen: boolean;
@@ -604,10 +605,11 @@ function PestIdentificationModal({
   }, [isOpen]);
 
   const filteredPests = pestCatalog.filter(pest => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch =
-      pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (pest.scientific_name && pest.scientific_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      pest.name.toLowerCase().includes(q) ||
+      pest.description.toLowerCase().includes(q) ||
+      (pest.scientific_name && pest.scientific_name.toLowerCase().includes(q));
     const matchesType = selectedType === 'all' || pest.type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -1023,9 +1025,9 @@ function PestIdentificationModal({
   );
 }
 
-/* -----------------------------
-   ScoutingTab (kept as in your version)
-   ----------------------------- */
+/* =========================
+   ScoutingTab
+   ========================= */
 
 interface ScoutingTabProps {
   towerId: string;
@@ -1060,7 +1062,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
         .order('observed_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+    if (error) throw error;
       setActiveEntries(data || []);
     } catch (error) {
       console.error('Error loading active scouting entries:', error);
@@ -1343,9 +1345,9 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   );
 }
 
-/* -----------------------------
-   PlantsTab (kept as in your version)
-   ----------------------------- */
+/* =========================
+   PlantsTab
+   ========================= */
 
 interface PlantsTabProps {
   towerId: string;
@@ -1489,7 +1491,7 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'overdue': return <AlertTriangle className="h-4 w-4" />;
-    case 'today': return <CheckCircle className="h-4 w-4" />;
+      case 'today': return <CheckCircle className="h-4 w-4" />;
       case 'soon': return <Clock className="h-4 w-4" />;
       default: return <Calendar className="h-4 w-4" />;
     }
