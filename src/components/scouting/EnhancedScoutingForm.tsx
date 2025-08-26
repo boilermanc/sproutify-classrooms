@@ -137,15 +137,28 @@ export function EnhancedScoutingForm({
     return matchesSearch && matchesType && matchesLocation;
   });
 
-  const handlePestSelection = (pest: PestCatalogItem) => {
-    setSelectedPest(pest);
-    setCustomPest(""); // Clear custom pest if selecting from catalog
-    setShowPestModal(false);
+  // FIXED: This function now accepts a string instead of PestCatalogItem
+  const handlePestSelection = (pest: string) => {  // Changed parameter type
+    console.log("handlePestSelection called with:", pest);
     
-    // Auto-suggest appropriate severity based on common patterns
-    if (pest.severity_levels.length > 0) {
-      setSeverity(1); // Start with lowest severity
-    }
+    // Create a simple pest object from the string
+    const simplePest: PestCatalogItem = {
+      id: `custom-${Date.now()}`,
+      name: pest,
+      type: 'pest',
+      description: `Custom observation: ${pest}`,
+      severity_levels: [
+        { level: 1, description: 'Low', color: 'green', action: 'Monitor closely' },
+        { level: 2, description: 'Medium', color: 'yellow', action: 'Take action soon' },
+        { level: 3, description: 'High', color: 'red', action: 'Immediate action needed' }
+      ],
+      treatment_options: []
+    };
+
+    setSelectedPest(simplePest);
+    setCustomPest("");
+    setShowPestModal(false);
+    setSeverity(1);
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
