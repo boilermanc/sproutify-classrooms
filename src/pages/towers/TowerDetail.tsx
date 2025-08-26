@@ -1,4 +1,4 @@
-// Fixed TowerDetail.tsx with Working Video Player and Corrected Messages
+// TowerDetail.tsx — fully updated with robust VideoPlayer + Supabase public URL resolver
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets, Play, Pause, Volume2, VolumeX, PlayCircle } from "lucide-react";
+import {
+  Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe,
+  Loader2, Bug, Search, Eye, Shield, Target, Video as VideoIcon, Microscope, Droplets, Play, Pause, Volume2, VolumeX, PlayCircle
+} from "lucide-react";
 
 // Import existing components
 import { TowerVitalsForm } from "@/components/towers/TowerVitalsForm";
@@ -74,7 +77,55 @@ interface PestCatalogItem {
   safe_for_schools: boolean;
 }
 
-// Simplified and Fixed Video Player Component
+/* -----------------------------
+   Video URL Resolver Utilities
+   ----------------------------- */
+
+function guessMimeFromUrl(url: string): string {
+  const u = url.split("?")[0].toLowerCase();
+  if (u.endsWith(".mp4")) return "video/mp4";
+  if (u.endsWith(".webm")) return "video/webm";
+  if (u.endsWith(".mov")) return "video/quicktime";
+  if (u.endsWith(".m3u8")) return "application/vnd.apple.mpegurl"; // HLS (Safari)
+  // fallback
+  return "video/mp4";
+}
+
+/**
+ * Accepts either:
+ * - Full https URL (already public)
+ * - "bucket/path/to/file.ext" or "bucket:path/to/file.ext"
+ * Returns a stable PUBLIC URL suitable for <video src>.
+ */
+async function resolvePublicVideoUrl(src: string): Promise<{ url: string; isYouTube: boolean }> {
+  // Already a full URL
+  if (/^https?:\/\//i.test(src)) {
+    const isYouTube = /(?:youtu\.be|youtube\.com)/i.test(src);
+    return { url: src, isYouTube };
+  }
+
+  // Support "bucket:path" or "bucket/path"
+  const match = src.match(/^([^:/]+)[:/](.+)$/);
+  if (match) {
+    const bucket = match[1];
+    const path = match[2];
+
+    // If bucket is public, get a public URL (no auth/cookies needed for <video>)
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (!data?.publicUrl) {
+      throw new Error("Could not derive public URL from Supabase Storage path.");
+    }
+    return { url: data.publicUrl, isYouTube: false };
+  }
+
+  // Last resort: pass through
+  return { url: src, isYouTube: false };
+}
+
+/* -----------------------------
+   Simplified & Robust VideoPlayer
+   ----------------------------- */
+
 interface VideoPlayerProps {
   src: string;
   title?: string;
@@ -82,24 +133,51 @@ interface VideoPlayerProps {
 
 function VideoPlayer({ src, title }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [resolvedUrl, setResolvedUrl] = useState<string>("");
+  const [mimeType, setMimeType] = useState<string>("video/mp4");
+  const [isYouTube, setIsYouTube] = useState(false);
+
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // start muted for autoplay policy
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Simplified URL handling - since the URL works directly, use it as-is
-  const videoUrl = src.startsWith('http') ? src : src;
-
+  // Resolve the incoming src into a playable browser URL
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setResolvedUrl("");
+
+    (async () => {
+      try {
+        const { url, isYouTube } = await resolvePublicVideoUrl(src);
+        if (cancelled) return;
+        setResolvedUrl(url);
+        setIsYouTube(isYouTube);
+        setMimeType(guessMimeFromUrl(url));
+        setLoading(false);
+      } catch (e: any) {
+        if (cancelled) return;
+        setError(e?.message ?? "Could not resolve video URL");
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  // Wire up native video events once URL is set and it's not YouTube
+  useEffect(() => {
+    if (!resolvedUrl || isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
 
-    console.log('Loading video:', videoUrl);
-
-    // Reset states
     setLoading(true);
     setError(null);
     setIsPlaying(false);
@@ -108,103 +186,77 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     setProgress(0);
 
     const handleTimeUpdate = () => {
-      if (video && !isNaN(video.currentTime) && !isNaN(video.duration)) {
+      if (!isNaN(video.currentTime) && !isNaN(video.duration) && video.duration > 0) {
         setCurrentTime(video.currentTime);
         setProgress((video.currentTime / video.duration) * 100);
       }
     };
-
     const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded, duration:', video.duration);
-      if (video && !isNaN(video.duration)) {
+      if (!isNaN(video.duration)) {
         setDuration(video.duration);
         setLoading(false);
         setError(null);
       }
     };
-
     const handleCanPlay = () => {
-      console.log('Video can play');
       setLoading(false);
       setError(null);
     };
-
-    const handleError = (e: Event) => {
-      console.error('Video error:', e);
-      console.error('Video error object:', video.error);
-      
-      let errorMsg = "Video failed to load";
-      if (video.error) {
-        switch (video.error.code) {
-          case MediaError.MEDIA_ERR_ABORTED:
-            errorMsg = "Video loading was aborted";
-            break;
-          case MediaError.MEDIA_ERR_NETWORK:
-            errorMsg = "Network error occurred";
-            break;
-          case MediaError.MEDIA_ERR_DECODE:
-            errorMsg = "Video format not supported";
-            break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMsg = "Video source not supported";
-            break;
-          default:
-            errorMsg = `Video error (${video.error.code})`;
-        }
-      }
-      
-      setError(errorMsg);
+    const handleError = () => {
+      const code = video.error?.code;
+      const msg =
+        code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted" :
+        code === MediaError.MEDIA_ERR_NETWORK ? "Network error occurred" :
+        code === MediaError.MEDIA_ERR_DECODE ? "Video format not supported" :
+        code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "Video source not supported" :
+        "Video failed to load";
+      setError(msg);
       setLoading(false);
     };
-
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleWaiting = () => setLoading(true);
     const handlePlaying = () => setLoading(false);
 
-    // Add event listeners
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('error', handleError);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('playing', handlePlaying);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("error", handleError);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("waiting", handleWaiting);
+    video.addEventListener("playing", handlePlaying);
 
-    // Force load the video
+    // Force reload when the resolved URL changes
     video.load();
 
     return () => {
-      // Cleanup
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("error", handleError);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("waiting", handleWaiting);
+      video.removeEventListener("playing", handlePlaying);
     };
-  }, [videoUrl]);
+  }, [resolvedUrl, isYouTube]);
 
   const togglePlay = async () => {
+    if (isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
 
     try {
-      if (isPlaying) {
-        video.pause();
-      } else {
-        await video.play();
-      }
-    } catch (err) {
-      console.error('Play/pause error:', err);
+      if (isPlaying) video.pause();
+      else await video.play();
+    } catch {
       setError("Unable to play video");
     }
   };
 
   const toggleMute = () => {
+    if (isYouTube) return;
     const video = videoRef.current;
     if (!video) return;
     video.muted = !video.muted;
@@ -212,16 +264,14 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isYouTube) return;
     const video = videoRef.current;
     if (!video || !duration) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    const percentage = clickX / width;
-    const newTime = percentage * duration;
-    
-    video.currentTime = newTime;
+    const percentage = clickX / rect.width;
+    video.currentTime = percentage * duration;
   };
 
   const formatTime = (seconds: number) => {
@@ -251,28 +301,25 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
             <p className="text-sm font-medium text-red-700 mb-1">Failed to load video</p>
             <p className="text-xs text-red-600">{error}</p>
           </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.open(videoUrl, '_blank')}
-            >
-              Open Direct Link
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                setError(null);
-                setLoading(true);
-                const video = videoRef.current;
-                if (video) video.load();
-              }}
-            >
-              Retry
-            </Button>
-          </div>
+          {resolvedUrl && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => window.open(resolvedUrl, '_blank')}>
+                Open Direct Link
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  const video = videoRef.current;
+                  if (video) video.load();
+                }}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -281,82 +328,83 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   return (
     <div className="space-y-4">
       {title && <h4 className="font-semibold">{title}</h4>}
-      
+
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
-        {/* Video Element with simplified attributes */}
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full h-full object-contain"
-          onClick={togglePlay}
-          crossOrigin="anonymous"
-          playsInline
-          preload="metadata"
-          controls={false}
-        />
-        
+        {isYouTube ? (
+          <iframe
+            key={resolvedUrl}
+            className="w-full h-full"
+            src={resolvedUrl.includes("embed/")
+              ? resolvedUrl
+              : resolvedUrl.replace("watch?v=", "embed/")}
+            title={title || "Video"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            referrerPolicy="no-referrer"
+            allowFullScreen
+          />
+        ) : (
+          <video
+            key={resolvedUrl}
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            onClick={togglePlay}
+            crossOrigin="anonymous"
+            playsInline
+            muted={isMuted}
+            preload="metadata"
+            controls={false}
+          >
+            <source src={resolvedUrl} type={mimeType} />
+          </video>
+        )}
+
         {/* Custom Controls Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
-            {/* Progress Bar */}
-            <div 
-              className="w-full h-2 bg-white/20 rounded-full cursor-pointer"
-              onClick={handleProgressClick}
-            >
-              <div 
-                className="h-full bg-white rounded-full transition-all duration-100"
-                style={{ width: `${progress}%` }}
-              />
+        {!isYouTube && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              {/* Progress Bar */}
+              <div className="w-full h-2 bg-white/20 rounded-full cursor-pointer" onClick={handleProgressClick}>
+                <div className="h-full bg-white rounded-full transition-all duration-100" style={{ width: `${progress}%` }} />
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={togglePlay} className="text-white hover:bg-white/20">
+                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={toggleMute} className="text-white hover:bg-white/20">
+                    {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  </Button>
+                  <span className="text-white text-sm">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-xs bg-black/40 px-2 py-1 rounded">Educational Content</span>
+                </div>
+              </div>
             </div>
-            
-            {/* Control Buttons */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+
+            {/* Large Play Button When Paused */}
+            {!isPlaying && (
+              <div className="absolute inset-0 flex items-center justify-center">
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="secondary"
+                  size="lg"
                   onClick={togglePlay}
-                  className="text-white hover:bg-white/20"
+                  className="bg-white/90 hover:bg-white text-black shadow-lg"
                 >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  <Play className="h-6 w-6 ml-1" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleMute}
-                  className="text-white hover:bg-white/20"
-                >
-                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                </Button>
-                <span className="text-white text-sm">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-white text-xs bg-black/40 px-2 py-1 rounded">
-                  Educational Content
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Large Play Button When Paused */}
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={togglePlay}
-              className="bg-white/90 hover:bg-white text-black shadow-lg"
-            >
-              <Play className="h-6 w-6 ml-1" />
-            </Button>
-          </div>
+            )}
+          </>
         )}
       </div>
-      
+
       <p className="text-sm text-muted-foreground">
         Educational video content for identification and management techniques.
       </p>
@@ -364,11 +412,15 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   );
 }
 
+/* -----------------------------
+   TowerDetail (unchanged logic)
+   ----------------------------- */
+
 export default function TowerDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const { state } = useAppStore();
-  
+
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -412,7 +464,7 @@ export default function TowerDetail() {
         .single();
 
       if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
+        if ((fetchError as any).code === 'PGRST116') {
           setError("Tower not found or you do not have permission to view it.");
         } else {
           throw fetchError;
@@ -499,7 +551,7 @@ export default function TowerDetail() {
             <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
           </div>
         </div>
-        
+
         <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="vitals">Vitals</TabsTrigger>
@@ -510,28 +562,28 @@ export default function TowerDetail() {
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="vitals" className="mt-4">
-            <TowerVitalsForm 
-              towerId={tower.id} 
-              teacherId={teacherId} 
-              onVitalsSaved={refreshData} 
+            <TowerVitalsForm
+              towerId={tower.id}
+              teacherId={teacherId}
+              onVitalsSaved={refreshData}
             />
           </TabsContent>
-          
+
           <TabsContent value="plants" className="mt-4">
             <PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
           </TabsContent>
-          
+
           <TabsContent value="scouting" className="mt-4">
-            <ScoutingTab 
-              towerId={tower.id} 
-              teacherId={teacherId} 
+            <ScoutingTab
+              towerId={tower.id}
+              teacherId={teacherId}
               towerLocation={tower.location || 'indoor'}
               onScoutingSaved={refreshData}
             />
           </TabsContent>
-          
+
           <TabsContent value="harvests" className="mt-4">
             <TowerHarvestForm
               towerId={tower.id}
@@ -539,7 +591,7 @@ export default function TowerDetail() {
               onHarvested={refreshData}
             />
           </TabsContent>
-          
+
           <TabsContent value="waste" className="mt-4">
             <TowerWasteForm
               towerId={tower.id}
@@ -547,11 +599,11 @@ export default function TowerDetail() {
               onWasteLogged={refreshData}
             />
           </TabsContent>
-          
+
           <TabsContent value="photos" className="mt-4">
             <TowerPhotosTab towerId={tower.id} />
           </TabsContent>
-          
+
           <TabsContent value="history" className="mt-4">
             <TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
           </TabsContent>
@@ -561,7 +613,10 @@ export default function TowerDetail() {
   );
 }
 
-// Enhanced Pest Identification Modal with Fixed Messages
+/* -----------------------------
+   PestIdentificationModal (uses VideoPlayer as-is)
+   ----------------------------- */
+
 interface PestIdentificationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -569,11 +624,11 @@ interface PestIdentificationModalProps {
   towerLocation?: string;
 }
 
-function PestIdentificationModal({ 
-  isOpen, 
-  onClose, 
-  onSelect, 
-  towerLocation = "classroom" 
+function PestIdentificationModal({
+  isOpen,
+  onClose,
+  onSelect,
+  towerLocation = "classroom"
 }: PestIdentificationModalProps) {
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -607,25 +662,25 @@ function PestIdentificationModal({
   useEffect(() => {
     const fetchPestCatalog = async () => {
       if (!isOpen) return;
-      
+
       try {
         setLoading(true);
         setError(null);
-        
+
         const { data, error } = await supabase
           .from('pest_catalog')
           .select('*')
           .eq('safe_for_schools', true)
           .order('name', { ascending: true });
-        
+
         if (error) {
           throw error;
         }
-        
+
         setPestCatalog(data || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching pest catalog:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load pest catalog');
+        setError(err?.message ?? 'Failed to load pest catalog');
       } finally {
         setLoading(false);
       }
@@ -635,9 +690,10 @@ function PestIdentificationModal({
   }, [isOpen]);
 
   const filteredPests = pestCatalog.filter(pest => {
-    const matchesSearch = pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (pest.scientific_name && pest.scientific_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch =
+      pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (pest.scientific_name && pest.scientific_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesType = selectedType === 'all' || pest.type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -649,15 +705,13 @@ function PestIdentificationModal({
   };
 
   const handleUseCustom = () => {
-    if (onSelect) {
-      onSelect(null);
-    }
+    onSelect?.(null);
     onClose();
   };
 
   const handleUsePest = () => {
-    if (onSelect && selectedPest) {
-      onSelect(selectedPest);
+    if (selectedPest) {
+      onSelect?.(selectedPest);
     }
     onClose();
   };
@@ -689,7 +743,7 @@ function PestIdentificationModal({
           <span className="sr-only">Close</span>
           ✕
         </button>
-        
+
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
           <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
             <Bug className="h-5 w-5" />
@@ -745,11 +799,11 @@ function PestIdentificationModal({
                     >
                       {type !== 'all' && getTypeIcon(type)}
                       <span className="ml-1">
-                        {type === 'all' ? 'All' : 
-                         type === 'pest' ? 'Pests' : 
-                         type === 'disease' ? 'Diseases' : 
-                         type === 'nutrient' ? 'Nutrients' :
-                         'Environmental'}
+                        {type === 'all' ? 'All' :
+                          type === 'pest' ? 'Pests' :
+                            type === 'disease' ? 'Diseases' :
+                              type === 'nutrient' ? 'Nutrients' :
+                                'Environmental'}
                       </span>
                     </Button>
                   ))}
@@ -791,11 +845,9 @@ function PestIdentificationModal({
                   <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 300px)' }}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                       {filteredPests.map((pest) => (
-                        <Card 
-                          key={pest.id} 
-                          className={`cursor-pointer transition-all hover:shadow-md ${
-                            selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''
-                          }`}
+                        <Card
+                          key={pest.id}
+                          className={`cursor-pointer transition-all hover:shadow-md ${selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''}`}
                           onClick={() => handlePestSelect(pest)}
                         >
                           <CardHeader className="pb-2">
@@ -815,7 +867,7 @@ function PestIdentificationModal({
                                 </Badge>
                                 {pest.video_url && (
                                   <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                    <Video className="h-3 w-3 mr-1" />
+                                    <VideoIcon className="h-3 w-3 mr-1" />
                                     Video
                                   </Badge>
                                 )}
@@ -830,7 +882,7 @@ function PestIdentificationModal({
                         </Card>
                       ))}
                     </div>
-                    
+
                     {filteredPests.length === 0 && !loading && (
                       <div className="text-center py-8">
                         <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -844,7 +896,7 @@ function PestIdentificationModal({
                       </div>
                     )}
                   </ScrollArea>
-                  
+
                   <div className="flex justify-between pt-4 border-t">
                     <Button variant="outline" onClick={handleUseCustom}>
                       Use Custom
@@ -853,10 +905,7 @@ function PestIdentificationModal({
                       <Button variant="outline" onClick={onClose}>
                         Cancel
                       </Button>
-                      <Button 
-                        onClick={handleUsePest} 
-                        disabled={!selectedPest}
-                      >
+                      <Button onClick={handleUsePest} disabled={!selectedPest}>
                         Use Selected
                       </Button>
                     </div>
@@ -885,56 +934,44 @@ function PestIdentificationModal({
                 <div className="grid w-full grid-cols-6 mb-4">
                   <button
                     onClick={() => setContentTab('identification')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'identification' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'identification' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
                     <Eye className="h-3 w-3" />
                     <span className="hidden sm:inline">ID</span>
                   </button>
                   <button
                     onClick={() => setContentTab('damage')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'damage' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'damage' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
                     <AlertTriangle className="h-3 w-3" />
                     <span className="hidden sm:inline">Damage</span>
                   </button>
                   <button
                     onClick={() => setContentTab('remedies')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'remedies' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'remedies' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
                     <Shield className="h-3 w-3" />
                     <span className="hidden sm:inline">Remedies</span>
                   </button>
                   <button
                     onClick={() => setContentTab('management')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'management' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'management' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
                     <Target className="h-3 w-3" />
                     <span className="hidden sm:inline">Manage</span>
                   </button>
                   <button
                     onClick={() => setContentTab('prevention')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'prevention' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'prevention' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
                     <Shield className="h-3 w-3" />
                     <span className="hidden sm:inline">Prevent</span>
                   </button>
                   <button
                     onClick={() => setContentTab('video')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
-                      contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''
-                    }`}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''}`}
                   >
-                    <Video className="h-3 w-3" />
+                    <VideoIcon className="h-3 w-3" />
                     <span className="hidden sm:inline">Video</span>
                   </button>
                 </div>
@@ -1026,8 +1063,8 @@ function PestIdentificationModal({
                   {contentTab === 'video' && (
                     <div className="space-y-4 pb-4">
                       {selectedPest.video_url ? (
-                        <VideoPlayer 
-                          src={selectedPest.video_url} 
+                        <VideoPlayer
+                          src={selectedPest.video_url}
                           title={`${selectedPest.name} - Identification & Management`}
                         />
                       ) : (
@@ -1039,7 +1076,7 @@ function PestIdentificationModal({
                             <div>
                               <h3 className="text-lg font-medium mb-2">Overview Video Coming Soon!</h3>
                               <p className="text-muted-foreground text-center max-w-md">
-                                We're working on creating educational videos for all pest identification guides. 
+                                We're working on creating educational videos for all pest identification guides.
                                 Check back soon for visual learning resources.
                               </p>
                             </div>
@@ -1072,7 +1109,10 @@ function PestIdentificationModal({
   );
 }
 
-// Scouting Tab Component
+/* -----------------------------
+   ScoutingTab (kept as in your version)
+   ----------------------------- */
+
 interface ScoutingTabProps {
   towerId: string;
   teacherId: string;
@@ -1086,7 +1126,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  
+
   const [pest, setPest] = useState("");
   const [action, setAction] = useState("");
   const [notes, setNotes] = useState("");
@@ -1146,7 +1186,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 
     try {
       setSubmitting(true);
-      
+
       const { data, error } = await supabase
         .from('pest_logs')
         .insert({
@@ -1158,21 +1198,21 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       setActiveEntries(prev => [data, ...prev]);
-      
+
       setPest("");
       setAction("");
       setNotes("");
       setSelectedFromCatalog(null);
-      
+
       toast({
         title: "Observation logged",
         description: "Scouting observation has been recorded successfully.",
       });
-      
+
       onScoutingSaved();
     } catch (error) {
       console.error('Error adding pest log:', error);
@@ -1252,20 +1292,16 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
                           {selectedFromCatalog.description}
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearSelection}
-                      >
+                      <Button variant="outline" size="sm" onClick={clearSelection}>
                         Change
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <Textarea 
-                    value={pest} 
-                    onChange={(e) => setPest(e.target.value)} 
-                    placeholder="Enter custom observation (e.g., Small white flies on kale leaves)" 
+                  <Textarea
+                    value={pest}
+                    onChange={(e) => setPest(e.target.value)}
+                    placeholder="Enter custom observation (e.g., Small white flies on kale leaves)"
                     className="min-h-[80px]"
                   />
                 )}
@@ -1290,19 +1326,19 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 
           <div className="space-y-2">
             <Label>Action Taken (Optional)</Label>
-            <Textarea 
-              value={action} 
-              onChange={(e) => setAction(e.target.value)} 
-              placeholder="What action did you take? (e.g., Applied insecticidal soap, Released beneficial insects)" 
+            <Textarea
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              placeholder="What action did you take? (e.g., Applied insecticidal soap, Released beneficial insects)"
             />
           </div>
 
           <div className="space-y-2">
             <Label>Additional Notes (Optional)</Label>
-            <Textarea 
-              value={notes} 
-              onChange={(e) => setNotes(e.target.value)} 
-              placeholder="Any additional observations or details..." 
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional observations or details..."
             />
           </div>
 
@@ -1315,8 +1351,8 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
               <Plus className="h-4 w-4" />
               Browse Catalog
             </Button>
-            <Button 
-              onClick={addPestLog} 
+            <Button
+              onClick={addPestLog}
               disabled={submitting || !pest.trim()}
               className="flex items-center gap-2"
             >
@@ -1360,21 +1396,21 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
                         <Bug className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{entry.pest}</span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(entry.observed_at).toLocaleDateString()} at {' '}
-                          {new Date(entry.observed_at).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
+                          {new Date(entry.observed_at).toLocaleDateString()} at{" "}
+                          {new Date(entry.observed_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
                           })}
                         </span>
                       </div>
-                      
+
                       {entry.action && (
                         <div className="text-sm mt-2">
                           <span className="font-medium text-green-700">Action taken:</span>
                           <span className="ml-2">{entry.action}</span>
                         </div>
                       )}
-                      
+
                       {entry.notes && (
                         <div className="text-sm text-muted-foreground mt-2">
                           <span className="font-medium">Notes:</span>
@@ -1393,7 +1429,10 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   );
 }
 
-// Plants Tab Component (keeping existing implementation)
+/* -----------------------------
+   PlantsTab (kept as in your version)
+   ----------------------------- */
+
 interface PlantsTabProps {
   towerId: string;
   teacherId: string;
@@ -1436,15 +1475,15 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
           .eq('tower_id', towerId)
           .eq('teacher_id', teacherId)
           .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
         setPlantings(data || []);
       } catch (error) {
         console.error('Error fetching plantings:', error);
-        toast({ 
-          title: "Error loading plants", 
-          description: "Failed to load plantings data.", 
-          variant: "destructive" 
+        toast({
+          title: "Error loading plants",
+          description: "Failed to load plantings data.",
+          variant: "destructive"
         });
       } finally {
         setLoading(false);
@@ -1476,20 +1515,20 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
 
       if (error) throw error;
       setPlantings(prev => [data, ...prev]);
-      
+
       setName(""); setQuantity(1); setSeededAt(""); setPlantedAt("");
       setGrowthRate(""); setHarvestDate(""); setOutcome(""); setPortNumber(undefined);
-      
-      toast({ 
-        title: "Plant added", 
-        description: "Plant has been added to the tower successfully." 
+
+      toast({
+        title: "Plant added",
+        description: "Plant has been added to the tower successfully."
       });
     } catch (error) {
       console.error('Error adding planting:', error);
-      toast({ 
-        title: "Error adding plant", 
-        description: "Failed to add plant. Please try again.", 
-        variant: "destructive" 
+      toast({
+        title: "Error adding plant",
+        description: "Failed to add plant. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setSubmitting(false);
@@ -1507,27 +1546,27 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
     const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (daysRemaining < 0) {
-      return { 
-        status: 'overdue', 
-        daysRemaining: Math.abs(daysRemaining), 
+      return {
+        status: 'overdue',
+        daysRemaining: Math.abs(daysRemaining),
         color: 'destructive' as const
       };
     } else if (daysRemaining === 0) {
-      return { 
-        status: 'today', 
-        daysRemaining: 0, 
+      return {
+        status: 'today',
+        daysRemaining: 0,
         color: 'default' as const
       };
     } else if (daysRemaining <= 7) {
-      return { 
-        status: 'soon', 
-        daysRemaining, 
+      return {
+        status: 'soon',
+        daysRemaining,
         color: 'secondary' as const
       };
     } else {
-      return { 
-        status: 'upcoming', 
-        daysRemaining, 
+      return {
+        status: 'upcoming',
+        daysRemaining,
         color: 'outline' as const
       };
     }
@@ -1536,7 +1575,7 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'overdue': return <AlertTriangle className="h-4 w-4" />;
-      case 'today': return <CheckCircle className="h-4 w-4" />;
+    case 'today': return <CheckCircle className="h-4 w-4" />;
       case 'soon': return <Clock className="h-4 w-4" />;
       default: return <Calendar className="h-4 w-4" />;
     }
@@ -1588,70 +1627,70 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Plant Name</Label>
-            <Input 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              placeholder="e.g., Lettuce" 
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Lettuce"
             />
           </div>
           <div className="space-y-2">
             <Label>Port Number</Label>
-            <Input 
+            <Input
               type="number"
-              min="1" 
+              min="1"
               max="32"
-              value={portNumber ?? ""} 
-              onChange={(e) => setPortNumber(Number(e.target.value) || undefined)} 
-              placeholder="1-32" 
+              value={portNumber ?? ""}
+              onChange={(e) => setPortNumber(Number(e.target.value) || undefined)}
+              placeholder="1-32"
             />
           </div>
           <div className="space-y-2">
             <Label>Quantity</Label>
-            <Input 
+            <Input
               type="number"
               min="1"
-              value={quantity} 
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} 
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
             />
           </div>
           <div className="space-y-2">
             <Label>Seeded Date</Label>
-            <Input 
-              type="date" 
-              value={seededAt} 
-              onChange={(e) => setSeededAt(e.target.value)} 
+            <Input
+              type="date"
+              value={seededAt}
+              onChange={(e) => setSeededAt(e.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Planted Date</Label>
-            <Input 
-              type="date" 
-              value={plantedAt} 
-              onChange={(e) => setPlantedAt(e.target.value)} 
+            <Input
+              type="date"
+              value={plantedAt}
+              onChange={(e) => setPlantedAt(e.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Expected Harvest</Label>
-            <Input 
-              type="date" 
-              value={harvestDate} 
-              onChange={(e) => setHarvestDate(e.target.value)} 
+            <Input
+              type="date"
+              value={harvestDate}
+              onChange={(e) => setHarvestDate(e.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label>Growth Rate</Label>
-            <Input 
-              value={growthRate} 
-              onChange={(e) => setGrowthRate(e.target.value)} 
-              placeholder="e.g., 2cm/week" 
+            <Input
+              value={growthRate}
+              onChange={(e) => setGrowthRate(e.target.value)}
+              placeholder="e.g., 2cm/week"
             />
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label>Expected Outcome</Label>
-            <Input 
-              value={outcome} 
-              onChange={(e) => setOutcome(e.target.value)} 
-              placeholder="Eaten in class, donated, etc" 
+            <Input
+              value={outcome}
+              onChange={(e) => setOutcome(e.target.value)}
+              placeholder="Eaten in class, donated, etc"
             />
           </div>
           <div className="md:col-span-3">
