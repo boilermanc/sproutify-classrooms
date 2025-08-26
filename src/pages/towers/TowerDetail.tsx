@@ -1,5 +1,5 @@
-// Complete TowerDetail.tsx with Enhanced PlantsTab and Scouting
-import { useState, useEffect } from "react";
+// Complete TowerDetail.tsx with Enhanced PlantsTab, Scouting, and Video Player
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppStore } from "@/context/AppStore";
@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets } from "lucide-react";
+import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets, Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 // Import existing components
 import { TowerVitalsForm } from "@/components/towers/TowerVitalsForm";
@@ -75,6 +75,209 @@ interface PestCatalogItem {
   prevention_methods: string[] | null;
   video_url: string | null;
   safe_for_schools: boolean;
+}
+
+// Video Player Component
+interface VideoPlayerProps {
+  src: string;
+  title?: string;
+}
+
+function VideoPlayer({ src, title }: VideoPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const updateTime = () => {
+      setCurrentTime(video.currentTime);
+      setProgress((video.currentTime / video.duration) * 100);
+    };
+
+    const updateDuration = () => {
+      setDuration(video.duration);
+      setLoading(false);
+    };
+
+    const handleError = () => {
+      setError("Failed to load video");
+      setLoading(false);
+    };
+
+    const handleCanPlay = () => {
+      setLoading(false);
+    };
+
+    video.addEventListener('timeupdate', updateTime);
+    video.addEventListener('loadedmetadata', updateDuration);
+    video.addEventListener('error', handleError);
+    video.addEventListener('canplay', handleCanPlay);
+
+    return () => {
+      video.removeEventListener('timeupdate', updateTime);
+      video.removeEventListener('loadedmetadata', updateDuration);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [src]);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlaying) {
+      video.pause();
+    } else {
+      video.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const percentage = clickX / width;
+    const newTime = percentage * duration;
+    
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
+    setProgress(percentage * 100);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getVideoUrl = (src: string) => {
+    // Handle Supabase storage URLs
+    if (src.startsWith('pest-videos/')) {
+      return `${supabase.storage.from('pest-videos').getPublicUrl(src).data.publicUrl}`;
+    }
+    return src;
+  };
+
+  if (loading) {
+    return (
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading video...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Video className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {title && <h4 className="font-semibold">{title}</h4>}
+      <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
+        <video
+          ref={videoRef}
+          src={getVideoUrl(src)}
+          className="w-full h-full object-contain"
+          onClick={togglePlay}
+        />
+        
+        {/* Video Controls Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
+            {/* Progress Bar */}
+            <div 
+              className="w-full h-2 bg-white/20 rounded-full cursor-pointer"
+              onClick={handleSeek}
+            >
+              <div 
+                className="h-full bg-white rounded-full transition-all duration-100"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            
+            {/* Controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={togglePlay}
+                  className="text-white hover:bg-white/20"
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMute}
+                  className="text-white hover:bg-white/20"
+                >
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
+                <span className="text-white text-sm">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-white text-xs bg-black/40 px-2 py-1 rounded">
+                  Educational Content
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Play Button Overlay (when paused) */}
+        {!isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={togglePlay}
+              className="bg-white/90 hover:bg-white text-black shadow-lg"
+            >
+              <Play className="h-6 w-6 ml-1" />
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <p className="text-sm text-muted-foreground">
+        Use this educational video to learn proper identification and management techniques.
+      </p>
+    </div>
+  );
 }
 
 export default function TowerDetail() {
@@ -292,7 +495,7 @@ export default function TowerDetail() {
   );
 }
 
-// Enhanced Pest Identification Modal Component (inline)
+// Enhanced Pest Identification Modal Component with Video Player
 interface PestIdentificationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -418,11 +621,11 @@ function PestIdentificationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
-      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg h-[80vh]">
+    <div className="fixed inset-0 z-50 bg-black/80">
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-hidden">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-xl"
         >
           <span className="sr-only">Close</span>
           ✕
@@ -439,8 +642,8 @@ function PestIdentificationModal({
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <div className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
+          <div className="grid w-full grid-cols-2 mb-4">
             <button
               onClick={() => setActiveTab('browse')}
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
@@ -461,7 +664,7 @@ function PestIdentificationModal({
           </div>
 
           {activeTab === 'browse' && (
-            <div className="space-y-4 h-[600px] mt-2">
+            <div className="space-y-4 flex-1 overflow-hidden">
               {/* Search and Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
@@ -529,86 +732,88 @@ function PestIdentificationModal({
 
               {/* Results Grid */}
               {!loading && !error && (
-                <ScrollArea className="h-[450px] pr-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredPests.map((pest) => (
-                      <Card 
-                        key={pest.id} 
-                        className={`cursor-pointer transition-all hover:shadow-md ${
-                          selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''
-                        }`}
-                        onClick={() => handlePestSelect(pest)}
-                      >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle className="text-base">{pest.name}</CardTitle>
-                              {pest.scientific_name && (
-                                <p className="text-sm text-muted-foreground italic">
-                                  {pest.scientific_name}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <Badge variant="secondary" className={getTypeColor(pest.type)}>
-                                {getTypeIcon(pest.type)}
-                                <span className="ml-1 capitalize">{pest.type}</span>
-                              </Badge>
-                              {pest.video_url && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                  <Video className="h-3 w-3 mr-1" />
-                                  Video
+                <>
+                  <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 300px)' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+                      {filteredPests.map((pest) => (
+                        <Card 
+                          key={pest.id} 
+                          className={`cursor-pointer transition-all hover:shadow-md ${
+                            selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''
+                          }`}
+                          onClick={() => handlePestSelect(pest)}
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base">{pest.name}</CardTitle>
+                                {pest.scientific_name && (
+                                  <p className="text-sm text-muted-foreground italic">
+                                    {pest.scientific_name}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="secondary" className={getTypeColor(pest.type)}>
+                                  {getTypeIcon(pest.type)}
+                                  <span className="ml-1 capitalize">{pest.type}</span>
                                 </Badge>
-                              )}
+                                {pest.video_url && (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                    <Video className="h-3 w-3 mr-1" />
+                                    Video
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {pest.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {pest.description}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    
+                    {filteredPests.length === 0 && !loading && (
+                      <div className="text-center py-8">
+                        <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No matches found</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Try adjusting your search terms or use a custom observation.
+                        </p>
+                        <Button onClick={handleUseCustom}>
+                          Enter Custom Observation
+                        </Button>
+                      </div>
+                    )}
+                  </ScrollArea>
                   
-                  {filteredPests.length === 0 && !loading && (
-                    <div className="text-center py-8">
-                      <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No matches found</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Try adjusting your search terms or use a custom observation.
-                      </p>
-                      <Button onClick={handleUseCustom}>
-                        Enter Custom Observation
+                  {/* Action Buttons */}
+                  <div className="flex justify-between pt-4 border-t">
+                    <Button variant="outline" onClick={handleUseCustom}>
+                      Use Custom
+                    </Button>
+                    <div className="space-x-2">
+                      <Button variant="outline" onClick={onClose}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleUsePest} 
+                        disabled={!selectedPest}
+                      >
+                        Use Selected
                       </Button>
                     </div>
-                  )}
-                </ScrollArea>
+                  </div>
+                </>
               )}
-
-              {/* Action Buttons */}
-              <div className="flex justify-between pt-4 border-t">
-                <Button variant="outline" onClick={handleUseCustom}>
-                  Use Custom
-                </Button>
-                <div className="space-x-2">
-                  <Button variant="outline" onClick={onClose}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleUsePest} 
-                    disabled={!selectedPest}
-                  >
-                    Use Selected
-                  </Button>
-                </div>
-              </div>
             </div>
           )}
 
           {activeTab === 'details' && selectedPest && (
-            <div className="h-[600px] flex flex-col mt-2">
+            <div className="flex flex-col flex-1 overflow-hidden">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold">{selectedPest.name}</h3>
@@ -622,11 +827,11 @@ function PestIdentificationModal({
                 </Badge>
               </div>
 
-              <Tabs value={contentTab} onValueChange={setContentTab} className="flex-1">
-                <div className="grid w-full grid-cols-6">
+              <Tabs value={contentTab} onValueChange={setContentTab} className="flex-1 overflow-hidden">
+                <div className="grid w-full grid-cols-6 mb-4">
                   <button
                     onClick={() => setContentTab('identification')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'identification' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -635,7 +840,7 @@ function PestIdentificationModal({
                   </button>
                   <button
                     onClick={() => setContentTab('damage')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'damage' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -644,7 +849,7 @@ function PestIdentificationModal({
                   </button>
                   <button
                     onClick={() => setContentTab('remedies')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'remedies' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -653,7 +858,7 @@ function PestIdentificationModal({
                   </button>
                   <button
                     onClick={() => setContentTab('management')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'management' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -662,7 +867,7 @@ function PestIdentificationModal({
                   </button>
                   <button
                     onClick={() => setContentTab('prevention')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'prevention' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -672,7 +877,7 @@ function PestIdentificationModal({
                   <button
                     onClick={() => setContentTab('video')}
                     disabled={!selectedPest.video_url}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium disabled:opacity-50 ${
                       contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -681,110 +886,106 @@ function PestIdentificationModal({
                   </button>
                 </div>
 
-                <div className="flex-1 mt-4">
-                  <ScrollArea className="h-[400px] pr-4">
-                    {contentTab === 'identification' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold mb-2">What are {selectedPest.name}?</h4>
-                          <p className="text-muted-foreground">{selectedPest.description}</p>
-                        </div>
-                        {selectedPest.appearance_details && (
-                          <div>
-                            <h4 className="font-semibold mb-2">What do {selectedPest.name} look like?</h4>
-                            <p className="text-muted-foreground">{selectedPest.appearance_details}</p>
-                          </div>
-                        )}
+                <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 400px)' }}>
+                  {contentTab === 'identification' && (
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">What are {selectedPest.name}?</h4>
+                        <p className="text-muted-foreground">{selectedPest.description}</p>
                       </div>
-                    )}
-
-                    {contentTab === 'damage' && (
-                      <div className="space-y-4">
+                      {selectedPest.appearance_details && (
                         <div>
-                          <h4 className="font-semibold mb-2">Damage Caused</h4>
-                          {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {selectedPest.damage_caused.map((damage, index) => (
-                                <li key={index} className="text-muted-foreground">{damage}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-muted-foreground">No specific damage information available.</p>
-                          )}
+                          <h4 className="font-semibold mb-2">What do {selectedPest.name} look like?</h4>
+                          <p className="text-muted-foreground">{selectedPest.appearance_details}</p>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  )}
 
-                    {contentTab === 'remedies' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold mb-2">School-Safe Treatment Options</h4>
-                          {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {selectedPest.omri_remedies.map((remedy, index) => (
-                                <li key={index} className="text-muted-foreground">{remedy}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-muted-foreground">No specific remedy information available.</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {contentTab === 'management' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold mb-2">Management Strategies</h4>
-                          {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {selectedPest.management_strategies.map((strategy, index) => (
-                                <li key={index} className="text-muted-foreground">{strategy}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-muted-foreground">No specific management information available.</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {contentTab === 'prevention' && (
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold mb-2">Prevention Methods</h4>
-                          {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {selectedPest.prevention_methods.map((method, index) => (
-                                <li key={index} className="text-muted-foreground">{method}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-muted-foreground">No specific prevention information available.</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {contentTab === 'video' && (
-                      <div className="space-y-4">
-                        {selectedPest.video_url ? (
-                          <div className="space-y-2">
-                            <h4 className="font-semibold">Educational Video</h4>
-                            <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                              <p className="text-muted-foreground">Video player integration coming soon</p>
-                            </div>
-                          </div>
+                  {contentTab === 'damage' && (
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">Damage Caused</h4>
+                        {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {selectedPest.damage_caused.map((damage, index) => (
+                              <li key={index} className="text-muted-foreground">{damage}</li>
+                            ))}
+                          </ul>
                         ) : (
-                          <div className="text-center py-8">
-                            <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-muted-foreground">No video available for this issue.</p>
-                          </div>
+                          <p className="text-muted-foreground">No specific damage information available.</p>
                         )}
                       </div>
-                    )}
-                  </ScrollArea>
-                </div>
+                    </div>
+                  )}
+
+                  {contentTab === 'remedies' && (
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">School-Safe Treatment Options</h4>
+                        {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {selectedPest.omri_remedies.map((remedy, index) => (
+                              <li key={index} className="text-muted-foreground">{remedy}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground">No specific remedy information available.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {contentTab === 'management' && (
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">Management Strategies</h4>
+                        {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {selectedPest.management_strategies.map((strategy, index) => (
+                              <li key={index} className="text-muted-foreground">{strategy}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground">No specific management information available.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {contentTab === 'prevention' && (
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">Prevention Methods</h4>
+                        {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {selectedPest.prevention_methods.map((method, index) => (
+                              <li key={index} className="text-muted-foreground">{method}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground">No specific prevention information available.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {contentTab === 'video' && (
+                    <div className="space-y-4 pb-4">
+                      {selectedPest.video_url ? (
+                        <VideoPlayer 
+                          src={selectedPest.video_url} 
+                          title={`${selectedPest.name} - Identification & Management`}
+                        />
+                      ) : (
+                        <div className="text-center py-8">
+                          <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No video available for this issue.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </ScrollArea>
               </Tabs>
 
               <div className="flex justify-between pt-4 border-t mt-4">
