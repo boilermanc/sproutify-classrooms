@@ -1,4 +1,4 @@
-// src/components/scouting/PestIdentificationModal.tsx — UPGRADED AND FINAL VERSION
+// src/components/scouting/PestIdentificationModal.tsx — UPGRADED AND FINAL VERSIONs
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
