@@ -1,4 +1,4 @@
-// TowerDetail.tsx — fully updated with working VideoPlayer
+// TowerDetail.tsx — minimal, reliable VideoPlayer (native controls) + fixed imports
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
@@ -39,11 +39,7 @@ import {
   Video as VideoIcon,
   Microscope,
   Droplets,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  PlayCircle
+  PlayCircle,
 } from "lucide-react";
 
 // Import existing components
@@ -107,7 +103,7 @@ interface PestCatalogItem {
 }
 
 /* =========================
-   VideoPlayer
+   Minimal VideoPlayer (native controls)
    ========================= */
 
 const guessMimeFromUrl = (url: string) => {
@@ -126,45 +122,20 @@ interface VideoPlayerProps {
 
 function VideoPlayer({ src, title }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // start muted to satisfy autoplay rules if needed
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const v = videoRef.current;
+    if (!v) return;
 
     setLoading(true);
     setError(null);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setProgress(0);
 
-    const timeupdate = () => {
-      setCurrentTime(video.currentTime);
-      if (!isNaN(video.duration) && video.duration > 0) {
-        setProgress((video.currentTime / video.duration) * 100);
-      }
-    };
-    const loadedmetadata = () => {
-      if (!isNaN(video.duration)) setDuration(video.duration);
-    };
-    const canplay = () => setLoading(false);
-    const canplaythrough = () => setLoading(false);
-    const loadeddata = () => setLoading(false);
-    const playing = () => { setIsPlaying(true); setLoading(false); };
-    const pause = () => setIsPlaying(false);
-    const waiting = () => setLoading(true);
-    const stalled = () => setLoading(true);
-    const suspend = () => {}; // ignore
-    const emptied = () => setLoading(true);
-    const errorHandler = () => {
-      const code = video.error?.code;
+    const onCanPlay = () => setLoading(false);
+    const onLoadedData = () => setLoading(false);
+    const onError = () => {
+      const code = v.error?.code;
       const msg =
         code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted" :
         code === MediaError.MEDIA_ERR_NETWORK ? "Network error occurred" :
@@ -175,75 +146,17 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       setLoading(false);
     };
 
-    video.addEventListener("timeupdate", timeupdate);
-    video.addEventListener("loadedmetadata", loadedmetadata);
-    video.addEventListener("canplay", canplay);
-    video.addEventListener("canplaythrough", canplaythrough);
-    video.addEventListener("loadeddata", loadeddata);
-    video.addEventListener("playing", playing);
-    video.addEventListener("pause", pause);
-    video.addEventListener("waiting", waiting);
-    video.addEventListener("stalled", stalled);
-    video.addEventListener("suspend", suspend);
-    video.addEventListener("emptied", emptied);
-    video.addEventListener("error", errorHandler);
-
-    // Force a fresh load if src changes
-    video.load();
+    v.addEventListener("canplay", onCanPlay);
+    v.addEventListener("loadeddata", onLoadedData);
+    v.addEventListener("error", onError);
+    v.load();
 
     return () => {
-      video.removeEventListener("timeupdate", timeupdate);
-      video.removeEventListener("loadedmetadata", loadedmetadata);
-      video.removeEventListener("canplay", canplay);
-      video.removeEventListener("canplaythrough", canplaythrough);
-      video.removeEventListener("loadeddata", loadeddata);
-      video.removeEventListener("playing", playing);
-      video.removeEventListener("pause", pause);
-      video.removeEventListener("waiting", waiting);
-      video.removeEventListener("stalled", stalled);
-      video.removeEventListener("suspend", suspend);
-      video.removeEventListener("emptied", emptied);
-      video.removeEventListener("error", errorHandler);
+      v.removeEventListener("canplay", onCanPlay);
+      v.removeEventListener("loadeddata", onLoadedData);
+      v.removeEventListener("error", onError);
     };
   }, [src]);
-
-  const togglePlay = async () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (isPlaying) {
-      video.pause();
-    } else {
-      try {
-        await video.play();
-      } catch {
-        setError("Unable to start playback");
-        setLoading(false);
-      }
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  };
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const video = videoRef.current;
-    if (!video || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const pct = Math.min(Math.max(clickX / rect.width, 0), 1);
-    video.currentTime = pct * duration;
-  };
-
-  const formatTime = (s: number) => {
-    if (isNaN(s)) return "0:00";
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60).toString().padStart(2, "0");
-    return `${m}:${sec}`;
-  };
 
   if (loading) {
     return (
@@ -264,66 +177,18 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {title && <h4 className="font-semibold">{title}</h4>}
-      <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
-        <video
-          key={src}
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          muted={isMuted}
-          playsInline
-          preload="metadata"
-          crossOrigin="anonymous"
-          // Uncomment for quick debugging:
-          // controls
-        >
-          <source src={src} type={guessMimeFromUrl(src)} />
-        </video>
-
-        {/* Controls Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
-            {/* Progress Bar */}
-            <div
-              className="w-full h-2 bg-white/20 rounded-full cursor-pointer"
-              onClick={handleProgressClick}
-            >
-              <div
-                className="h-full bg-white rounded-full"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-white">
-                <button onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"}>
-                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                </button>
-                <button onClick={toggleMute} aria-label={isMuted ? "Unmute" : "Mute"}>
-                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                </button>
-                <span className="text-sm">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Big Play Button */}
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <button
-              onClick={togglePlay}
-              className="bg-white/90 hover:bg-white text-black rounded-full p-4 shadow-lg"
-              aria-label="Play"
-            >
-              <Play className="h-6 w-6" />
-            </button>
-          </div>
-        )}
-      </div>
+      <video
+        ref={videoRef}
+        className="w-full h-auto rounded-lg bg-black"
+        controls
+        playsInline
+        preload="metadata"
+      >
+        <source src={src} type={guessMimeFromUrl(src)} />
+        Your browser does not support the video tag.
+      </video>
     </div>
   );
 }
@@ -335,7 +200,8 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 export default function TowerDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const { state } = useAppStore(); // OK if unused
+  const { state } = useAppStore();
+
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1346,7 +1212,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 }
 
 /* =========================
-   PlantsTab
+   PlantsTab (full)
    ========================= */
 
 interface PlantsTabProps {
