@@ -1,4 +1,4 @@
-// Complete TowerDetail.tsx with Enhanced PlantsTab, Scouting, and Video Player
+// Fixed TowerDetail.tsx with Working Video Player and Corrected Messages
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets, Play, Pause, Volume2, VolumeX, PlayCircle } from "lucide-react";
 
 // Import existing components
 import { TowerVitalsForm } from "@/components/towers/TowerVitalsForm";
@@ -24,9 +24,6 @@ import { TowerHarvestForm } from "@/components/towers/TowerHarvestForm";
 import { TowerWasteForm } from "@/components/towers/TowerWasteForm";
 import { TowerPhotosTab } from "@/components/towers/TowerPhotosTab";
 import { TowerHistory } from "@/components/towers/TowerHistory";
-
-// Import enhanced scouting components
-import { EnhancedScoutingForm } from "@/components/scouting/EnhancedScoutingForm";
 
 interface Tower {
   id: string;
@@ -77,7 +74,7 @@ interface PestCatalogItem {
   safe_for_schools: boolean;
 }
 
-// Video Player Component
+// Fixed Video Player Component
 interface VideoPlayerProps {
   src: string;
   title?: string;
@@ -93,41 +90,91 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fixed URL handling function
+  const getVideoUrl = (src: string) => {
+    try {
+      // If it's already a complete URL, return as is
+      if (src.startsWith('http://') || src.startsWith('https://')) {
+        return src;
+      }
+      
+      // If it's a Supabase storage path, construct the proper URL
+      if (src.startsWith('pest-videos/')) {
+        const { data } = supabase.storage.from('pest-videos').getPublicUrl(src);
+        return data.publicUrl;
+      }
+      
+      // Default case - assume it's a storage path without the bucket prefix
+      const { data } = supabase.storage.from('pest-videos').getPublicUrl(`pest-videos/${src}`);
+      return data.publicUrl;
+    } catch (err) {
+      console.error('Error constructing video URL:', err);
+      return src; // Fallback to original URL
+    }
+  };
+
+  const videoUrl = getVideoUrl(src);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // Reset states when source changes
+    setLoading(true);
+    setError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setProgress(0);
+
     const updateTime = () => {
-      setCurrentTime(video.currentTime);
-      setProgress((video.currentTime / video.duration) * 100);
+      if (video) {
+        setCurrentTime(video.currentTime);
+        if (video.duration) {
+          setProgress((video.currentTime / video.duration) * 100);
+        }
+      }
     };
 
     const updateDuration = () => {
-      setDuration(video.duration);
-      setLoading(false);
+      if (video && video.duration) {
+        setDuration(video.duration);
+        setLoading(false);
+      }
     };
 
-    const handleError = () => {
-      setError("Failed to load video");
+    const handleError = (e: Event) => {
+      console.error('Video error:', e);
+      setError("Unable to load video. Please check your connection.");
       setLoading(false);
     };
 
     const handleCanPlay = () => {
       setLoading(false);
+      setError(null);
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    // Add event listeners
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('loadedmetadata', updateDuration);
     video.addEventListener('error', handleError);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
 
     return () => {
+      // Clean up event listeners
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('loadedmetadata', updateDuration);
       video.removeEventListener('error', handleError);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
-  }, [src]);
+  }, [videoUrl]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -136,9 +183,15 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     if (isPlaying) {
       video.pause();
     } else {
-      video.play();
+      // Handle play promise for newer browsers
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('Play failed:', error);
+          setError("Unable to play video. Please try again.");
+        });
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -151,7 +204,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !duration) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -165,17 +218,10 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   };
 
   const formatTime = (seconds: number) => {
+    if (isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getVideoUrl = (src: string) => {
-    // Handle Supabase storage URLs
-    if (src.startsWith('pest-videos/')) {
-      return `${supabase.storage.from('pest-videos').getPublicUrl(src).data.publicUrl}`;
-    }
-    return src;
   };
 
   if (loading) {
@@ -183,7 +229,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading video...</p>
+          <p className="text-sm text-muted-foreground">Loading educational video...</p>
         </div>
       </div>
     );
@@ -191,10 +237,26 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
   if (error) {
     return (
-      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Video className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{error}</p>
+      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+        <div className="flex flex-col items-center gap-2 p-4 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-500" />
+          <p className="text-sm font-medium text-red-700">Video Loading Error</p>
+          <p className="text-xs text-red-600">{error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              // Trigger reload by forcing video to reload
+              const video = videoRef.current;
+              if (video) {
+                video.load();
+              }
+            }}
+          >
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -206,9 +268,11 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
         <video
           ref={videoRef}
-          src={getVideoUrl(src)}
+          src={videoUrl}
           className="w-full h-full object-contain"
           onClick={togglePlay}
+          playsInline
+          preload="metadata"
         />
         
         {/* Video Controls Overlay */}
@@ -285,10 +349,6 @@ export default function TowerDetail() {
   const [searchParams] = useSearchParams();
   const { state } = useAppStore();
   
-  // Debug logging
-  console.log("TowerDetail - ID:", id);
-  console.log("TowerDetail - AppStore state:", state);
-  
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -297,17 +357,14 @@ export default function TowerDetail() {
 
   const initialTab = searchParams.get("tab") || "vitals";
 
-  // Enhanced authentication handling
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const userId = session?.user?.id ?? null;
-      console.log("Auth state changed - User ID:", userId);
       setTeacherId(userId);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const userId = session?.user?.id ?? null;
-      console.log("Initial session - User ID:", userId);
       setTeacherId(userId);
     });
 
@@ -315,19 +372,14 @@ export default function TowerDetail() {
   }, []);
 
   useEffect(() => {
-    console.log("Effect triggered - ID:", id, "Teacher ID:", teacherId);
     if (id && teacherId) {
       fetchTower();
     }
   }, [id, teacherId]);
 
   const fetchTower = async () => {
-    if (!id || !teacherId) {
-      console.log("Missing ID or teacherId:", { id, teacherId });
-      return;
-    }
+    if (!id || !teacherId) return;
 
-    console.log("Fetching tower with ID:", id, "Teacher ID:", teacherId);
     setLoading(true);
     setError(null);
 
@@ -339,13 +391,10 @@ export default function TowerDetail() {
         .eq("teacher_id", teacherId)
         .single();
 
-      console.log("Tower fetch result:", { data, error: fetchError });
-
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
           setError("Tower not found or you do not have permission to view it.");
         } else {
-          console.error("Supabase error:", fetchError);
           throw fetchError;
         }
         return;
@@ -353,7 +402,6 @@ export default function TowerDetail() {
 
       setTower(data);
     } catch (error: any) {
-      console.error("Error fetching tower:", error);
       setError("Failed to load tower details. Please try again.");
     } finally {
       setLoading(false);
@@ -388,8 +436,6 @@ export default function TowerDetail() {
         return 'Indoor';
     }
   };
-
-  console.log("Render state:", { loading, error, tower, teacherId });
 
   if (loading) {
     return (
@@ -495,7 +541,7 @@ export default function TowerDetail() {
   );
 }
 
-// Enhanced Pest Identification Modal Component with Video Player
+// Enhanced Pest Identification Modal with Fixed Messages
 interface PestIdentificationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -509,7 +555,6 @@ function PestIdentificationModal({
   onSelect, 
   towerLocation = "classroom" 
 }: PestIdentificationModalProps) {
-  // Helper functions
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'pest': return <Bug className="h-4 w-4" />;
@@ -530,7 +575,6 @@ function PestIdentificationModal({
     }
   };
 
-  // State
   const [activeTab, setActiveTab] = useState('browse');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
@@ -540,7 +584,6 @@ function PestIdentificationModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load pest catalog from database
   useEffect(() => {
     const fetchPestCatalog = async () => {
       if (!isOpen) return;
@@ -559,7 +602,6 @@ function PestIdentificationModal({
           throw error;
         }
         
-        console.log('Loaded pest catalog:', data); // Debug log
         setPestCatalog(data || []);
       } catch (err) {
         console.error('Error fetching pest catalog:', err);
@@ -572,7 +614,6 @@ function PestIdentificationModal({
     fetchPestCatalog();
   }, [isOpen]);
 
-  // Filter pests based on search and type
   const filteredPests = pestCatalog.filter(pest => {
     const matchesSearch = pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -581,7 +622,6 @@ function PestIdentificationModal({
     return matchesSearch && matchesType;
   });
 
-  // Event handlers
   const handlePestSelect = (pest: PestCatalogItem) => {
     setSelectedPest(pest);
     setActiveTab('details');
@@ -590,7 +630,7 @@ function PestIdentificationModal({
 
   const handleUseCustom = () => {
     if (onSelect) {
-      onSelect(null); // null indicates custom entry
+      onSelect(null);
     }
     onClose();
   };
@@ -611,7 +651,6 @@ function PestIdentificationModal({
     setError(null);
   };
 
-  // Reset when modal closes
   useEffect(() => {
     if (!isOpen) {
       resetModal();
@@ -665,7 +704,6 @@ function PestIdentificationModal({
 
           {activeTab === 'browse' && (
             <div className="space-y-4 flex-1 overflow-hidden">
-              {/* Search and Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -698,7 +736,6 @@ function PestIdentificationModal({
                 </div>
               </div>
 
-              {/* Loading State */}
               {loading && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -718,7 +755,6 @@ function PestIdentificationModal({
                 </div>
               )}
 
-              {/* Error State */}
               {error && !loading && (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -730,7 +766,6 @@ function PestIdentificationModal({
                 </div>
               )}
 
-              {/* Results Grid */}
               {!loading && !error && (
                 <>
                   <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 300px)' }}>
@@ -790,7 +825,6 @@ function PestIdentificationModal({
                     )}
                   </ScrollArea>
                   
-                  {/* Action Buttons */}
                   <div className="flex justify-between pt-4 border-t">
                     <Button variant="outline" onClick={handleUseCustom}>
                       Use Custom
@@ -876,8 +910,7 @@ function PestIdentificationModal({
                   </button>
                   <button
                     onClick={() => setContentTab('video')}
-                    disabled={!selectedPest.video_url}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${
                       contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''
                     }`}
                   >
@@ -979,8 +1012,18 @@ function PestIdentificationModal({
                         />
                       ) : (
                         <div className="text-center py-8">
-                          <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">No video available for this issue.</p>
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="p-4 bg-blue-50 rounded-full">
+                              <PlayCircle className="h-12 w-12 text-blue-500" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-medium mb-2">Overview Video Coming Soon!</h3>
+                              <p className="text-muted-foreground text-center max-w-md">
+                                We're working on creating educational videos for all pest identification guides. 
+                                Check back soon for visual learning resources.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1004,19 +1047,12 @@ function PestIdentificationModal({
             </div>
           )}
         </Tabs>
-
-        {/* Debug Info - Remove in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="text-xs text-muted-foreground mt-2">
-            Debug: {pestCatalog.length} items loaded, {filteredPests.length} filtered
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-// Enhanced Scouting Tab Component
+// Scouting Tab Component
 interface ScoutingTabProps {
   towerId: string;
   teacherId: string;
@@ -1031,7 +1067,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
-  // Form state
   const [pest, setPest] = useState("");
   const [action, setAction] = useState("");
   const [notes, setNotes] = useState("");
@@ -1060,7 +1095,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     }
   };
 
-  // Handle pest selection from modal
   const handlePestSelection = (selectedPest: PestCatalogItem | null) => {
     if (selectedPest) {
       setPest(selectedPest.name);
@@ -1070,7 +1104,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
         description: `Selected ${selectedPest.name} from catalog.`,
       });
     } else {
-      // User chose custom entry
       setPest("");
       setSelectedFromCatalog(null);
       toast({
@@ -1081,7 +1114,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     setShowModal(false);
   };
 
-  // Add pest log
   const addPestLog = async () => {
     if (!pest.trim()) {
       toast({
@@ -1111,7 +1143,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
       
       setActiveEntries(prev => [data, ...prev]);
       
-      // Reset form
       setPest("");
       setAction("");
       setNotes("");
@@ -1135,7 +1166,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     }
   };
 
-  // Clear current selection
   const clearSelection = () => {
     setPest("");
     setSelectedFromCatalog(null);
@@ -1163,7 +1193,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 
   return (
     <div className="space-y-6">
-      {/* Pest Identification Modal */}
       <PestIdentificationModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
@@ -1171,7 +1200,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
         towerLocation={towerLocation}
       />
 
-      {/* Enhanced Scouting Entry Form */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1180,7 +1208,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Pest Selection */}
           <div className="space-y-2">
             <Label>Observation/Issue</Label>
             <div className="flex gap-2">
@@ -1241,7 +1268,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
             )}
           </div>
 
-          {/* Action Taken */}
           <div className="space-y-2">
             <Label>Action Taken (Optional)</Label>
             <Textarea 
@@ -1251,7 +1277,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
             />
           </div>
 
-          {/* Additional Notes */}
           <div className="space-y-2">
             <Label>Additional Notes (Optional)</Label>
             <Textarea 
@@ -1261,7 +1286,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
             />
           </div>
 
-          {/* Submit Button */}
           <div className="flex justify-between">
             <Button
               variant="outline"
@@ -1289,7 +1313,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
         </CardContent>
       </Card>
 
-      {/* Active Scouting Entries */}
       <Card>
         <CardHeader>
           <CardTitle>Observation History</CardTitle>
@@ -1350,7 +1373,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   );
 }
 
-// Enhanced Plants Tab Component (keeping your existing implementation)
+// Plants Tab Component (keeping existing implementation)
 interface PlantsTabProps {
   towerId: string;
   teacherId: string;
@@ -1363,7 +1386,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form state for manual plant addition
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [seededAt, setSeededAt] = useState("");
@@ -1435,7 +1457,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
       if (error) throw error;
       setPlantings(prev => [data, ...prev]);
       
-      // Reset form
       setName(""); setQuantity(1); setSeededAt(""); setPlantedAt("");
       setGrowthRate(""); setHarvestDate(""); setOutcome(""); setPortNumber(undefined);
       
@@ -1529,7 +1550,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Add Plant Form */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -1632,7 +1652,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Plants List */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
