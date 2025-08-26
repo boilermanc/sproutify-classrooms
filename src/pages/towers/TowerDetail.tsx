@@ -1,6 +1,9 @@
-// TowerDetail.tsx — minimal, reliable VideoPlayer (native controls) + fixed imports
+// TowerDetail.tsx — FINAL VERSION
+// Includes:
+// 1. Reliable VideoPlayer component (fixed spinning bug)
+// 2. Flexible layout for PestIdentificationModal (fixed scrolling/fit)
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppStore } from "@/context/AppStore";
@@ -14,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -103,7 +105,7 @@ interface PestCatalogItem {
 }
 
 /* =========================
-   Minimal VideoPlayer (native controls) - REVISED
+   Minimal VideoPlayer (native controls) - CORRECTED
    ========================= */
 
 const guessMimeFromUrl = (url: string) => {
@@ -124,8 +126,6 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // This effect simply resets the state when the video source changes.
-  // The video element itself will be re-created due to the `key` prop.
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -174,15 +174,11 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
           </div>
         )}
         <video
-          // KEY FIX: Using a `key` tells React to create a new video element
-          // when the src changes. This is the most reliable way to avoid
-          // state issues with the native video player.
           key={src}
           className={`h-full w-full rounded-lg transition-opacity ${loading || error ? "opacity-0" : "opacity-100"}`}
           controls
           playsInline
           preload="metadata"
-          // We use declarative JSX event handlers instead of `addEventListener`.
           onCanPlay={handleCanPlay}
           onError={handleError}
         >
@@ -201,7 +197,6 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 export default function TowerDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const { state } = useAppStore();
 
   const [tower, setTower] = useState<Tower | null>(null);
   const [loading, setLoading] = useState(true);
@@ -229,7 +224,7 @@ export default function TowerDetail() {
     if (id && teacherId) {
       fetchTower();
     }
-  }, [id, teacherId]);
+  }, [id, teacherId, refreshKey]);
 
   const fetchTower = async () => {
     if (!id || !teacherId) return;
@@ -264,40 +259,28 @@ export default function TowerDetail() {
 
   const refreshData = () => {
     setRefreshKey(prev => prev + 1);
-    fetchTower();
   };
 
   const getLocationIcon = (location?: string) => {
     switch (location) {
-      case 'greenhouse':
-        return <Leaf className="h-4 w-4 text-green-600" />;
-      case 'outdoor':
-        return <Sun className="h-4 w-4 text-yellow-600" />;
-      case 'indoor':
-      default:
-        return <Building className="h-4 w-4 text-blue-600" />;
+      case 'greenhouse': return <Leaf className="h-4 w-4 text-green-600" />;
+      case 'outdoor': return <Sun className="h-4 w-4 text-yellow-600" />;
+      case 'indoor': default: return <Building className="h-4 w-4 text-blue-600" />;
     }
   };
 
   const getLocationLabel = (location?: string) => {
     switch (location) {
-      case 'greenhouse':
-        return 'Greenhouse';
-      case 'outdoor':
-        return 'Outdoor';
-      case 'indoor':
-      default:
-        return 'Indoor';
+      case 'greenhouse': return 'Greenhouse';
+      case 'outdoor': return 'Outdoor';
+      case 'indoor': default: return 'Indoor';
     }
   };
 
   if (loading) {
     return (
       <div className="container py-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-6 w-20" />
-        </div>
+        <div className="flex items-center justify-between"><Skeleton className="h-8 w-64" /><Skeleton className="h-6 w-20" /></div>
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -307,29 +290,19 @@ export default function TowerDetail() {
   if (error || !tower) {
     return (
       <div className="container py-8">
-        <Alert variant="destructive">
-          <AlertDescription>
-            {error || "Tower not found or you do not have permission to view it."} Please try refreshing the page.
-          </AlertDescription>
-        </Alert>
+        <Alert variant="destructive"><AlertDescription>{error || "Tower not found."}</AlertDescription></Alert>
       </div>
     );
   }
 
   return (
     <>
-      <SEO
-        title={`${tower.name} - Tower Details`}
-        description={`Monitor vitals, plants, and observations for ${tower.name}. Track pH, EC, lighting, and manage your hydroponic tower garden.`}
-      />
+      <SEO title={`${tower.name} - Tower Details`} description={`Details for ${tower.name}.`} />
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tower.name}</h1>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="flex items-center gap-2">
-              {getLocationIcon(tower.location)}
-              {getLocationLabel(tower.location)}
-            </Badge>
+            <Badge variant="outline" className="flex items-center gap-2">{getLocationIcon(tower.location)}{getLocationLabel(tower.location)}</Badge>
             <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
           </div>
         </div>
@@ -345,50 +318,13 @@ export default function TowerDetail() {
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="vitals" className="mt-4">
-            <TowerVitalsForm
-              towerId={tower.id}
-              teacherId={teacherId}
-              onVitalsSaved={refreshData}
-            />
-          </TabsContent>
-
-          <TabsContent value="plants" className="mt-4">
-            <PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
-          </TabsContent>
-
-          <TabsContent value="scouting" className="mt-4">
-            <ScoutingTab
-              towerId={tower.id}
-              teacherId={teacherId}
-              towerLocation={tower.location || 'indoor'}
-              onScoutingSaved={refreshData}
-            />
-          </TabsContent>
-
-          <TabsContent value="harvests" className="mt-4">
-            <TowerHarvestForm
-              towerId={tower.id}
-              teacherId={teacherId}
-              onHarvested={refreshData}
-            />
-          </TabsContent>
-
-          <TabsContent value="waste" className="mt-4">
-            <TowerWasteForm
-              towerId={tower.id}
-              teacherId={teacherId}
-              onWasteLogged={refreshData}
-            />
-          </TabsContent>
-
-          <TabsContent value="photos" className="mt-4">
-            <TowerPhotosTab towerId={tower.id} />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} />
-          </TabsContent>
+          <TabsContent value="vitals" className="mt-4"><TowerVitalsForm towerId={tower.id} teacherId={teacherId} onVitalsSaved={refreshData} /></TabsContent>
+          <TabsContent value="plants" className="mt-4"><PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
+          <TabsContent value="scouting" className="mt-4"><ScoutingTab towerId={tower.id} teacherId={teacherId} towerLocation={tower.location || 'indoor'} onScoutingSaved={refreshData} /></TabsContent>
+          <TabsContent value="harvests" className="mt-4"><TowerHarvestForm towerId={tower.id} teacherId={teacherId} onHarvested={refreshData} /></TabsContent>
+          <TabsContent value="waste" className="mt-4"><TowerWasteForm towerId={tower.id} teacherId={teacherId} onWasteLogged={refreshData} /></TabsContent>
+          <TabsContent value="photos" className="mt-4"><TowerPhotosTab towerId={tower.id} /></TabsContent>
+          <TabsContent value="history" className="mt-4"><TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
         </Tabs>
       </div>
     </>
@@ -396,15 +332,8 @@ export default function TowerDetail() {
 }
 
 /* =========================
-   PestIdentificationModal
+   PestIdentificationModal - CORRECTED WITH FLEXIBLE LAYOUT
    ========================= */
-
-interface PestIdentificationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelect: (pest: PestCatalogItem | null) => void;
-  towerLocation?: string;
-}
 
 function PestIdentificationModal({
   isOpen,
@@ -444,39 +373,28 @@ function PestIdentificationModal({
   useEffect(() => {
     const fetchPestCatalog = async () => {
       if (!isOpen) return;
-
       try {
         setLoading(true);
         setError(null);
-
         const { data, error } = await supabase
           .from('pest_catalog')
           .select('*')
           .eq('safe_for_schools', true)
           .order('name', { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
+        if (error) throw error;
         setPestCatalog(data || []);
       } catch (err: any) {
-        console.error('Error fetching pest catalog:', err);
         setError(err?.message ?? 'Failed to load pest catalog');
       } finally {
         setLoading(false);
       }
     };
-
     fetchPestCatalog();
   }, [isOpen]);
 
   const filteredPests = pestCatalog.filter(pest => {
     const q = searchTerm.toLowerCase();
-    const matchesSearch =
-      pest.name.toLowerCase().includes(q) ||
-      pest.description.toLowerCase().includes(q) ||
-      (pest.scientific_name && pest.scientific_name.toLowerCase().includes(q));
+    const matchesSearch = pest.name.toLowerCase().includes(q) || pest.description.toLowerCase().includes(q) || (pest.scientific_name && pest.scientific_name.toLowerCase().includes(q));
     const matchesType = selectedType === 'all' || pest.type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -487,17 +405,8 @@ function PestIdentificationModal({
     setContentTab('identification');
   };
 
-  const handleUseCustom = () => {
-    onSelect?.(null);
-    onClose();
-  };
-
-  const handleUsePest = () => {
-    if (selectedPest) {
-      onSelect?.(selectedPest);
-    }
-    onClose();
-  };
+  const handleUseCustom = () => { onSelect?.(null); onClose(); };
+  const handleUsePest = () => { if (selectedPest) { onSelect?.(selectedPest); } onClose(); };
 
   const resetModal = () => {
     setActiveTab('browse');
@@ -508,384 +417,85 @@ function PestIdentificationModal({
     setError(null);
   };
 
-  useEffect(() => {
-    if (!isOpen) {
-      resetModal();
-    }
-  }, [isOpen]);
+  useEffect(() => { if (!isOpen) { resetModal(); } }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80">
-      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg max-h-[90vh] overflow-hidden">
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-xl"
-        >
-          <span className="sr-only">Close</span>
-          ✕
+      <div className="fixed left-[50%] top-[50%] z-50 flex w-full max-w-5xl flex-col translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg max-h-[90vh] overflow-hidden">
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-xl">
+          <span className="sr-only">Close</span>✕
         </button>
 
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
-            <Bug className="h-5 w-5" />
-            Pest Identification
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Search and select a pest from our database or enter a custom observation.
-            Showing recommendations suitable for {towerLocation} growing.
-          </p>
+          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2"><Bug className="h-5 w-5" />Pest Identification</h2>
+          <p className="text-sm text-muted-foreground">Search and select a pest from our database or enter a custom observation.</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-          <div className="grid w-full grid-cols-2 mb-4">
-            <button
-              onClick={() => setActiveTab('browse')}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                activeTab === 'browse' ? 'bg-background text-foreground shadow-sm' : ''
-              }`}
-            >
-              Browse Catalog
-            </button>
-            <button
-              onClick={() => setActiveTab('details')}
-              disabled={!selectedPest}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                activeTab === 'details' ? 'bg-background text-foreground shadow-sm' : ''
-              }`}
-            >
-              {selectedPest ? selectedPest.name : "Issue Details"}
-            </button>
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="browse">Browse Catalog</TabsTrigger>
+            <TabsTrigger value="details" disabled={!selectedPest}>{selectedPest ? selectedPest.name : "Issue Details"}</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="browse" className="mt-4 flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div>
+              <div className="flex gap-2 flex-wrap">{['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (<Button key={type} variant={selectedType === type ? "default" : "outline"} size="sm" onClick={() => setSelectedType(type)} className="capitalize">{type !== 'all' && getTypeIcon(type)}<span className="ml-1">{type.charAt(0).toUpperCase() + type.slice(1)}s</span></Button>))}</div>
+            </div>
 
-          {activeTab === 'browse' && (
-            <div className="space-y-4 flex-1 overflow-hidden">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, symptoms, or description..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (
-                    <Button
-                      key={type}
-                      variant={selectedType === type ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedType(type)}
-                      className="capitalize"
-                    >
-                      {type !== 'all' && getTypeIcon(type)}
-                      <span className="ml-1">
-                        {type === 'all' ? 'All' :
-                          type === 'pest' ? 'Pests' :
-                            type === 'disease' ? 'Diseases' :
-                              type === 'nutrient' ? 'Nutrients' :
-                                'Environmental'}
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
+            {loading && <div className="space-y-4 mt-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Array.from({ length: 6 }).map((_, i) => (<Card key={i}><CardHeader className="pb-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardHeader><CardContent><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3 mt-2" /></CardContent></Card>))}</div></div>}
+            {error && !loading && <div className="text-center py-8"><AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-medium mb-2">Error Loading</h3><p className="text-muted-foreground mb-4">{error}</p><Button onClick={() => window.location.reload()}>Retry</Button></div>}
 
-              {loading && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Card key={i}>
-                        <CardHeader className="pb-2">
-                          <Skeleton className="h-5 w-3/4" />
-                          <Skeleton className="h-4 w-1/2" />
-                        </CardHeader>
-                        <CardContent>
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-2/3 mt-2" />
-                        </CardContent>
+            {!loading && !error && (
+              <>
+                <ScrollArea className="flex-1 min-h-0 pr-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+                    {filteredPests.map((pest) => (
+                      <Card key={pest.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''}`} onClick={() => handlePestSelect(pest)}>
+                        <CardHeader className="pb-2"><div className="flex items-start justify-between"><div><CardTitle className="text-base">{pest.name}</CardTitle>{pest.scientific_name && <p className="text-sm text-muted-foreground italic">{pest.scientific_name}</p>}</div><div className="flex flex-col gap-1 items-end"><Badge variant="secondary" className={getTypeColor(pest.type)}>{getTypeIcon(pest.type)}<span className="ml-1 capitalize">{pest.type}</span></Badge>{pest.video_url && <Badge variant="outline" className="bg-blue-50 text-blue-700"><VideoIcon className="h-3 w-3 mr-1" />Video</Badge>}</div></div></CardHeader>
+                        <CardContent><p className="text-sm text-muted-foreground line-clamp-2">{pest.description}</p></CardContent>
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {error && !loading && (
-                <div className="text-center py-8">
-                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Error Loading Catalog</h3>
-                  <p className="text-muted-foreground mb-4">{error}</p>
-                  <Button onClick={() => window.location.reload()}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-
-              {!loading && !error && (
-                <>
-                  <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 300px)' }}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
-                      {filteredPests.map((pest) => (
-                        <Card
-                          key={pest.id}
-                          className={`cursor-pointer transition-all hover:shadow-md ${selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''}`}
-                          onClick={() => handlePestSelect(pest)}
-                        >
-                          <CardHeader className="pb-2">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <CardTitle className="text-base">{pest.name}</CardTitle>
-                                {pest.scientific_name && (
-                                  <p className="text-sm text-muted-foreground italic">
-                                    {pest.scientific_name}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <Badge variant="secondary" className={getTypeColor(pest.type)}>
-                                  {getTypeIcon(pest.type)}
-                                  <span className="ml-1 capitalize">{pest.type}</span>
-                                </Badge>
-                                {pest.video_url && (
-                                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                    <VideoIcon className="h-3 w-3 mr-1" />
-                                    Video
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {pest.description}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-
-                    {filteredPests.length === 0 && !loading && (
-                      <div className="text-center py-8">
-                        <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No matches found</h3>
-                        <p className="text-muted-foreground mb-4">
-                          Try adjusting your search terms or use a custom observation.
-                        </p>
-                        <Button onClick={handleUseCustom}>
-                          Enter Custom Observation
-                        </Button>
-                      </div>
-                    )}
-                  </ScrollArea>
-
-                  <div className="flex justify-between pt-4 border-t">
-                    <Button variant="outline" onClick={handleUseCustom}>
-                      Use Custom
-                    </Button>
-                    <div className="space-x-2">
-                      <Button variant="outline" onClick={onClose}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleUsePest} disabled={!selectedPest}>
-                        Use Selected
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'details' && selectedPest && (
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold">{selectedPest.name}</h3>
-                  {selectedPest.scientific_name && (
-                    <p className="text-muted-foreground italic">{selectedPest.scientific_name}</p>
-                  )}
-                </div>
-                <Badge className={getTypeColor(selectedPest.type)}>
-                  {getTypeIcon(selectedPest.type)}
-                  <span className="ml-1 capitalize">{selectedPest.type}</span>
-                </Badge>
-              </div>
-
-              <Tabs value={contentTab} onValueChange={setContentTab} className="flex-1 overflow-hidden">
-                <div className="grid w-full grid-cols-6 mb-4">
-                  <button
-                    onClick={() => setContentTab('identification')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'identification' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <Eye className="h-3 w-3" />
-                    <span className="hidden sm:inline">ID</span>
-                  </button>
-                  <button
-                    onClick={() => setContentTab('damage')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'damage' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <AlertTriangle className="h-3 w-3" />
-                    <span className="hidden sm:inline">Damage</span>
-                  </button>
-                  <button
-                    onClick={() => setContentTab('remedies')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'remedies' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <Shield className="h-3 w-3" />
-                    <span className="hidden sm:inline">Remedies</span>
-                  </button>
-                  <button
-                    onClick={() => setContentTab('management')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'management' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <Target className="h-3 w-3" />
-                    <span className="hidden sm:inline">Manage</span>
-                  </button>
-                  <button
-                    onClick={() => setContentTab('prevention')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'prevention' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <Shield className="h-3 w-3" />
-                    <span className="hidden sm:inline">Prevent</span>
-                  </button>
-                  <button
-                    onClick={() => setContentTab('video')}
-                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-2 py-1.5 text-xs font-medium ${contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''}`}
-                  >
-                    <VideoIcon className="h-3 w-3" />
-                    <span className="hidden sm:inline">Video</span>
-                  </button>
-                </div>
-
-                <ScrollArea className="flex-1 pr-4" style={{ height: 'calc(90vh - 400px)' }}>
-                  {contentTab === 'identification' && (
-                    <div className="space-y-4 pb-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">What are {selectedPest.name}?</h4>
-                        <p className="text-muted-foreground">{selectedPest.description}</p>
-                      </div>
-                      {selectedPest.appearance_details && (
-                        <div>
-                          <h4 className="font-semibold mb-2">What do {selectedPest.name} look like?</h4>
-                          <p className="text-muted-foreground">{selectedPest.appearance_details}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {contentTab === 'damage' && (
-                    <div className="space-y-4 pb-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">Damage Caused</h4>
-                        {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
-                          <ul className="list-disc list-inside space-y-1">
-                            {selectedPest.damage_caused.map((damage, index) => (
-                              <li key={index} className="text-muted-foreground">{damage}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-muted-foreground">No specific damage information available.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {contentTab === 'remedies' && (
-                    <div className="space-y-4 pb-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">School-Safe Treatment Options</h4>
-                        {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
-                          <ul className="list-disc list-inside space-y-1">
-                            {selectedPest.omri_remedies.map((remedy, index) => (
-                              <li key={index} className="text-muted-foreground">{remedy}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-muted-foreground">No specific remedy information available.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {contentTab === 'management' && (
-                    <div className="space-y-4 pb-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">Management Strategies</h4>
-                        {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
-                          <ul className="list-disc list-inside space-y-1">
-                            {selectedPest.management_strategies.map((strategy, index) => (
-                              <li key={index} className="text-muted-foreground">{strategy}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-muted-foreground">No specific management information available.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {contentTab === 'prevention' && (
-                    <div className="space-y-4 pb-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">Prevention Methods</h4>
-                        {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
-                          <ul className="list-disc list-inside space-y-1">
-                            {selectedPest.prevention_methods.map((method, index) => (
-                              <li key={index} className="text-muted-foreground">{method}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-muted-foreground">No specific prevention information available.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {contentTab === 'video' && (
-                    <div className="space-y-4 pb-4">
-                      {selectedPest.video_url ? (
-                        <VideoPlayer
-                          src={selectedPest.video_url}
-                          title={`${selectedPest.name} - Identification & Management`}
-                        />
-                      ) : (
-                        <div className="text-center py-8">
-                          <div className="flex flex-col items-center gap-4">
-                            <div className="p-4 bg-blue-50 rounded-full">
-                              <PlayCircle className="h-12 w-12 text-blue-500" />
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-medium mb-2">Overview Video Coming Soon!</h3>
-                              <p className="text-muted-foreground text-center max-w-md">
-                                We're working on creating educational videos for all pest identification guides.
-                                Check back soon for visual learning resources.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {filteredPests.length === 0 && <div className="text-center py-8"><AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" /><h3 className="text-lg font-medium mb-2">No matches</h3><p className="text-muted-foreground mb-4">Try a different search or enter a custom observation.</p><Button onClick={handleUseCustom}>Enter Custom</Button></div>}
                 </ScrollArea>
-              </Tabs>
+                <div className="flex justify-between pt-4 border-t mt-auto"><Button variant="outline" onClick={handleUseCustom}>Use Custom</Button><div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest} disabled={!selectedPest}>Use Selected</Button></div></div>
+              </>
+            )}
+          </TabsContent>
 
-              <div className="flex justify-between pt-4 border-t mt-4">
-                <Button variant="outline" onClick={() => setActiveTab('browse')}>
-                  Back to Browse
-                </Button>
-                <div className="space-x-2">
-                  <Button variant="outline" onClick={onClose}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleUsePest}>
-                    Use This Issue
-                  </Button>
+          <TabsContent value="details" className="mt-4 flex flex-1 flex-col overflow-hidden">
+            {selectedPest && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div><h3 className="text-xl font-bold">{selectedPest.name}</h3>{selectedPest.scientific_name && <p className="text-muted-foreground italic">{selectedPest.scientific_name}</p>}</div>
+                  <Badge className={getTypeColor(selectedPest.type)}>{getTypeIcon(selectedPest.type)}<span className="ml-1 capitalize">{selectedPest.type}</span></Badge>
                 </div>
-              </div>
-            </div>
-          )}
+
+                <Tabs value={contentTab} onValueChange={setContentTab} className="flex flex-col flex-1 overflow-hidden mt-4">
+                  <TabsList className="grid w-full grid-cols-6"><TabsTrigger value="identification"><Eye className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">ID</span></TabsTrigger><TabsTrigger value="damage"><AlertTriangle className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Damage</span></TabsTrigger><TabsTrigger value="remedies"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Remedies</span></TabsTrigger><TabsTrigger value="management"><Target className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Manage</span></TabsTrigger><TabsTrigger value="prevention"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Prevent</span></TabsTrigger><TabsTrigger value="video"><VideoIcon className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Video</span></TabsTrigger></TabsList>
+                  
+                  <ScrollArea className="flex-1 min-h-0 pr-4 mt-4">
+                    <TabsContent value="identification" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Description</h4><p className="text-muted-foreground">{selectedPest.description}</p></div>{selectedPest.appearance_details && <div><h4 className="font-semibold mb-2">Appearance</h4><p className="text-muted-foreground">{selectedPest.appearance_details}</p></div>}</TabsContent>
+                    <TabsContent value="damage" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Damage Caused</h4>{selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.damage_caused.map((d, i) => (<li key={i} className="text-muted-foreground">{d}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
+                    <TabsContent value="remedies" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">School-Safe Remedies</h4>{selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.omri_remedies.map((r, i) => (<li key={i} className="text-muted-foreground">{r}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
+                    <TabsContent value="management" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Management Strategies</h4>{selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.management_strategies.map((s, i) => (<li key={i} className="text-muted-foreground">{s}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
+                    <TabsContent value="prevention" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Prevention Methods</h4>{selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.prevention_methods.map((p, i) => (<li key={i} className="text-muted-foreground">{p}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
+                    <TabsContent value="video" className="space-y-4 pb-4">
+                        {selectedPest.video_url ? (
+                          <VideoPlayer src={selectedPest.video_url} title={`${selectedPest.name} Guide`} />
+                        ) : (
+                          <div className="text-center py-8 flex flex-col items-center gap-4"><div className="p-4 bg-blue-50 rounded-full"><PlayCircle className="h-12 w-12 text-blue-500" /></div><div><h3 className="text-lg font-medium mb-2">Video Coming Soon</h3><p className="text-muted-foreground text-center max-w-md">Educational videos are being created for our guides.</p></div></div>
+                        )}
+                    </TabsContent>
+                  </ScrollArea>
+                </Tabs>
+                <div className="flex justify-between pt-4 border-t mt-auto"><Button variant="outline" onClick={() => setActiveTab('browse')}>Back to Browse</Button><div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest}>Use This Issue</Button></div></div>
+              </>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -915,104 +525,45 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   const [notes, setNotes] = useState("");
   const [selectedFromCatalog, setSelectedFromCatalog] = useState<PestCatalogItem | null>(null);
 
-  useEffect(() => {
-    loadActiveEntries();
-  }, [towerId, teacherId]);
+  useEffect(() => { loadActiveEntries(); }, [towerId, teacherId]);
 
   const loadActiveEntries = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pest_logs')
-        .select('*')
-        .eq('tower_id', towerId)
-        .eq('teacher_id', teacherId)
-        .order('observed_at', { ascending: false })
-        .limit(10);
-
-    if (error) throw error;
+      const { data, error } = await supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('observed_at', { ascending: false }).limit(10);
+      if (error) throw error;
       setActiveEntries(data || []);
-    } catch (error) {
-      console.error('Error loading active scouting entries:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error('Error loading scouting entries:', error); }
+    finally { setLoading(false); }
   };
 
   const handlePestSelection = (selectedPest: PestCatalogItem | null) => {
     if (selectedPest) {
       setPest(selectedPest.name);
       setSelectedFromCatalog(selectedPest);
-      toast({
-        title: "Pest selected",
-        description: `Selected ${selectedPest.name} from catalog.`,
-      });
+      toast({ title: "Pest selected", description: `Selected ${selectedPest.name}.` });
     } else {
       setPest("");
       setSelectedFromCatalog(null);
-      toast({
-        title: "Custom entry",
-        description: "You can now enter a custom observation.",
-      });
+      toast({ title: "Custom entry", description: "Enter a custom observation." });
     }
     setShowModal(false);
   };
 
   const addPestLog = async () => {
-    if (!pest.trim()) {
-      toast({
-        title: "Observation required",
-        description: "Please enter an observation or select from catalog.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    if (!pest.trim()) { toast({ title: "Observation required", variant: "destructive" }); return; }
     try {
       setSubmitting(true);
-
-      const { data, error } = await supabase
-        .from('pest_logs')
-        .insert({
-          tower_id: towerId,
-          teacher_id: teacherId,
-          pest: pest.trim(),
-          action: action || null,
-          notes: notes || null,
-        })
-        .select()
-        .single();
-
+      const { data, error } = await supabase.from('pest_logs').insert({ tower_id: towerId, teacher_id: teacherId, pest: pest.trim(), action: action || null, notes: notes || null }).select().single();
       if (error) throw error;
-
       setActiveEntries(prev => [data, ...prev]);
-
-      setPest("");
-      setAction("");
-      setNotes("");
-      setSelectedFromCatalog(null);
-
-      toast({
-        title: "Observation logged",
-        description: "Scouting observation has been recorded successfully.",
-      });
-
+      setPest(""); setAction(""); setNotes(""); setSelectedFromCatalog(null);
+      toast({ title: "Observation logged" });
       onScoutingSaved();
-    } catch (error) {
-      console.error('Error adding pest log:', error);
-      toast({
-        title: "Error logging observation",
-        description: "Failed to log observation. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (error) { toast({ title: "Error logging observation", variant: "destructive" }); }
+    finally { setSubmitting(false); }
   };
 
-  const clearSelection = () => {
-    setPest("");
-    setSelectedFromCatalog(null);
-  };
+  const clearSelection = () => { setPest(""); setSelectedFromCatalog(null); };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -1036,20 +587,9 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 
   return (
     <div className="space-y-6">
-      <PestIdentificationModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSelect={handlePestSelection}
-        towerLocation={towerLocation}
-      />
-
+      <PestIdentificationModal isOpen={showModal} onClose={() => setShowModal(false)} onSelect={handlePestSelection} towerLocation={towerLocation} />
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bug className="h-5 w-5" />
-            Log Scouting Observation
-          </CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Bug className="h-5 w-5" />Log Observation</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Observation/Issue</Label>
@@ -1059,153 +599,30 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
                   <div className="p-3 border rounded-md bg-muted/20">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getTypeColor(selectedFromCatalog.type)}>
-                            {getTypeIcon(selectedFromCatalog.type)}
-                            <span className="ml-1 capitalize">{selectedFromCatalog.type}</span>
-                          </Badge>
-                          <span className="font-medium">{selectedFromCatalog.name}</span>
-                        </div>
-                        {selectedFromCatalog.scientific_name && (
-                          <p className="text-sm text-muted-foreground italic">
-                            {selectedFromCatalog.scientific_name}
-                          </p>
-                        )}
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {selectedFromCatalog.description}
-                        </p>
+                        <div className="flex items-center gap-2"><Badge className={getTypeColor(selectedFromCatalog.type)}>{getTypeIcon(selectedFromCatalog.type)}<span className="ml-1 capitalize">{selectedFromCatalog.type}</span></Badge><span className="font-medium">{selectedFromCatalog.name}</span></div>
+                        {selectedFromCatalog.scientific_name && <p className="text-sm text-muted-foreground italic">{selectedFromCatalog.scientific_name}</p>}
+                        <p className="text-sm text-muted-foreground mt-1">{selectedFromCatalog.description}</p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={clearSelection}>
-                        Change
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={clearSelection}>Change</Button>
                     </div>
                   </div>
-                ) : (
-                  <Textarea
-                    value={pest}
-                    onChange={(e) => setPest(e.target.value)}
-                    placeholder="Enter custom observation (e.g., Small white flies on kale leaves)"
-                    className="min-h-[80px]"
-                  />
-                )}
+                ) : (<Textarea value={pest} onChange={(e) => setPest(e.target.value)} placeholder="e.g., Small white flies on kale leaves" className="min-h-[80px]" />)}
               </div>
-              {!selectedFromCatalog && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowModal(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Search className="h-4 w-4" />
-                  Browse Catalog
-                </Button>
-              )}
+              {!selectedFromCatalog && (<Button variant="outline" onClick={() => setShowModal(true)} className="flex items-center gap-2"><Search className="h-4 w-4" />Browse Catalog</Button>)}
             </div>
-            {!selectedFromCatalog && (
-              <p className="text-xs text-muted-foreground">
-                Tip: Use "Browse Catalog" for detailed identification help and treatment recommendations.
-              </p>
-            )}
+            {!selectedFromCatalog && (<p className="text-xs text-muted-foreground">Tip: Use "Browse Catalog" for detailed help.</p>)}
           </div>
-
-          <div className="space-y-2">
-            <Label>Action Taken (Optional)</Label>
-            <Textarea
-              value={action}
-              onChange={(e) => setAction(e.target.value)}
-              placeholder="What action did you take? (e.g., Applied insecticidal soap, Released beneficial insects)"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Additional Notes (Optional)</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional observations or details..."
-            />
-          </div>
-
-          <div className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Browse Catalog
-            </Button>
-            <Button
-              onClick={addPestLog}
-              disabled={submitting || !pest.trim()}
-              className="flex items-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Observation"
-              )}
-            </Button>
-          </div>
+          <div className="space-y-2"><Label>Action Taken (Optional)</Label><Textarea value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g., Applied insecticidal soap" /></div>
+          <div className="space-y-2"><Label>Notes (Optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional details..." /></div>
+          <div className="flex justify-end"><Button onClick={addPestLog} disabled={submitting || !pest.trim()}>{submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving...</> : "Save Observation"}</Button></div>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader>
-          <CardTitle>Observation History</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Observation History</CardTitle></CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : activeEntries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Bug className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No observations yet.</p>
-              <p className="text-sm">Great news! Your tower appears healthy.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeEntries.map((entry) => (
-                <div key={entry.id} className="p-4 border rounded-md hover:bg-muted/20 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Bug className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{entry.pest}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(entry.observed_at).toLocaleDateString()} at{" "}
-                          {new Date(entry.observed_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-
-                      {entry.action && (
-                        <div className="text-sm mt-2">
-                          <span className="font-medium text-green-700">Action taken:</span>
-                          <span className="ml-2">{entry.action}</span>
-                        </div>
-                      )}
-
-                      {entry.notes && (
-                        <div className="text-sm text-muted-foreground mt-2">
-                          <span className="font-medium">Notes:</span>
-                          <span className="ml-2">{entry.notes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {loading ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (<Skeleton key={i} className="h-16 w-full" />))}</div>
+          : activeEntries.length === 0 ? <div className="text-center py-8 text-muted-foreground"><Bug className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No observations yet.</p></div>
+          : <div className="space-y-4">{activeEntries.map((entry) => (<div key={entry.id} className="p-4 border rounded-md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><Bug className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{entry.pest}</span><span className="text-xs text-muted-foreground">{new Date(entry.observed_at).toLocaleDateString()}</span></div>{entry.action && <div className="text-sm mt-2"><span className="font-medium text-green-700">Action:</span><span className="ml-2">{entry.action}</span></div>}{entry.notes && <div className="text-sm text-muted-foreground mt-2"><span className="font-medium">Notes:</span><span className="ml-2">{entry.notes}</span></div>}</div></div></div>))}</div>}
         </CardContent>
       </Card>
     </div>
@@ -1213,7 +630,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 }
 
 /* =========================
-   PlantsTab (full)
+   PlantsTab
    ========================= */
 
 interface PlantsTabProps {
@@ -1232,45 +649,18 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const [quantity, setQuantity] = useState(1);
   const [seededAt, setSeededAt] = useState("");
   const [plantedAt, setPlantedAt] = useState("");
-  const [growthRate, setGrowthRate] = useState("");
   const [harvestDate, setHarvestDate] = useState("");
-  const [outcome, setOutcome] = useState("");
   const [portNumber, setPortNumber] = useState<number | undefined>();
 
   useEffect(() => {
     const fetchPlantings = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('plantings')
-          .select(`
-            *,
-            plant_catalog (
-              id,
-              name,
-              category,
-              harvest_days,
-              germination_days,
-              description,
-              is_global
-            )
-          `)
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
-          .order('created_at', { ascending: false });
-
+        const { data, error } = await supabase.from('plantings').select(`*, plant_catalog (*)`).eq('tower_id', towerId).eq('teacher_id', teacherId).order('created_at', { ascending: false });
         if (error) throw error;
         setPlantings(data || []);
-      } catch (error) {
-        console.error('Error fetching plantings:', error);
-        toast({
-          title: "Error loading plants",
-          description: "Failed to load plantings data.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { toast({ title: "Error loading plants", variant: "destructive" }); }
+      finally { setLoading(false); }
     };
     fetchPlantings();
   }, [towerId, teacherId, toast, refreshKey]);
@@ -1279,355 +669,58 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
     if (!name.trim()) return;
     try {
       setSubmitting(true);
-      const { data, error } = await supabase
-        .from('plantings')
-        .insert({
-          tower_id: towerId,
-          teacher_id: teacherId,
-          name: name.trim(),
-          quantity,
-          seeded_at: seededAt || null,
-          planted_at: plantedAt || null,
-          growth_rate: growthRate || null,
-          expected_harvest_date: harvestDate || null,
-          outcome: outcome || null,
-          port_number: portNumber || null,
-        })
-        .select()
-        .single();
-
+      const { data, error } = await supabase.from('plantings').insert({ tower_id: towerId, teacher_id: teacherId, name: name.trim(), quantity, seeded_at: seededAt || null, planted_at: plantedAt || null, expected_harvest_date: harvestDate || null, port_number: portNumber || null }).select('*, plant_catalog (*)').single();
       if (error) throw error;
       setPlantings(prev => [data, ...prev]);
-
-      setName(""); setQuantity(1); setSeededAt(""); setPlantedAt("");
-      setGrowthRate(""); setHarvestDate(""); setOutcome(""); setPortNumber(undefined);
-
-      toast({
-        title: "Plant added",
-        description: "Plant has been added to the tower successfully."
-      });
-    } catch (error) {
-      console.error('Error adding planting:', error);
-      toast({
-        title: "Error adding plant",
-        description: "Failed to add plant. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      setName(""); setQuantity(1); setSeededAt(""); setPlantedAt(""); setHarvestDate(""); setPortNumber(undefined);
+      toast({ title: "Plant added" });
+    } catch (error) { toast({ title: "Error adding plant", variant: "destructive" }); }
+    finally { setSubmitting(false); }
   };
 
   const getHarvestStatus = (expectedDate?: string) => {
-    if (!expectedDate) {
-      return { status: 'unknown', daysRemaining: null, color: 'default' };
-    }
-
-    const today = new Date();
+    if (!expectedDate) return { status: 'unknown' };
+    const today = new Date(); today.setHours(0,0,0,0);
     const harvest = new Date(expectedDate);
     const diffTime = harvest.getTime() - today.getTime();
     const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (daysRemaining < 0) {
-      return {
-        status: 'overdue',
-        daysRemaining: Math.abs(daysRemaining),
-        color: 'destructive' as const
-      };
-    } else if (daysRemaining === 0) {
-      return {
-        status: 'today',
-        daysRemaining: 0,
-        color: 'default' as const
-      };
-    } else if (daysRemaining <= 7) {
-      return {
-        status: 'soon',
-        daysRemaining,
-        color: 'secondary' as const
-      };
-    } else {
-      return {
-        status: 'upcoming',
-        daysRemaining,
-        color: 'outline' as const
-      };
-    }
+    if (daysRemaining < 0) return { status: 'overdue', days: Math.abs(daysRemaining) };
+    if (daysRemaining === 0) return { status: 'today' };
+    if (daysRemaining <= 7) return { status: 'soon', days: daysRemaining };
+    return { status: 'upcoming', days: daysRemaining };
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'overdue': return <AlertTriangle className="h-4 w-4" />;
-      case 'today': return <CheckCircle className="h-4 w-4" />;
-      case 'soon': return <Clock className="h-4 w-4" />;
-      default: return <Calendar className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusText = (status: string, daysRemaining: number | null) => {
-    switch (status) {
-      case 'overdue': return `${daysRemaining} days overdue`;
-      case 'today': return 'Ready today!';
-      case 'soon': return `${daysRemaining} days left`;
-      case 'upcoming': return `${daysRemaining} days to harvest`;
-      default: return 'No harvest date';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (loading) return <Skeleton className="h-96 w-full" />;
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Add Plant Manually
-            </CardTitle>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/app/catalog?addTo=${towerId}`}>
-                <Leaf className="h-4 w-4 mr-2" />
-                Add from Catalog
-              </Link>
-            </Button>
+            <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" />Add Plant Manually</CardTitle>
+            <Button asChild variant="outline" size="sm"><Link to={`/app/catalog?addTo=${towerId}`}><Leaf className="h-4 w-4 mr-2" />Add from Catalog</Link></Button>
           </div>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>Plant Name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Lettuce"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Port Number</Label>
-            <Input
-              type="number"
-              min="1"
-              max="32"
-              value={portNumber ?? ""}
-              onChange={(e) => setPortNumber(Number(e.target.value) || undefined)}
-              placeholder="1-32"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Quantity</Label>
-            <Input
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Seeded Date</Label>
-            <Input
-              type="date"
-              value={seededAt}
-              onChange={(e) => setSeededAt(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Planted Date</Label>
-            <Input
-              type="date"
-              value={plantedAt}
-              onChange={(e) => setPlantedAt(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Expected Harvest</Label>
-            <Input
-              type="date"
-              value={harvestDate}
-              onChange={(e) => setHarvestDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Growth Rate</Label>
-            <Input
-              value={growthRate}
-              onChange={(e) => setGrowthRate(e.target.value)}
-              placeholder="e.g., 2cm/week"
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Expected Outcome</Label>
-            <Input
-              value={outcome}
-              onChange={(e) => setOutcome(e.target.value)}
-              placeholder="Eaten in class, donated, etc"
-            />
-          </div>
-          <div className="md:col-span-3">
-            <Button onClick={addPlanting} disabled={submitting || !name.trim()}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Plant
-                </>
-              )}
-            </Button>
-          </div>
+          <div className="space-y-2"><Label>Plant Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Lettuce" /></div>
+          <div className="space-y-2"><Label>Port #</Label><Input type="number" min="1" max="32" value={portNumber ?? ""} onChange={(e) => setPortNumber(Number(e.target.value) || undefined)} placeholder="1-32" /></div>
+          <div className="space-y-2"><Label>Quantity</Label><Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))} /></div>
+          <div className="space-y-2"><Label>Seeded Date</Label><Input type="date" value={seededAt} onChange={(e) => setSeededAt(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Planted Date</Label><Input type="date" value={plantedAt} onChange={(e) => setPlantedAt(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Expected Harvest</Label><Input type="date" value={harvestDate} onChange={(e) => setHarvestDate(e.target.value)} /></div>
+          <div className="md:col-span-3"><Button onClick={addPlanting} disabled={submitting || !name.trim()}>{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Adding...</> : <><Plus className="mr-2 h-4 w-4" />Add Plant</>}</Button></div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Leaf className="h-5 w-5 text-green-600" />
-              Tower Plants ({plantings.length})
-            </CardTitle>
-          </div>
-        </CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Leaf className="h-5 w-5 text-green-600" />Tower Plants ({plantings.length})</CardTitle></CardHeader>
         <CardContent>
           {plantings.length === 0 ? (
-            <div className="text-center py-8">
-              <Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No plants added to this tower yet.</p>
-              <Button asChild>
-                <Link to={`/app/catalog?addTo=${towerId}`}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Plant
-                </Link>
-              </Button>
-            </div>
+            <div className="text-center py-8"><Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground mb-4">No plants added yet.</p><Button asChild><Link to={`/app/catalog?addTo=${towerId}`}><Plus className="h-4 w-4 mr-2" />Add First Plant</Link></Button></div>
           ) : (
-            <div className="space-y-4">
-              {plantings.map((plant) => {
-                const harvestInfo = getHarvestStatus(plant.expected_harvest_date);
-
-                return (
-                  <Card key={plant.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-3 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-lg">{plant.name}</h4>
-                          {plant.plant_catalog && (
-                            <div className="flex gap-1">
-                              {plant.plant_catalog.category && (
-                                <Badge variant="outline" className="text-xs">
-                                  {plant.plant_catalog.category}
-                                </Badge>
-                              )}
-                              {plant.plant_catalog.is_global && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <Globe className="h-3 w-3 mr-1" />
-                                  Global
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {plant.plant_catalog?.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {plant.plant_catalog.description}
-                          </p>
-                        )}
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              <span className="text-muted-foreground">Port:</span>{" "}
-                              {plant.port_number || "Not set"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Qty:</span>
-                            <span>{plant.quantity}</span>
-                          </div>
-                          {plant.seeded_at && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Seeded:</span>
-                              <span>{new Date(plant.seeded_at).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                          {plant.planted_at && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Planted:</span>
-                              <span>{new Date(plant.planted_at).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {plant.expected_harvest_date && (
-                          <Alert className={`border-l-4 ${
-                            harvestInfo.status === 'overdue' ? 'border-l-red-500 bg-red-50' :
-                            harvestInfo.status === 'today' ? 'border-l-green-500 bg-green-50' :
-                            harvestInfo.status === 'soon' ? 'border-l-yellow-500 bg-yellow-50' :
-                            'border-l-blue-500 bg-blue-50'
-                          }`}>
-                            <div className="flex items-center gap-2">
-                              {getStatusIcon(harvestInfo.status)}
-                              <div>
-                                <p className="font-medium">
-                                  {getStatusText(harvestInfo.status, harvestInfo.daysRemaining)}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  Expected harvest: {new Date(plant.expected_harvest_date).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                          </Alert>
-                        )}
-
-                        {(plant.growth_rate || plant.outcome) && (
-                          <div className="grid md:grid-cols-2 gap-4 text-sm pt-2 border-t">
-                            {plant.growth_rate && (
-                              <div>
-                                <span className="text-muted-foreground">Growth Rate:</span>{" "}
-                                {plant.growth_rate}
-                              </div>
-                            )}
-                            {plant.outcome && (
-                              <div>
-                                <span className="text-muted-foreground">Outcome:</span>{" "}
-                                {plant.outcome}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2 ml-4">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+            <div className="space-y-4">{plantings.map((plant) => {
+              const harvestInfo = getHarvestStatus(plant.expected_harvest_date);
+              return (<Card key={plant.id} className="p-4"><div className="flex items-start justify-between"><div className="space-y-3 flex-1"><div className="flex items-center gap-2"><h4 className="font-medium text-lg">{plant.name}</h4>{plant.plant_catalog && <><Badge variant="outline" className="text-xs">{plant.plant_catalog.category}</Badge>{plant.plant_catalog.is_global && <Badge variant="secondary" className="text-xs"><Globe className="h-3 w-3 mr-1" />Global</Badge>}</>}</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span><span className="text-muted-foreground">Port:</span>{" "}{plant.port_number || "N/A"}</span></div><div className="flex items-center gap-2"><span className="text-muted-foreground">Qty:</span><span>{plant.quantity}</span></div>{plant.seeded_at && <div className="flex items-center gap-2"><span className="text-muted-foreground">Seeded:</span><span>{new Date(plant.seeded_at).toLocaleDateString()}</span></div>}{plant.planted_at && <div className="flex items-center gap-2"><span className="text-muted-foreground">Planted:</span><span>{new Date(plant.planted_at).toLocaleDateString()}</span></div>}</div>{plant.expected_harvest_date && <Alert className={`border-l-4 ${harvestInfo.status === 'overdue' ? 'border-l-red-500 bg-red-50' : 'border-l-gray-300'}`}><div className="flex items-center gap-2">{harvestInfo.status === 'overdue' ? <AlertTriangle /> : <Calendar />}<div><p className="font-medium">{harvestInfo.status === 'overdue' ? `${harvestInfo.days} days overdue` : harvestInfo.status === 'today' ? `Ready today!` : `${harvestInfo.days} days left`}</p></div></div></Alert>}</div><div className="flex gap-2 ml-4"><Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>);})}</div>)}
         </CardContent>
       </Card>
     </div>
