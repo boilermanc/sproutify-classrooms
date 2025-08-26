@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Bug, Search, AlertTriangle, Camera, HelpCircle } from "lucide-react";
-import PestIdentificationModal from "./PestIdentificationModal";
 import TreatmentRecommendations from "./TreatmentRecommendations";
 
 interface EnhancedScoutingFormProps {
@@ -531,31 +531,59 @@ export function EnhancedScoutingForm({
         </CardContent>
       </Card>
 
-      {/* Pest Identification Modal - PRODUCTION FIX */}
-      <PestIdentificationModal
-        isOpen={showPestModal}
-        onClose={() => setShowPestModal(false)}
-        onSelect={(pest) => {
-          // Direct inline implementation - no external function calls
-          const simplePest: PestCatalogItem = {
-            id: `custom-${Date.now()}`,
-            name: pest,
-            type: 'pest',
-            description: `Custom observation: ${pest}`,
-            severity_levels: [
-              { level: 1, description: 'Low', color: 'green', action: 'Monitor closely' },
-              { level: 2, description: 'Medium', color: 'yellow', action: 'Take action soon' },
-              { level: 3, description: 'High', color: 'red', action: 'Immediate action needed' }
-            ],
-            treatment_options: []
-          };
-          
-          setSelectedPest(simplePest);
-          setCustomPest("");
-          setShowPestModal(false);
-          setSeverity(1);
-        }}
-      />
+      {/* Completely self-contained modal - no function passing */}
+      {showPestModal && (
+        <Dialog open={true} onOpenChange={() => setShowPestModal(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Bug className="h-5 w-5" />
+                Pest Identification
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                {["Aphids", "Spider Mites", "Whiteflies", "Thrips", "Fungus Gnats", "Scale Insects", "Mealybugs", "Root Aphids"].map((pest) => (
+                  <Button
+                    key={pest}
+                    variant="ghost"
+                    className="justify-start h-auto p-2 text-left"
+                    onClick={() => {
+                      const simplePest: PestCatalogItem = {
+                        id: `custom-${Date.now()}`,
+                        name: pest,
+                        type: 'pest',
+                        description: `Custom observation: ${pest}`,
+                        severity_levels: [
+                          { level: 1, description: 'Low', color: 'green', action: 'Monitor closely' },
+                          { level: 2, description: 'Medium', color: 'yellow', action: 'Take action soon' },
+                          { level: 3, description: 'High', color: 'red', action: 'Immediate action needed' }
+                        ],
+                        treatment_options: []
+                      };
+                      
+                      setSelectedPest(simplePest);
+                      setCustomPest("");
+                      setShowPestModal(false);
+                      setSeverity(1);
+                    }}
+                  >
+                    <Bug className="h-4 w-4 mr-2 text-muted-foreground" />
+                    {pest}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowPestModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
