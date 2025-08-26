@@ -1,5 +1,4 @@
 // src/components/scouting/PestIdentificationModal.tsx
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,15 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Bug } from "lucide-react";
 
 interface PestIdentificationModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPestSelected?: (pest: string) => void;
+  isOpen: boolean;                    // Fixed: was "open"
+  onClose: () => void;               // Fixed: was "onOpenChange" 
+  onSelect?: (pest: string) => void; // Fixed: was "onPestSelected"
 }
 
 export function PestIdentificationModal({ 
-  open, 
-  onOpenChange, 
-  onPestSelected 
+  isOpen,    // Fixed: was "open"
+  onClose,   // Fixed: was "onOpenChange"
+  onSelect   // Fixed: was "onPestSelected"
 }: PestIdentificationModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -38,12 +37,12 @@ export function PestIdentificationModal({
   );
 
   const handlePestSelect = (pest: string) => {
-    onPestSelected?.(pest);
-    onOpenChange(false);
+    onSelect?.(pest);    // Fixed: was "onPestSelected"
+    onClose();          // Fixed: was "onOpenChange(false)"
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -97,15 +96,15 @@ export function PestIdentificationModal({
             <Button 
               variant="outline" 
               className="flex-1"
-              onClick={() => onOpenChange(false)}
+              onClick={onClose}    // Fixed: was "onOpenChange(false)"
             >
               Cancel
             </Button>
             <Button 
               className="flex-1"
               onClick={() => {
-                onPestSelected?.(searchTerm || "Custom pest");
-                onOpenChange(false);
+                onSelect?.(searchTerm || "Custom pest");    // Fixed: was "onPestSelected"
+                onClose();                                   // Fixed: was "onOpenChange(false)"
               }}
             >
               Use Custom
@@ -117,5 +116,4 @@ export function PestIdentificationModal({
   );
 }
 
-// Default export (if needed)
 export default PestIdentificationModal;
