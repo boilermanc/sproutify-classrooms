@@ -1,3 +1,5 @@
+// src/App.tsx - CORRECTED ROUTER FILE
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,9 +38,14 @@ import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
-// NEW: Pest & Disease Guide imports
+// Pest & Disease Guide imports
 import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
 import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
+
+// --- FIX: IMPORT THE MISSING CATALOG PAGE COMPONENTS ---
+import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
+import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
+
 
 const queryClient = new QueryClient();
 
@@ -74,7 +81,7 @@ const App = () => (
             <Route path="pests" element={<StudentPestForm />} />
             <Route path="add-plant" element={<StudentPlantForm />} />
             <Route path="photos" element={<StudentPhotoForm />} />
-            <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} /> {/* NEW */}
+            <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
           </Route>
 
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
@@ -85,8 +92,15 @@ const App = () => (
               <Route path="new" element={<NewTower />} />
               <Route path=":id" element={<TowerDetail />} />
             </Route>
-            <Route path="catalog" element={<PlantCatalog />} />
-            <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} /> {/* NEW */}
+            
+            {/* --- FIX: RESTRUCTURED CATALOG ROUTES TO INCLUDE ALL PAGES --- */}
+            <Route path="catalog">
+              <Route index element={<PlantCatalog />} /> {/* /app/catalog */}
+              <Route path="manage" element={<ManageClassroomCatalog />} /> {/* /app/catalog/manage */}
+              <Route path="global" element={<GlobalPlantCatalog />} /> {/* /app/catalog/global */}
+            </Route>
+
+            <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />
