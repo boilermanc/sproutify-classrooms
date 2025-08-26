@@ -74,7 +74,7 @@ interface PestCatalogItem {
   safe_for_schools: boolean;
 }
 
-// Debug Video Player Component with Enhanced Logging
+// Simplified and Fixed Video Player Component
 interface VideoPlayerProps {
   src: string;
   title?: string;
@@ -89,51 +89,17 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
-  // Enhanced URL handling with debugging
-  const getVideoUrl = (src: string) => {
-    const info = [`Original URL: ${src}`];
-    
-    try {
-      // If it's already a complete URL, return as is
-      if (src.startsWith('http://') || src.startsWith('https://')) {
-        info.push('URL type: Complete HTTPS URL');
-        info.push(`Final URL: ${src}`);
-        setDebugInfo(info);
-        return src;
-      }
-      
-      // If it's a Supabase storage path, construct the proper URL
-      if (src.startsWith('pest-videos/')) {
-        const { data } = supabase.storage.from('pest-videos').getPublicUrl(src);
-        info.push('URL type: Supabase storage path');
-        info.push(`Final URL: ${data.publicUrl}`);
-        setDebugInfo(info);
-        return data.publicUrl;
-      }
-      
-      // Default case - assume it's a storage path without the bucket prefix
-      const { data } = supabase.storage.from('pest-videos').getPublicUrl(`pest-videos/${src}`);
-      info.push('URL type: Assumed storage path');
-      info.push(`Final URL: ${data.publicUrl}`);
-      setDebugInfo(info);
-      return data.publicUrl;
-    } catch (err) {
-      console.error('Error constructing video URL:', err);
-      info.push(`Error: ${err}`);
-      setDebugInfo(info);
-      return src; // Fallback to original URL
-    }
-  };
-
-  const videoUrl = getVideoUrl(src);
+  // Simplified URL handling - since the URL works directly, use it as-is
+  const videoUrl = src.startsWith('http') ? src : src;
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Reset states when source changes
+    console.log('Loading video:', videoUrl);
+
+    // Reset states
     setLoading(true);
     setError(null);
     setIsPlaying(false);
@@ -141,52 +107,20 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     setDuration(0);
     setProgress(0);
 
-    // Add debug logging
-    console.log('Video component initializing with URL:', videoUrl);
-
-    const updateTime = () => {
-      if (video) {
+    const handleTimeUpdate = () => {
+      if (video && !isNaN(video.currentTime) && !isNaN(video.duration)) {
         setCurrentTime(video.currentTime);
-        if (video.duration) {
-          setProgress((video.currentTime / video.duration) * 100);
-        }
+        setProgress((video.currentTime / video.duration) * 100);
       }
     };
 
-    const updateDuration = () => {
-      if (video && video.duration) {
-        console.log('Video duration loaded:', video.duration);
+    const handleLoadedMetadata = () => {
+      console.log('Video metadata loaded, duration:', video.duration);
+      if (video && !isNaN(video.duration)) {
         setDuration(video.duration);
         setLoading(false);
+        setError(null);
       }
-    };
-
-    const handleError = (e: Event) => {
-      console.error('Video error event:', e);
-      console.error('Video error details:', video.error);
-      
-      let errorMessage = "Unable to load video";
-      if (video.error) {
-        switch (video.error.code) {
-          case 1:
-            errorMessage = "Video loading aborted";
-            break;
-          case 2:
-            errorMessage = "Network error loading video";
-            break;
-          case 3:
-            errorMessage = "Video format not supported";
-            break;
-          case 4:
-            errorMessage = "Video source not found";
-            break;
-          default:
-            errorMessage = `Video error (code ${video.error.code})`;
-        }
-      }
-      
-      setError(errorMessage);
-      setLoading(false);
     };
 
     const handleCanPlay = () => {
@@ -195,74 +129,89 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       setError(null);
     };
 
-    const handleLoadStart = () => {
-      console.log('Video load started');
+    const handleError = (e: Event) => {
+      console.error('Video error:', e);
+      console.error('Video error object:', video.error);
+      
+      let errorMsg = "Video failed to load";
+      if (video.error) {
+        switch (video.error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMsg = "Video loading was aborted";
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMsg = "Network error occurred";
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMsg = "Video format not supported";
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMsg = "Video source not supported";
+            break;
+          default:
+            errorMsg = `Video error (${video.error.code})`;
+        }
+      }
+      
+      setError(errorMsg);
+      setLoading(false);
     };
 
-    const handleLoadedData = () => {
-      console.log('Video data loaded');
-    };
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleWaiting = () => setLoading(true);
+    const handlePlaying = () => setLoading(false);
 
-    const handlePlay = () => {
-      console.log('Video playing');
-      setIsPlaying(true);
-    };
-
-    const handlePause = () => {
-      console.log('Video paused');
-      setIsPlaying(false);
-    };
-
-    // Add event listeners with more comprehensive logging
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('timeupdate', updateTime);
-    video.addEventListener('loadedmetadata', updateDuration);
-    video.addEventListener('error', handleError);
+    // Add event listeners
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('playing', handlePlaying);
+
+    // Force load the video
+    video.load();
 
     return () => {
-      // Clean up event listeners
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('timeupdate', updateTime);
-      video.removeEventListener('loadedmetadata', updateDuration);
-      video.removeEventListener('error', handleError);
+      // Cleanup
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('playing', handlePlaying);
     };
   }, [videoUrl]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isPlaying) {
-      video.pause();
-    } else {
-      // Handle play promise for newer browsers
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error('Play failed:', error);
-          setError("Unable to play video. Please try again.");
-        });
+    try {
+      if (isPlaying) {
+        video.pause();
+      } else {
+        await video.play();
       }
+    } catch (err) {
+      console.error('Play/pause error:', err);
+      setError("Unable to play video");
     }
   };
 
   const toggleMute = () => {
     const video = videoRef.current;
     if (!video) return;
-
-    video.muted = !isMuted;
-    setIsMuted(!isMuted);
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
     if (!video || !duration) return;
 
@@ -273,8 +222,6 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     const newTime = percentage * duration;
     
     video.currentTime = newTime;
-    setCurrentTime(newTime);
-    setProgress(percentage * 100);
   };
 
   const formatTime = (seconds: number) => {
@@ -286,10 +233,10 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
 
   if (loading) {
     return (
-      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading educational video...</p>
+      <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2 text-white">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm">Loading video...</p>
         </div>
       </div>
     );
@@ -298,41 +245,34 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   if (error) {
     return (
       <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-        <div className="flex flex-col items-center gap-2 p-4 text-center">
+        <div className="flex flex-col items-center gap-3 p-4 text-center">
           <AlertTriangle className="h-8 w-8 text-red-500" />
-          <p className="text-sm font-medium text-red-700">Video Loading Error</p>
-          <p className="text-xs text-red-600">{error}</p>
+          <div>
+            <p className="text-sm font-medium text-red-700 mb-1">Failed to load video</p>
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
           
-          {/* Debug Information */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 p-3 bg-gray-50 rounded text-left text-xs">
-              <p className="font-semibold mb-2">Debug Info:</p>
-              {debugInfo.map((info, index) => (
-                <p key={index} className="text-gray-600">{info}</p>
-              ))}
-              <p className="mt-2 text-blue-600">
-                <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                  Test URL directly
-                </a>
-              </p>
-            </div>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              // Trigger reload by forcing video to reload
-              const video = videoRef.current;
-              if (video) {
-                video.load();
-              }
-            }}
-          >
-            Retry
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.open(videoUrl, '_blank')}
+            >
+              Open Direct Link
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                const video = videoRef.current;
+                if (video) video.load();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -341,23 +281,27 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
   return (
     <div className="space-y-4">
       {title && <h4 className="font-semibold">{title}</h4>}
+      
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
+        {/* Video Element with simplified attributes */}
         <video
           ref={videoRef}
           src={videoUrl}
           className="w-full h-full object-contain"
           onClick={togglePlay}
+          crossOrigin="anonymous"
           playsInline
           preload="metadata"
+          controls={false}
         />
         
-        {/* Video Controls Overlay */}
+        {/* Custom Controls Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
             {/* Progress Bar */}
             <div 
               className="w-full h-2 bg-white/20 rounded-full cursor-pointer"
-              onClick={handleSeek}
+              onClick={handleProgressClick}
             >
               <div 
                 className="h-full bg-white rounded-full transition-all duration-100"
@@ -365,7 +309,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
               />
             </div>
             
-            {/* Controls */}
+            {/* Control Buttons */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Button
@@ -398,7 +342,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
           </div>
         </div>
         
-        {/* Play Button Overlay (when paused) */}
+        {/* Large Play Button When Paused */}
         {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Button
@@ -414,7 +358,7 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
       </div>
       
       <p className="text-sm text-muted-foreground">
-        Use this educational video to learn proper identification and management techniques.
+        Educational video content for identification and management techniques.
       </p>
     </div>
   );
