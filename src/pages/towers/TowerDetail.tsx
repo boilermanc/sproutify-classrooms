@@ -1,7 +1,8 @@
-// TowerDetail.tsx — FINAL VERSION
+// TowerDetail.tsx — FINAL, FULLY CORRECTED FILE (v3)
 // Includes:
-// 1. Reliable VideoPlayer component (fixed spinning bug)
-// 2. Flexible layout for PestIdentificationModal (fixed scrolling/fit)
+// 1. Reliable VideoPlayer component.
+// 2. Correctly scrolling PestIdentificationModal with flexbox layout.
+// 3. Updated modal header text to be more inclusive ("Issue Identification").
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
@@ -42,6 +43,7 @@ import {
   Microscope,
   Droplets,
   PlayCircle,
+  ClipboardList, // Added for the updated modal title
 } from "lucide-react";
 
 // Import existing components
@@ -114,7 +116,7 @@ const guessMimeFromUrl = (url: string) => {
   if (u.endsWith(".webm")) return "video/webm";
   if (u.endsWith(".mov")) return "video/quicktime";
   if (u.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
-  return "video/mp4"; // Default fallback
+  return "video/mp4";
 };
 
 interface VideoPlayerProps {
@@ -131,46 +133,34 @@ function VideoPlayer({ src, title }: VideoPlayerProps) {
     setError(null);
   }, [src]);
 
-  const handleCanPlay = () => {
-    setLoading(false);
-  };
+  const handleCanPlay = () => setLoading(false);
 
   const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     setLoading(false);
     const video = e.currentTarget;
-    switch (video.error?.code) {
-      case MediaError.MEDIA_ERR_ABORTED:
-        setError("Video loading was aborted.");
-        break;
-      case MediaError.MEDIA_ERR_NETWORK:
-        setError("A network error occurred.");
-        break;
-      case MediaError.MEDIA_ERR_DECODE:
-        setError("The video cannot be decoded.");
-        break;
-      case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-        setError("The video format is not supported.");
-        break;
-      default:
-        setError("An unknown error occurred.");
-        break;
-    }
+    const code = video.error?.code;
+    const msg =
+      code === MediaError.MEDIA_ERR_ABORTED ? "Video loading was aborted." :
+      code === MediaError.MEDIA_ERR_NETWORK ? "A network error occurred." :
+      code === MediaError.MEDIA_ERR_DECODE ? "The video cannot be decoded." :
+      code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "The video format is not supported." :
+      "An unknown error occurred.";
+    setError(msg);
   };
 
   return (
     <div className="space-y-3">
       {title && <h4 className="font-semibold">{title}</h4>}
       <div className="relative aspect-video w-full rounded-lg bg-black">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
-            <p className="ml-2 text-sm text-white">Loading video…</p>
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-gray-100 p-4 text-center">
-            <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
-            <span className="text-red-600">{error}</span>
+        {(loading || error) && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 p-4">
+            {loading && <Loader2 className="h-8 w-8 animate-spin text-white" />}
+            {error && (
+              <div className="text-center">
+                <AlertTriangle className="mx-auto h-6 w-6 text-red-400" />
+                <p className="mt-2 text-sm text-red-300">{error}</p>
+              </div>
+            )}
           </div>
         )}
         <video
@@ -208,15 +198,11 @@ export default function TowerDetail() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const userId = session?.user?.id ?? null;
-      setTeacherId(userId);
+      setTeacherId(session?.user?.id ?? null);
     });
-
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const userId = session?.user?.id ?? null;
-      setTeacherId(userId);
+      setTeacherId(session?.user?.id ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -228,27 +214,15 @@ export default function TowerDetail() {
 
   const fetchTower = async () => {
     if (!id || !teacherId) return;
-
     setLoading(true);
     setError(null);
-
     try {
-      const { data, error: fetchError } = await supabase
-        .from("towers")
-        .select("*")
-        .eq("id", id)
-        .eq("teacher_id", teacherId)
-        .single();
-
+      const { data, error: fetchError } = await supabase.from("towers").select("*").eq("id", id).eq("teacher_id", teacherId).single();
       if (fetchError) {
-        if ((fetchError as any).code === 'PGRST116') {
-          setError("Tower not found or you do not have permission to view it.");
-        } else {
-          throw fetchError;
-        }
+        if ((fetchError as any).code === 'PGRST116') setError("Tower not found or you do not have permission to view it.");
+        else throw fetchError;
         return;
       }
-
       setTower(data);
     } catch (error: any) {
       setError("Failed to load tower details. Please try again.");
@@ -257,15 +231,13 @@ export default function TowerDetail() {
     }
   };
 
-  const refreshData = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  const refreshData = () => setRefreshKey(prev => prev + 1);
 
   const getLocationIcon = (location?: string) => {
     switch (location) {
       case 'greenhouse': return <Leaf className="h-4 w-4 text-green-600" />;
       case 'outdoor': return <Sun className="h-4 w-4 text-yellow-600" />;
-      case 'indoor': default: return <Building className="h-4 w-4 text-blue-600" />;
+      default: return <Building className="h-4 w-4 text-blue-600" />;
     }
   };
 
@@ -273,7 +245,7 @@ export default function TowerDetail() {
     switch (location) {
       case 'greenhouse': return 'Greenhouse';
       case 'outdoor': return 'Outdoor';
-      case 'indoor': default: return 'Indoor';
+      default: return 'Indoor';
     }
   };
 
@@ -297,7 +269,7 @@ export default function TowerDetail() {
 
   return (
     <>
-      <SEO title={`${tower.name} - Tower Details`} description={`Details for ${tower.name}.`} />
+      <SEO title={`${tower.name} - Tower Details`} />
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tower.name}</h1>
@@ -306,7 +278,6 @@ export default function TowerDetail() {
             <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
           </div>
         </div>
-
         <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="vitals">Vitals</TabsTrigger>
@@ -317,7 +288,6 @@ export default function TowerDetail() {
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
-
           <TabsContent value="vitals" className="mt-4"><TowerVitalsForm towerId={tower.id} teacherId={teacherId} onVitalsSaved={refreshData} /></TabsContent>
           <TabsContent value="plants" className="mt-4"><PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
           <TabsContent value="scouting" className="mt-4"><ScoutingTab towerId={tower.id} teacherId={teacherId} towerLocation={tower.location || 'indoor'} onScoutingSaved={refreshData} /></TabsContent>
@@ -332,15 +302,10 @@ export default function TowerDetail() {
 }
 
 /* =========================
-   PestIdentificationModal - CORRECTED WITH FLEXIBLE LAYOUT
+   PestIdentificationModal - CORRECTED WITH FLEXIBLE LAYOUT AND TEXT
    ========================= */
 
-function PestIdentificationModal({
-  isOpen,
-  onClose,
-  onSelect,
-  towerLocation = "classroom"
-}: PestIdentificationModalProps) {
+function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "classroom" }: PestIdentificationModalProps) {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'pest': return <Bug className="h-4 w-4" />;
@@ -371,20 +336,16 @@ function PestIdentificationModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     const fetchPestCatalog = async () => {
-      if (!isOpen) return;
       try {
         setLoading(true);
         setError(null);
-        const { data, error } = await supabase
-          .from('pest_catalog')
-          .select('*')
-          .eq('safe_for_schools', true)
-          .order('name', { ascending: true });
+        const { data, error } = await supabase.from('pest_catalog').select('*').eq('safe_for_schools', true).order('name', { ascending: true });
         if (error) throw error;
         setPestCatalog(data || []);
       } catch (err: any) {
-        setError(err?.message ?? 'Failed to load pest catalog');
+        setError(err?.message ?? 'Failed to load catalog');
       } finally {
         setLoading(false);
       }
@@ -406,31 +367,24 @@ function PestIdentificationModal({
   };
 
   const handleUseCustom = () => { onSelect?.(null); onClose(); };
-  const handleUsePest = () => { if (selectedPest) { onSelect?.(selectedPest); } onClose(); };
+  const handleUsePest = () => { if (selectedPest) onSelect?.(selectedPest); onClose(); };
 
   const resetModal = () => {
-    setActiveTab('browse');
-    setSearchTerm('');
-    setSelectedType('all');
-    setSelectedPest(null);
-    setContentTab('identification');
-    setError(null);
+    setActiveTab('browse'); setSearchTerm(''); setSelectedType('all'); setSelectedPest(null); setContentTab('identification'); setError(null);
   };
 
-  useEffect(() => { if (!isOpen) { resetModal(); } }, [isOpen]);
+  useEffect(() => { if (!isOpen) resetModal(); }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80">
       <div className="fixed left-[50%] top-[50%] z-50 flex w-full max-w-5xl flex-col translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg max-h-[90vh] overflow-hidden">
-        <button onClick={onClose} className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-xl">
-          <span className="sr-only">Close</span>✕
-        </button>
-
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-sm opacity-70 z-10 hover:opacity-100 text-2xl">&times;</button>
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2"><Bug className="h-5 w-5" />Pest Identification</h2>
-          <p className="text-sm text-muted-foreground">Search and select a pest from our database or enter a custom observation.</p>
+          {/* CHANGED: Title, icon, and subtitle for clarity */}
+          <h2 className="text-lg font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Issue Identification</h2>
+          <p className="text-sm text-muted-foreground">Search and select an issue from our database or enter a custom observation.</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
@@ -440,60 +394,59 @@ function PestIdentificationModal({
           </TabsList>
           
           <TabsContent value="browse" className="mt-4 flex flex-1 flex-col overflow-hidden">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div>
-              <div className="flex gap-2 flex-wrap">{['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (<Button key={type} variant={selectedType === type ? "default" : "outline"} size="sm" onClick={() => setSelectedType(type)} className="capitalize">{type !== 'all' && getTypeIcon(type)}<span className="ml-1">{type.charAt(0).toUpperCase() + type.slice(1)}s</span></Button>))}</div>
+            <div className="flex flex-col sm:flex-row gap-4 shrink-0">
+              <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search by name, symptoms..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div>
+              <div className="flex gap-2 flex-wrap">{['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (<Button key={type} variant={selectedType === type ? "default" : "outline"} size="sm" onClick={() => setSelectedType(type)} className="capitalize">{type !== 'all' && getTypeIcon(type)}<span className="ml-1">{type}</span></Button>))}</div>
             </div>
-
-            {loading && <div className="space-y-4 mt-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Array.from({ length: 6 }).map((_, i) => (<Card key={i}><CardHeader className="pb-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardHeader><CardContent><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3 mt-2" /></CardContent></Card>))}</div></div>}
-            {error && !loading && <div className="text-center py-8"><AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-medium mb-2">Error Loading</h3><p className="text-muted-foreground mb-4">{error}</p><Button onClick={() => window.location.reload()}>Retry</Button></div>}
+            {loading && <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}
+            {error && <div className="flex-1 flex items-center justify-center text-red-600">{error}</div>}
 
             {!loading && !error && (
-              <>
-                <ScrollArea className="flex-1 min-h-0 pr-4 mt-4">
+              <div className="flex flex-1 flex-col min-h-0 mt-4 gap-4">
+                <ScrollArea className="flex-1 pr-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                     {filteredPests.map((pest) => (
                       <Card key={pest.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''}`} onClick={() => handlePestSelect(pest)}>
-                        <CardHeader className="pb-2"><div className="flex items-start justify-between"><div><CardTitle className="text-base">{pest.name}</CardTitle>{pest.scientific_name && <p className="text-sm text-muted-foreground italic">{pest.scientific_name}</p>}</div><div className="flex flex-col gap-1 items-end"><Badge variant="secondary" className={getTypeColor(pest.type)}>{getTypeIcon(pest.type)}<span className="ml-1 capitalize">{pest.type}</span></Badge>{pest.video_url && <Badge variant="outline" className="bg-blue-50 text-blue-700"><VideoIcon className="h-3 w-3 mr-1" />Video</Badge>}</div></div></CardHeader>
+                        <CardHeader className="pb-2"><div className="flex items-start justify-between"><div><CardTitle className="text-base">{pest.name}</CardTitle>{pest.scientific_name && <p className="text-sm text-muted-foreground italic">{pest.scientific_name}</p>}</div><Badge variant="secondary" className={getTypeColor(pest.type)}>{getTypeIcon(pest.type)}<span className="ml-1 capitalize">{pest.type}</span></Badge></div></CardHeader>
                         <CardContent><p className="text-sm text-muted-foreground line-clamp-2">{pest.description}</p></CardContent>
                       </Card>
                     ))}
                   </div>
-                  {filteredPests.length === 0 && <div className="text-center py-8"><AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" /><h3 className="text-lg font-medium mb-2">No matches</h3><p className="text-muted-foreground mb-4">Try a different search or enter a custom observation.</p><Button onClick={handleUseCustom}>Enter Custom</Button></div>}
+                  {filteredPests.length === 0 && <div className="text-center py-8 text-muted-foreground">No matches found.</div>}
                 </ScrollArea>
-                <div className="flex justify-between pt-4 border-t mt-auto"><Button variant="outline" onClick={handleUseCustom}>Use Custom</Button><div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest} disabled={!selectedPest}>Use Selected</Button></div></div>
-              </>
+                <div className="flex justify-between pt-4 border-t shrink-0">
+                  <Button variant="outline" onClick={handleUseCustom}>Use Custom</Button>
+                  <div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest} disabled={!selectedPest}>Use Selected</Button></div>
+                </div>
+              </div>
             )}
           </TabsContent>
 
           <TabsContent value="details" className="mt-4 flex flex-1 flex-col overflow-hidden">
             {selectedPest && (
-              <>
-                <div className="flex items-center justify-between">
+              <div className="flex flex-col flex-1 min-h-0 gap-4">
+                <div className="shrink-0 flex items-center justify-between">
                   <div><h3 className="text-xl font-bold">{selectedPest.name}</h3>{selectedPest.scientific_name && <p className="text-muted-foreground italic">{selectedPest.scientific_name}</p>}</div>
                   <Badge className={getTypeColor(selectedPest.type)}>{getTypeIcon(selectedPest.type)}<span className="ml-1 capitalize">{selectedPest.type}</span></Badge>
                 </div>
-
-                <Tabs value={contentTab} onValueChange={setContentTab} className="flex flex-col flex-1 overflow-hidden mt-4">
+                <Tabs value={contentTab} onValueChange={setContentTab} className="flex flex-col flex-1 overflow-hidden">
                   <TabsList className="grid w-full grid-cols-6"><TabsTrigger value="identification"><Eye className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">ID</span></TabsTrigger><TabsTrigger value="damage"><AlertTriangle className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Damage</span></TabsTrigger><TabsTrigger value="remedies"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Remedies</span></TabsTrigger><TabsTrigger value="management"><Target className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Manage</span></TabsTrigger><TabsTrigger value="prevention"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Prevent</span></TabsTrigger><TabsTrigger value="video"><VideoIcon className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Video</span></TabsTrigger></TabsList>
-                  
-                  <ScrollArea className="flex-1 min-h-0 pr-4 mt-4">
-                    <TabsContent value="identification" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Description</h4><p className="text-muted-foreground">{selectedPest.description}</p></div>{selectedPest.appearance_details && <div><h4 className="font-semibold mb-2">Appearance</h4><p className="text-muted-foreground">{selectedPest.appearance_details}</p></div>}</TabsContent>
-                    <TabsContent value="damage" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Damage Caused</h4>{selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.damage_caused.map((d, i) => (<li key={i} className="text-muted-foreground">{d}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
-                    <TabsContent value="remedies" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">School-Safe Remedies</h4>{selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.omri_remedies.map((r, i) => (<li key={i} className="text-muted-foreground">{r}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
-                    <TabsContent value="management" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Management Strategies</h4>{selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.management_strategies.map((s, i) => (<li key={i} className="text-muted-foreground">{s}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
-                    <TabsContent value="prevention" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Prevention Methods</h4>{selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? <ul className="list-disc list-inside space-y-1">{selectedPest.prevention_methods.map((p, i) => (<li key={i} className="text-muted-foreground">{p}</li>))}</ul> : <p className="text-muted-foreground">No info.</p>}</div></TabsContent>
-                    <TabsContent value="video" className="space-y-4 pb-4">
-                        {selectedPest.video_url ? (
-                          <VideoPlayer src={selectedPest.video_url} title={`${selectedPest.name} Guide`} />
-                        ) : (
-                          <div className="text-center py-8 flex flex-col items-center gap-4"><div className="p-4 bg-blue-50 rounded-full"><PlayCircle className="h-12 w-12 text-blue-500" /></div><div><h3 className="text-lg font-medium mb-2">Video Coming Soon</h3><p className="text-muted-foreground text-center max-w-md">Educational videos are being created for our guides.</p></div></div>
-                        )}
-                    </TabsContent>
-                  </ScrollArea>
+                  <div className="flex-1 relative mt-4">
+                    <ScrollArea className="absolute inset-0 pr-4">
+                      <TabsContent value="identification" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Description</h4><p className="text-muted-foreground">{selectedPest.description}</p></div>{selectedPest.appearance_details && <div><h4 className="font-semibold mb-2">Appearance</h4><p className="text-muted-foreground">{selectedPest.appearance_details}</p></div>}</TabsContent>
+                      <TabsContent value="damage" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Damage Caused</h4>{selectedPest.damage_caused?.length ? <ul className="list-disc list-inside space-y-1">{selectedPest.damage_caused.map((d, i) => <li key={i}>{d}</li>)}</ul> : <p>N/A</p>}</div></TabsContent>
+                      <TabsContent value="remedies" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">School-Safe Remedies</h4>{selectedPest.omri_remedies?.length ? <ul className="list-disc list-inside space-y-1">{selectedPest.omri_remedies.map((r, i) => <li key={i}>{r}</li>)}</ul> : <p>N/A</p>}</div></TabsContent>
+                      <TabsContent value="management" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Management</h4>{selectedPest.management_strategies?.length ? <ul className="list-disc list-inside space-y-1">{selectedPest.management_strategies.map((s, i) => <li key={i}>{s}</li>)}</ul> : <p>N/A</p>}</div></TabsContent>
+                      <TabsContent value="prevention" className="space-y-4 pb-4"><div><h4 className="font-semibold mb-2">Prevention</h4>{selectedPest.prevention_methods?.length ? <ul className="list-disc list-inside space-y-1">{selectedPest.prevention_methods.map((p, i) => <li key={i}>{p}</li>)}</ul> : <p>N/A</p>}</div></TabsContent>
+                      <TabsContent value="video" className="space-y-4 pb-4">{selectedPest.video_url ? <VideoPlayer src={selectedPest.video_url} title="Video Guide" /> : <div className="text-center py-8">Video coming soon.</div>}</TabsContent>
+                    </ScrollArea>
+                  </div>
                 </Tabs>
-                <div className="flex justify-between pt-4 border-t mt-auto"><Button variant="outline" onClick={() => setActiveTab('browse')}>Back to Browse</Button><div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest}>Use This Issue</Button></div></div>
-              </>
+                <div className="flex justify-between pt-4 border-t shrink-0">
+                  <Button variant="outline" onClick={() => setActiveTab('browse')}>Back to Browse</Button>
+                  <div className="space-x-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleUsePest}>Use This Issue</Button></div>
+                </div>
+              </div>
             )}
           </TabsContent>
         </Tabs>
@@ -519,7 +472,6 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
-
   const [pest, setPest] = useState("");
   const [action, setAction] = useState("");
   const [notes, setNotes] = useState("");
@@ -529,6 +481,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 
   const loadActiveEntries = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('observed_at', { ascending: false }).limit(10);
       if (error) throw error;
       setActiveEntries(data || []);
@@ -540,48 +493,44 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     if (selectedPest) {
       setPest(selectedPest.name);
       setSelectedFromCatalog(selectedPest);
-      toast({ title: "Pest selected", description: `Selected ${selectedPest.name}.` });
+      toast({ title: "Issue selected", description: `Selected ${selectedPest.name}.` });
     } else {
       setPest("");
       setSelectedFromCatalog(null);
-      toast({ title: "Custom entry", description: "Enter a custom observation." });
+      toast({ title: "Custom entry selected" });
     }
     setShowModal(false);
   };
 
   const addPestLog = async () => {
-    if (!pest.trim()) { toast({ title: "Observation required", variant: "destructive" }); return; }
+    if (!pest.trim()) { toast({ title: "Observation is required", variant: "destructive" }); return; }
     try {
       setSubmitting(true);
       const { data, error } = await supabase.from('pest_logs').insert({ tower_id: towerId, teacher_id: teacherId, pest: pest.trim(), action: action || null, notes: notes || null }).select().single();
       if (error) throw error;
       setActiveEntries(prev => [data, ...prev]);
       setPest(""); setAction(""); setNotes(""); setSelectedFromCatalog(null);
-      toast({ title: "Observation logged" });
+      toast({ title: "Observation logged successfully" });
       onScoutingSaved();
     } catch (error) { toast({ title: "Error logging observation", variant: "destructive" }); }
     finally { setSubmitting(false); }
   };
 
   const clearSelection = () => { setPest(""); setSelectedFromCatalog(null); };
-
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'pest': return <Bug className="h-3 w-3" />;
       case 'disease': return <Microscope className="h-3 w-3" />;
       case 'nutrient': return <Droplets className="h-3 w-3" />;
-      case 'environmental': return <Sun className="h-3 w-3" />;
-      default: return <Bug className="h-3 w-3" />;
+      default: return <Sun className="h-3 w-3" />;
     }
   };
-
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'pest': return 'bg-red-100 text-red-800';
       case 'disease': return 'bg-purple-100 text-purple-800';
       case 'nutrient': return 'bg-blue-100 text-blue-800';
-      case 'environmental': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-orange-100 text-orange-800';
     }
   };
 
@@ -589,40 +538,25 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     <div className="space-y-6">
       <PestIdentificationModal isOpen={showModal} onClose={() => setShowModal(false)} onSelect={handlePestSelection} towerLocation={towerLocation} />
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Bug className="h-5 w-5" />Log Observation</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Bug className="h-5 w-5" />Log Scouting Observation</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Observation/Issue</Label>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                {selectedFromCatalog ? (
-                  <div className="p-3 border rounded-md bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2"><Badge className={getTypeColor(selectedFromCatalog.type)}>{getTypeIcon(selectedFromCatalog.type)}<span className="ml-1 capitalize">{selectedFromCatalog.type}</span></Badge><span className="font-medium">{selectedFromCatalog.name}</span></div>
-                        {selectedFromCatalog.scientific_name && <p className="text-sm text-muted-foreground italic">{selectedFromCatalog.scientific_name}</p>}
-                        <p className="text-sm text-muted-foreground mt-1">{selectedFromCatalog.description}</p>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={clearSelection}>Change</Button>
-                    </div>
-                  </div>
-                ) : (<Textarea value={pest} onChange={(e) => setPest(e.target.value)} placeholder="e.g., Small white flies on kale leaves" className="min-h-[80px]" />)}
-              </div>
-              {!selectedFromCatalog && (<Button variant="outline" onClick={() => setShowModal(true)} className="flex items-center gap-2"><Search className="h-4 w-4" />Browse Catalog</Button>)}
+          <div className="space-y-2"><Label>Observation/Issue</Label>
+            <div className="flex gap-2 items-start">
+              <div className="flex-1">{selectedFromCatalog ? (<div className="p-3 border rounded-md bg-muted/20 flex items-center justify-between"><div><div className="flex items-center gap-2"><Badge className={getTypeColor(selectedFromCatalog.type)}>{getTypeIcon(selectedFromCatalog.type)}<span className="ml-1 capitalize">{selectedFromCatalog.type}</span></Badge><span className="font-medium">{selectedFromCatalog.name}</span></div></div><Button variant="outline" size="sm" onClick={clearSelection}>Change</Button></div>) : (<Textarea value={pest} onChange={(e) => setPest(e.target.value)} placeholder="e.g., Small white flies on kale leaves" className="min-h-[80px]" />)}</div>
+              <Button variant="outline" onClick={() => setShowModal(true)} className="flex items-center gap-2 shrink-0"><Search className="h-4 w-4" />Browse Catalog</Button>
             </div>
-            {!selectedFromCatalog && (<p className="text-xs text-muted-foreground">Tip: Use "Browse Catalog" for detailed help.</p>)}
           </div>
           <div className="space-y-2"><Label>Action Taken (Optional)</Label><Textarea value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g., Applied insecticidal soap" /></div>
-          <div className="space-y-2"><Label>Notes (Optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional details..." /></div>
+          <div className="space-y-2"><Label>Additional Notes (Optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional details..." /></div>
           <div className="flex justify-end"><Button onClick={addPestLog} disabled={submitting || !pest.trim()}>{submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving...</> : "Save Observation"}</Button></div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle>Observation History</CardTitle></CardHeader>
         <CardContent>
-          {loading ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (<Skeleton key={i} className="h-16 w-full" />))}</div>
-          : activeEntries.length === 0 ? <div className="text-center py-8 text-muted-foreground"><Bug className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No observations yet.</p></div>
-          : <div className="space-y-4">{activeEntries.map((entry) => (<div key={entry.id} className="p-4 border rounded-md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><Bug className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{entry.pest}</span><span className="text-xs text-muted-foreground">{new Date(entry.observed_at).toLocaleDateString()}</span></div>{entry.action && <div className="text-sm mt-2"><span className="font-medium text-green-700">Action:</span><span className="ml-2">{entry.action}</span></div>}{entry.notes && <div className="text-sm text-muted-foreground mt-2"><span className="font-medium">Notes:</span><span className="ml-2">{entry.notes}</span></div>}</div></div></div>))}</div>}
+          {loading ? <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+            : activeEntries.length === 0 ? <div className="text-center py-8 text-muted-foreground"><Bug className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No observations yet.</p></div>
+            : <div className="space-y-4">{activeEntries.map((entry) => (<div key={entry.id} className="p-4 border rounded-md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><Bug className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{entry.pest}</span><span className="text-xs text-muted-foreground">{new Date(entry.observed_at).toLocaleDateString()}</span></div>{entry.action && <div className="text-sm mt-2"><span className="font-medium text-green-700">Action:</span><span className="ml-2">{entry.action}</span></div>}{entry.notes && <div className="text-sm text-muted-foreground mt-2"><span className="font-medium">Notes:</span><span className="ml-2">{entry.notes}</span></div>}</div></div></div>))}</div>}
         </CardContent>
       </Card>
     </div>
@@ -630,7 +564,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
 }
 
 /* =========================
-   PlantsTab
+   PlantsTab (full)
    ========================= */
 
 interface PlantsTabProps {
@@ -644,7 +578,6 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const [plantings, setPlantings] = useState<PlantingWithCatalog[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [seededAt, setSeededAt] = useState("");
@@ -654,8 +587,8 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
 
   useEffect(() => {
     const fetchPlantings = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
         const { data, error } = await supabase.from('plantings').select(`*, plant_catalog (*)`).eq('tower_id', towerId).eq('teacher_id', teacherId).order('created_at', { ascending: false });
         if (error) throw error;
         setPlantings(data || []);
@@ -673,7 +606,7 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
       if (error) throw error;
       setPlantings(prev => [data, ...prev]);
       setName(""); setQuantity(1); setSeededAt(""); setPlantedAt(""); setHarvestDate(""); setPortNumber(undefined);
-      toast({ title: "Plant added" });
+      toast({ title: "Plant added successfully" });
     } catch (error) { toast({ title: "Error adding plant", variant: "destructive" }); }
     finally { setSubmitting(false); }
   };
@@ -683,11 +616,10 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
     const today = new Date(); today.setHours(0,0,0,0);
     const harvest = new Date(expectedDate);
     const diffTime = harvest.getTime() - today.getTime();
-    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (daysRemaining < 0) return { status: 'overdue', days: Math.abs(daysRemaining) };
-    if (daysRemaining === 0) return { status: 'today' };
-    if (daysRemaining <= 7) return { status: 'soon', days: daysRemaining };
-    return { status: 'upcoming', days: daysRemaining };
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (days < 0) return { status: 'overdue', days: Math.abs(days) };
+    if (days === 0) return { status: 'today', days: 0 };
+    return { status: 'upcoming', days };
   };
 
   if (loading) return <Skeleton className="h-96 w-full" />;
@@ -695,12 +627,7 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" />Add Plant Manually</CardTitle>
-            <Button asChild variant="outline" size="sm"><Link to={`/app/catalog?addTo=${towerId}`}><Leaf className="h-4 w-4 mr-2" />Add from Catalog</Link></Button>
-          </div>
-        </CardHeader>
+        <CardHeader><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" />Add Plant Manually</CardTitle><Button asChild variant="outline" size="sm"><Link to={`/app/catalog?addTo=${towerId}`}><Leaf className="h-4 w-4 mr-2" />Add from Catalog</Link></Button></div></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2"><Label>Plant Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Lettuce" /></div>
           <div className="space-y-2"><Label>Port #</Label><Input type="number" min="1" max="32" value={portNumber ?? ""} onChange={(e) => setPortNumber(Number(e.target.value) || undefined)} placeholder="1-32" /></div>
@@ -711,16 +638,13 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
           <div className="md:col-span-3"><Button onClick={addPlanting} disabled={submitting || !name.trim()}>{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Adding...</> : <><Plus className="mr-2 h-4 w-4" />Add Plant</>}</Button></div>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Leaf className="h-5 w-5 text-green-600" />Tower Plants ({plantings.length})</CardTitle></CardHeader>
         <CardContent>
-          {plantings.length === 0 ? (
-            <div className="text-center py-8"><Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground mb-4">No plants added yet.</p><Button asChild><Link to={`/app/catalog?addTo=${towerId}`}><Plus className="h-4 w-4 mr-2" />Add First Plant</Link></Button></div>
-          ) : (
-            <div className="space-y-4">{plantings.map((plant) => {
-              const harvestInfo = getHarvestStatus(plant.expected_harvest_date);
-              return (<Card key={plant.id} className="p-4"><div className="flex items-start justify-between"><div className="space-y-3 flex-1"><div className="flex items-center gap-2"><h4 className="font-medium text-lg">{plant.name}</h4>{plant.plant_catalog && <><Badge variant="outline" className="text-xs">{plant.plant_catalog.category}</Badge>{plant.plant_catalog.is_global && <Badge variant="secondary" className="text-xs"><Globe className="h-3 w-3 mr-1" />Global</Badge>}</>}</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span><span className="text-muted-foreground">Port:</span>{" "}{plant.port_number || "N/A"}</span></div><div className="flex items-center gap-2"><span className="text-muted-foreground">Qty:</span><span>{plant.quantity}</span></div>{plant.seeded_at && <div className="flex items-center gap-2"><span className="text-muted-foreground">Seeded:</span><span>{new Date(plant.seeded_at).toLocaleDateString()}</span></div>}{plant.planted_at && <div className="flex items-center gap-2"><span className="text-muted-foreground">Planted:</span><span>{new Date(plant.planted_at).toLocaleDateString()}</span></div>}</div>{plant.expected_harvest_date && <Alert className={`border-l-4 ${harvestInfo.status === 'overdue' ? 'border-l-red-500 bg-red-50' : 'border-l-gray-300'}`}><div className="flex items-center gap-2">{harvestInfo.status === 'overdue' ? <AlertTriangle /> : <Calendar />}<div><p className="font-medium">{harvestInfo.status === 'overdue' ? `${harvestInfo.days} days overdue` : harvestInfo.status === 'today' ? `Ready today!` : `${harvestInfo.days} days left`}</p></div></div></Alert>}</div><div className="flex gap-2 ml-4"><Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>);})}</div>)}
+          {plantings.length === 0 ? <div className="text-center py-8"><Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground mb-4">No plants added yet.</p><Button asChild><Link to={`/app/catalog?addTo=${towerId}`}><Plus className="h-4 w-4 mr-2" />Add First Plant</Link></Button></div>
+            : <div className="space-y-4">{plantings.map((plant) => {
+              const harvest = getHarvestStatus(plant.expected_harvest_date);
+              return (<Card key={plant.id} className="p-4"><div className="flex items-start justify-between"><div className="space-y-3 flex-1"><div className="flex items-center gap-2"><h4 className="font-medium text-lg">{plant.name}</h4>{plant.plant_catalog && <Badge variant="outline">{plant.plant_catalog.category}</Badge>}</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span>Port: {plant.port_number || "N/A"}</span></div><div>Qty: {plant.quantity}</div>{plant.seeded_at && <div>Seeded: {new Date(plant.seeded_at).toLocaleDateString()}</div>}{plant.planted_at && <div>Planted: {new Date(plant.planted_at).toLocaleDateString()}</div>}</div>{plant.expected_harvest_date && <Badge variant={harvest.status === 'overdue' ? 'destructive' : 'secondary'}>{harvest.status === 'today' ? 'Ready Today!' : `${harvest.days} days ${harvest.status === 'overdue' ? 'overdue' : 'left'}`}</Badge>}</div><div className="flex gap-2 ml-4"><Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>);})}</div>}
         </CardContent>
       </Card>
     </div>
