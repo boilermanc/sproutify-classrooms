@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Building, Leaf, Sun, Calendar, Clock, MapPin, AlertTriangle, CheckCircle, Plus, Edit, Trash2, Globe, Loader2, Bug, Search, Eye, Shield, Target, Video, Microscope, Droplets } from "lucide-react";
 
 // Import existing components
 import { TowerVitalsForm } from "@/components/towers/TowerVitalsForm";
@@ -60,6 +61,21 @@ type PlantingWithCatalog = {
     is_global?: boolean;
   };
 };
+
+interface PestCatalogItem {
+  id: string;
+  name: string;
+  scientific_name: string | null;
+  type: 'pest' | 'disease' | 'nutrient' | 'environmental';
+  description: string;
+  appearance_details: string | null;
+  damage_caused: string[] | null;
+  omri_remedies: string[] | null;
+  management_strategies: string[] | null;
+  prevention_methods: string[] | null;
+  video_url: string | null;
+  safe_for_schools: boolean;
+}
 
 export default function TowerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -276,6 +292,529 @@ export default function TowerDetail() {
   );
 }
 
+// Enhanced Pest Identification Modal Component (inline)
+interface PestIdentificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (pest: PestCatalogItem | null) => void;
+  towerLocation?: string;
+}
+
+function PestIdentificationModal({ 
+  isOpen, 
+  onClose, 
+  onSelect, 
+  towerLocation = "classroom" 
+}: PestIdentificationModalProps) {
+  // Helper functions
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'pest': return <Bug className="h-4 w-4" />;
+      case 'disease': return <Microscope className="h-4 w-4" />;
+      case 'nutrient': return <Droplets className="h-4 w-4" />;
+      case 'environmental': return <Sun className="h-4 w-4" />;
+      default: return null;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'pest': return 'bg-red-100 text-red-800';
+      case 'disease': return 'bg-purple-100 text-purple-800';
+      case 'nutrient': return 'bg-blue-100 text-blue-800';
+      case 'environmental': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // State
+  const [activeTab, setActiveTab] = useState('browse');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedPest, setSelectedPest] = useState<PestCatalogItem | null>(null);
+  const [contentTab, setContentTab] = useState('identification');
+  const [pestCatalog, setPestCatalog] = useState<PestCatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load pest catalog from database
+  useEffect(() => {
+    const fetchPestCatalog = async () => {
+      if (!isOpen) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { data, error } = await supabase
+          .from('pest_catalog')
+          .select('*')
+          .eq('safe_for_schools', true)
+          .order('name', { ascending: true });
+        
+        if (error) {
+          throw error;
+        }
+        
+        console.log('Loaded pest catalog:', data); // Debug log
+        setPestCatalog(data || []);
+      } catch (err) {
+        console.error('Error fetching pest catalog:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load pest catalog');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPestCatalog();
+  }, [isOpen]);
+
+  // Filter pests based on search and type
+  const filteredPests = pestCatalog.filter(pest => {
+    const matchesSearch = pest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         pest.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (pest.scientific_name && pest.scientific_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesType = selectedType === 'all' || pest.type === selectedType;
+    return matchesSearch && matchesType;
+  });
+
+  // Event handlers
+  const handlePestSelect = (pest: PestCatalogItem) => {
+    setSelectedPest(pest);
+    setActiveTab('details');
+    setContentTab('identification');
+  };
+
+  const handleUseCustom = () => {
+    if (onSelect) {
+      onSelect(null); // null indicates custom entry
+    }
+    onClose();
+  };
+
+  const handleUsePest = () => {
+    if (onSelect && selectedPest) {
+      onSelect(selectedPest);
+    }
+    onClose();
+  };
+
+  const resetModal = () => {
+    setActiveTab('browse');
+    setSearchTerm('');
+    setSelectedType('all');
+    setSelectedPest(null);
+    setContentTab('identification');
+    setError(null);
+  };
+
+  // Reset when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      resetModal();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg h-[80vh]">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+        >
+          <span className="sr-only">Close</span>
+          ✕
+        </button>
+        
+        <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
+            <Bug className="h-5 w-5" />
+            Pest Identification
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Search and select a pest from our database or enter a custom observation.
+            Showing recommendations suitable for {towerLocation} growing.
+          </p>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+          <div className="grid w-full grid-cols-2">
+            <button
+              onClick={() => setActiveTab('browse')}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                activeTab === 'browse' ? 'bg-background text-foreground shadow-sm' : ''
+              }`}
+            >
+              Browse Catalog
+            </button>
+            <button
+              onClick={() => setActiveTab('details')}
+              disabled={!selectedPest}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                activeTab === 'details' ? 'bg-background text-foreground shadow-sm' : ''
+              }`}
+            >
+              {selectedPest ? selectedPest.name : "Issue Details"}
+            </button>
+          </div>
+
+          {activeTab === 'browse' && (
+            <div className="space-y-4 h-[600px] mt-2">
+              {/* Search and Filter Controls */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, symptoms, or description..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {['all', 'pest', 'disease', 'nutrient', 'environmental'].map((type) => (
+                    <Button
+                      key={type}
+                      variant={selectedType === type ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedType(type)}
+                      className="capitalize"
+                    >
+                      {type !== 'all' && getTypeIcon(type)}
+                      <span className="ml-1">
+                        {type === 'all' ? 'All' : 
+                         type === 'pest' ? 'Pests' : 
+                         type === 'disease' ? 'Diseases' : 
+                         type === 'nutrient' ? 'Nutrients' :
+                         'Environmental'}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Loading State */}
+              {loading && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i}>
+                        <CardHeader className="pb-2">
+                          <Skeleton className="h-5 w-3/4" />
+                          <Skeleton className="h-4 w-1/2" />
+                        </CardHeader>
+                        <CardContent>
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-2/3 mt-2" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && !loading && (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Error Loading Catalog</h3>
+                  <p className="text-muted-foreground mb-4">{error}</p>
+                  <Button onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
+                </div>
+              )}
+
+              {/* Results Grid */}
+              {!loading && !error && (
+                <ScrollArea className="h-[450px] pr-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredPests.map((pest) => (
+                      <Card 
+                        key={pest.id} 
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          selectedPest?.id === pest.id ? 'ring-2 ring-primary' : ''
+                        }`}
+                        onClick={() => handlePestSelect(pest)}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">{pest.name}</CardTitle>
+                              {pest.scientific_name && (
+                                <p className="text-sm text-muted-foreground italic">
+                                  {pest.scientific_name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="secondary" className={getTypeColor(pest.type)}>
+                                {getTypeIcon(pest.type)}
+                                <span className="ml-1 capitalize">{pest.type}</span>
+                              </Badge>
+                              {pest.video_url && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                  <Video className="h-3 w-3 mr-1" />
+                                  Video
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {pest.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  {filteredPests.length === 0 && !loading && (
+                    <div className="text-center py-8">
+                      <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No matches found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Try adjusting your search terms or use a custom observation.
+                      </p>
+                      <Button onClick={handleUseCustom}>
+                        Enter Custom Observation
+                      </Button>
+                    </div>
+                  )}
+                </ScrollArea>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-between pt-4 border-t">
+                <Button variant="outline" onClick={handleUseCustom}>
+                  Use Custom
+                </Button>
+                <div className="space-x-2">
+                  <Button variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleUsePest} 
+                    disabled={!selectedPest}
+                  >
+                    Use Selected
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'details' && selectedPest && (
+            <div className="h-[600px] flex flex-col mt-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold">{selectedPest.name}</h3>
+                  {selectedPest.scientific_name && (
+                    <p className="text-muted-foreground italic">{selectedPest.scientific_name}</p>
+                  )}
+                </div>
+                <Badge className={getTypeColor(selectedPest.type)}>
+                  {getTypeIcon(selectedPest.type)}
+                  <span className="ml-1 capitalize">{selectedPest.type}</span>
+                </Badge>
+              </div>
+
+              <Tabs value={contentTab} onValueChange={setContentTab} className="flex-1">
+                <div className="grid w-full grid-cols-6">
+                  <button
+                    onClick={() => setContentTab('identification')}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                      contentTab === 'identification' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <Eye className="h-3 w-3" />
+                    <span className="hidden sm:inline">ID</span>
+                  </button>
+                  <button
+                    onClick={() => setContentTab('damage')}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                      contentTab === 'damage' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="hidden sm:inline">Damage</span>
+                  </button>
+                  <button
+                    onClick={() => setContentTab('remedies')}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                      contentTab === 'remedies' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <Shield className="h-3 w-3" />
+                    <span className="hidden sm:inline">Remedies</span>
+                  </button>
+                  <button
+                    onClick={() => setContentTab('management')}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                      contentTab === 'management' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <Target className="h-3 w-3" />
+                    <span className="hidden sm:inline">Manage</span>
+                  </button>
+                  <button
+                    onClick={() => setContentTab('prevention')}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${
+                      contentTab === 'prevention' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <Shield className="h-3 w-3" />
+                    <span className="hidden sm:inline">Prevent</span>
+                  </button>
+                  <button
+                    onClick={() => setContentTab('video')}
+                    disabled={!selectedPest.video_url}
+                    className={`flex items-center gap-1 justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                      contentTab === 'video' ? 'bg-background text-foreground shadow-sm' : ''
+                    }`}
+                  >
+                    <Video className="h-3 w-3" />
+                    <span className="hidden sm:inline">Video</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 mt-4">
+                  <ScrollArea className="h-[400px] pr-4">
+                    {contentTab === 'identification' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">What are {selectedPest.name}?</h4>
+                          <p className="text-muted-foreground">{selectedPest.description}</p>
+                        </div>
+                        {selectedPest.appearance_details && (
+                          <div>
+                            <h4 className="font-semibold mb-2">What do {selectedPest.name} look like?</h4>
+                            <p className="text-muted-foreground">{selectedPest.appearance_details}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {contentTab === 'damage' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">Damage Caused</h4>
+                          {selectedPest.damage_caused && selectedPest.damage_caused.length > 0 ? (
+                            <ul className="list-disc list-inside space-y-1">
+                              {selectedPest.damage_caused.map((damage, index) => (
+                                <li key={index} className="text-muted-foreground">{damage}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground">No specific damage information available.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {contentTab === 'remedies' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">School-Safe Treatment Options</h4>
+                          {selectedPest.omri_remedies && selectedPest.omri_remedies.length > 0 ? (
+                            <ul className="list-disc list-inside space-y-1">
+                              {selectedPest.omri_remedies.map((remedy, index) => (
+                                <li key={index} className="text-muted-foreground">{remedy}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground">No specific remedy information available.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {contentTab === 'management' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">Management Strategies</h4>
+                          {selectedPest.management_strategies && selectedPest.management_strategies.length > 0 ? (
+                            <ul className="list-disc list-inside space-y-1">
+                              {selectedPest.management_strategies.map((strategy, index) => (
+                                <li key={index} className="text-muted-foreground">{strategy}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground">No specific management information available.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {contentTab === 'prevention' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">Prevention Methods</h4>
+                          {selectedPest.prevention_methods && selectedPest.prevention_methods.length > 0 ? (
+                            <ul className="list-disc list-inside space-y-1">
+                              {selectedPest.prevention_methods.map((method, index) => (
+                                <li key={index} className="text-muted-foreground">{method}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-muted-foreground">No specific prevention information available.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {contentTab === 'video' && (
+                      <div className="space-y-4">
+                        {selectedPest.video_url ? (
+                          <div className="space-y-2">
+                            <h4 className="font-semibold">Educational Video</h4>
+                            <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                              <p className="text-muted-foreground">Video player integration coming soon</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">No video available for this issue.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+              </Tabs>
+
+              <div className="flex justify-between pt-4 border-t mt-4">
+                <Button variant="outline" onClick={() => setActiveTab('browse')}>
+                  Back to Browse
+                </Button>
+                <div className="space-x-2">
+                  <Button variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUsePest}>
+                    Use This Issue
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </Tabs>
+
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-muted-foreground mt-2">
+            Debug: {pestCatalog.length} items loaded, {filteredPests.length} filtered
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Enhanced Scouting Tab Component
 interface ScoutingTabProps {
   towerId: string;
@@ -285,8 +824,17 @@ interface ScoutingTabProps {
 }
 
 function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: ScoutingTabProps) {
+  const { toast } = useToast();
   const [activeEntries, setActiveEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  
+  // Form state
+  const [pest, setPest] = useState("");
+  const [action, setAction] = useState("");
+  const [notes, setNotes] = useState("");
+  const [selectedFromCatalog, setSelectedFromCatalog] = useState<PestCatalogItem | null>(null);
 
   useEffect(() => {
     loadActiveEntries();
@@ -296,15 +844,11 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     try {
       const { data, error } = await supabase
         .from('pest_logs')
-        .select(`
-          *,
-          pest_catalog(name, type)
-        `)
+        .select('*')
         .eq('tower_id', towerId)
         .eq('teacher_id', teacherId)
-        .eq('resolved', false)
         .order('observed_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) throw error;
       setActiveEntries(data || []);
@@ -315,25 +859,241 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
     }
   };
 
-  const handleScoutingSaved = () => {
-    loadActiveEntries();
-    onScoutingSaved();
+  // Handle pest selection from modal
+  const handlePestSelection = (selectedPest: PestCatalogItem | null) => {
+    if (selectedPest) {
+      setPest(selectedPest.name);
+      setSelectedFromCatalog(selectedPest);
+      toast({
+        title: "Pest selected",
+        description: `Selected ${selectedPest.name} from catalog.`,
+      });
+    } else {
+      // User chose custom entry
+      setPest("");
+      setSelectedFromCatalog(null);
+      toast({
+        title: "Custom entry",
+        description: "You can now enter a custom observation.",
+      });
+    }
+    setShowModal(false);
+  };
+
+  // Add pest log
+  const addPestLog = async () => {
+    if (!pest.trim()) {
+      toast({
+        title: "Observation required",
+        description: "Please enter an observation or select from catalog.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const { data, error } = await supabase
+        .from('pest_logs')
+        .insert({
+          tower_id: towerId,
+          teacher_id: teacherId,
+          pest: pest.trim(),
+          action: action || null,
+          notes: notes || null,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      setActiveEntries(prev => [data, ...prev]);
+      
+      // Reset form
+      setPest("");
+      setAction("");
+      setNotes("");
+      setSelectedFromCatalog(null);
+      
+      toast({
+        title: "Observation logged",
+        description: "Scouting observation has been recorded successfully.",
+      });
+      
+      onScoutingSaved();
+    } catch (error) {
+      console.error('Error adding pest log:', error);
+      toast({
+        title: "Error logging observation",
+        description: "Failed to log observation. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Clear current selection
+  const clearSelection = () => {
+    setPest("");
+    setSelectedFromCatalog(null);
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'pest': return <Bug className="h-3 w-3" />;
+      case 'disease': return <Microscope className="h-3 w-3" />;
+      case 'nutrient': return <Droplets className="h-3 w-3" />;
+      case 'environmental': return <Sun className="h-3 w-3" />;
+      default: return <Bug className="h-3 w-3" />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'pest': return 'bg-red-100 text-red-800';
+      case 'disease': return 'bg-purple-100 text-purple-800';
+      case 'nutrient': return 'bg-blue-100 text-blue-800';
+      case 'environmental': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Scouting Entry Form */}
-      <EnhancedScoutingForm
-        towerId={towerId}
-        teacherId={teacherId}
+      {/* Pest Identification Modal */}
+      <PestIdentificationModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSelect={handlePestSelection}
         towerLocation={towerLocation}
-        onScoutingSaved={handleScoutingSaved}
       />
+
+      {/* Enhanced Scouting Entry Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bug className="h-5 w-5" />
+            Log Scouting Observation
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Pest Selection */}
+          <div className="space-y-2">
+            <Label>Observation/Issue</Label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                {selectedFromCatalog ? (
+                  <div className="p-3 border rounded-md bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getTypeColor(selectedFromCatalog.type)}>
+                            {getTypeIcon(selectedFromCatalog.type)}
+                            <span className="ml-1 capitalize">{selectedFromCatalog.type}</span>
+                          </Badge>
+                          <span className="font-medium">{selectedFromCatalog.name}</span>
+                        </div>
+                        {selectedFromCatalog.scientific_name && (
+                          <p className="text-sm text-muted-foreground italic">
+                            {selectedFromCatalog.scientific_name}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedFromCatalog.description}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearSelection}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Textarea 
+                    value={pest} 
+                    onChange={(e) => setPest(e.target.value)} 
+                    placeholder="Enter custom observation (e.g., Small white flies on kale leaves)" 
+                    className="min-h-[80px]"
+                  />
+                )}
+              </div>
+              {!selectedFromCatalog && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Search className="h-4 w-4" />
+                  Browse Catalog
+                </Button>
+              )}
+            </div>
+            {!selectedFromCatalog && (
+              <p className="text-xs text-muted-foreground">
+                Tip: Use "Browse Catalog" for detailed identification help and treatment recommendations.
+              </p>
+            )}
+          </div>
+
+          {/* Action Taken */}
+          <div className="space-y-2">
+            <Label>Action Taken (Optional)</Label>
+            <Textarea 
+              value={action} 
+              onChange={(e) => setAction(e.target.value)} 
+              placeholder="What action did you take? (e.g., Applied insecticidal soap, Released beneficial insects)" 
+            />
+          </div>
+
+          {/* Additional Notes */}
+          <div className="space-y-2">
+            <Label>Additional Notes (Optional)</Label>
+            <Textarea 
+              value={notes} 
+              onChange={(e) => setNotes(e.target.value)} 
+              placeholder="Any additional observations or details..." 
+            />
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Browse Catalog
+            </Button>
+            <Button 
+              onClick={addPestLog} 
+              disabled={submitting || !pest.trim()}
+              className="flex items-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Observation"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Active Scouting Entries */}
       <Card>
-        <CardContent className="p-6">
-          <h3 className="font-medium mb-4">Recent Observations for This Tower</h3>
+        <CardHeader>
+          <CardTitle>Observation History</CardTitle>
+        </CardHeader>
+        <CardContent>
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -341,26 +1101,43 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
               ))}
             </div>
           ) : activeEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active observations for this tower.</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <Bug className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No observations yet.</p>
+              <p className="text-sm">Great news! Your tower appears healthy.</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {activeEntries.map((entry) => (
-                <div key={entry.id} className="p-3 border rounded-md">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">{entry.pest}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(entry.observed_at).toLocaleDateString()}
+                <div key={entry.id} className="p-4 border rounded-md hover:bg-muted/20 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Bug className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{entry.pest}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(entry.observed_at).toLocaleDateString()} at {' '}
+                          {new Date(entry.observed_at).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
                       </div>
+                      
+                      {entry.action && (
+                        <div className="text-sm mt-2">
+                          <span className="font-medium text-green-700">Action taken:</span>
+                          <span className="ml-2">{entry.action}</span>
+                        </div>
+                      )}
+                      
                       {entry.notes && (
-                        <div className="text-sm mt-1 line-clamp-2">{entry.notes}</div>
+                        <div className="text-sm text-muted-foreground mt-2">
+                          <span className="font-medium">Notes:</span>
+                          <span className="ml-2">{entry.notes}</span>
+                        </div>
                       )}
                     </div>
-                    {entry.follow_up_needed && (
-                      <Badge variant="outline" className="text-yellow-600">
-                        Follow-up needed
-                      </Badge>
-                    )}
                   </div>
                 </div>
               ))}
@@ -372,7 +1149,7 @@ function ScoutingTab({ towerId, teacherId, towerLocation, onScoutingSaved }: Sco
   );
 }
 
-// Enhanced Plants Tab Component
+// Enhanced Plants Tab Component (keeping your existing implementation)
 interface PlantsTabProps {
   towerId: string;
   teacherId: string;
