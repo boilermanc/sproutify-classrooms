@@ -23,7 +23,7 @@ A web application designed for teachers to manage classroom hydroponic tower gar
 
 Sproutify School addresses the need for a simple yet powerful tool for educators using hydroponic towers in their classrooms. It replaces scattered spreadsheets and notebooks with a centralized, user-friendly dashboard. The application allows teachers to monitor multiple towers, track vital environmental data (pH, EC), manage individual plantings, and record outcomes like harvests and waste.
 
-The Kiosk Mode feature simplifies student onboarding, allowing them to join their class and contribute to the project, for example by uploading photos of the tower's progress.
+The Kiosk Mode feature provides secure student access through name-based login with classroom PINs, allowing teachers to control who can participate while tracking student engagement and contributions such as uploading photos of the tower's progress.
 
 ## Key Features
 
@@ -34,8 +34,9 @@ The Kiosk Mode feature simplifies student onboarding, allowing them to join thei
 -   **Pest Management:** Keep a running log of pest observations and the actions taken to resolve them.
 -   **Photo Gallery:** Upload photos for each tower to visually document its growth over time. Students can be credited for their photos.
 -   **Comprehensive History:** A centralized view of all historical data for a tower, including vitals, harvests, waste, and pest logs.
--   **Classroom & Student Management:** Create classrooms and generate unique join codes for students.
--   **Kiosk Mode:** A simple, secure interface for students to join a class on a shared device using a join code.
+-   **Classroom & Student Management:** Create classrooms and manage student rosters with teacher-controlled access.
+-   **Kiosk Mode:** Students log in with their name and classroom PIN for secure, teacher-controlled access.
+-   **Student Activity Tracking:** Monitor which students have participated and track their engagement over time.
 -   **Gamified Leaderboard:** Compare your class's harvest totals (by weight and plant count) against fictional district and state leaders to encourage engagement.
 -   **Teacher Profiles:** Manage personal and school information, including profile avatars and school logos.
 
@@ -52,7 +53,7 @@ This project is built with a modern, robust, and scalable technology stack.
     -   **Storage:** Supabase Storage for all image uploads (avatars, school logos, tower photos)
 -   **Routing:** [React Router](https://reactrouter.com/)
 -   **State Management:** React Context (`AppStore`)
--   **Utility:** `nanoid` for generating unique join codes.
+-   **Student Management:** Teacher-controlled student rosters with login tracking and participation monitoring.
 
 ---
 
@@ -125,8 +126,33 @@ create policy "Public profiles are viewable by everyone." on profiles for select
 create policy "Users can insert their own profile." on profiles for insert with check (auth.uid() = id);
 create policy "Users can update own profile." on profiles for update using (auth.uid() = id);
 
--- Create other necessary tables
--- (Note: Add tables for towers, plantings, students, classrooms, etc. here)
+-- Create classrooms table
+create table public.classrooms (
+  id uuid not null default gen_random_uuid(),
+  teacher_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  kiosk_pin text not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  constraint classrooms_pkey primary key (id)
+);
+
+-- Create students table with tracking fields
+create table public.students (
+  id uuid not null default gen_random_uuid(),
+  classroom_id uuid not null references classrooms(id) on delete cascade,
+  display_name text not null,
+  student_id text,
+  grade_level text,
+  has_logged_in boolean not null default false,
+  first_login_at timestamp with time zone,
+  last_login_at timestamp with time zone,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  constraint students_pkey primary key (id),
+  constraint students_unique_name_per_classroom unique (classroom_id, display_name)
+);
+
 -- Example for harvests:
 create table public.harvests (
   id uuid not null default gen_random_uuid (),
@@ -157,31 +183,70 @@ create table public.waste_logs (
   constraint waste_logs_pkey primary key (id)
 );
 
--- Remember to add RLS policies for all tables to ensure data security!
--- Example RLS policy for a table:
--- alter table harvests enable row level security;
--- create policy "Users can manage their own harvests." on harvests
--- for all using (auth.uid() = teacher_id);
+-- Set up Row Level Security (RLS) for all tables
+alter table classrooms enable row level security;
+alter table students enable row level security;
+alter table harvests enable row level security;
+alter table waste_logs enable row level security;
 
+-- Create RLS policies
+create policy "Teachers can manage their classrooms" on classrooms
+  for all using (auth.uid() = teacher_id);
 
----
+create policy "Teachers can manage students in their classrooms" on students
+  for all using (exists (
+    select 1 from classrooms c 
+    where c.id = students.classroom_id 
+    and c.teacher_id = auth.uid()
+  ));
 
-### Part 4: Project Structure and Future Roadmap
+create policy "Allow kiosk access to validate student names" on students
+  for select to public using (true);
 
-```markdown
+create policy "Allow kiosk to update login tracking" on students
+  for update to public using (true);
+
+create policy "Users can manage their own harvests" on harvests
+  for all using (auth.uid() = teacher_id);
+
+create policy "Users can manage their own waste logs" on waste_logs
+  for all using (auth.uid() = teacher_id);
+```
+
 ---
 
 ## Project Structure
 
 The project follows a standard Vite + React structure. Key directories include:
 
+```
+src/
+├── components/          # Reusable UI components
+├── pages/              # Page components and routing
+│   ├── classrooms/     # Classroom and student management
+│   ├── kiosk/          # Student login and kiosk interface
+│   ├── help/           # Documentation and help guides
+│   └── ...
+├── integrations/       # Third-party integrations (Supabase)
+└── lib/               # Utility functions and helpers
+```
+
+### Key Components:
+- **Student Management:** Teacher-controlled student rosters with add/edit/delete functionality
+- **Kiosk Login:** Name + PIN based authentication system
+- **Activity Tracking:** Monitor student participation and engagement
+- **Security:** Row Level Security (RLS) ensures data privacy and access control
 
 ---
 
 ## Future Roadmap
 
--   [ ] **Implement Real Leaderboard Data:** Replace the mock leaderboard data with real, aggregated data from the database using a Supabase RPC function.
+-   [ ] **Enhanced Student Analytics:** Add detailed engagement metrics and participation reports for teachers.
+-   [ ] **Bulk Student Import:** Allow teachers to import student rosters from CSV files or school management systems.
+-   [ ] **Parent/Guardian Access:** Provide read-only access for parents to view their child's garden participation.
+-   [ ] **Real Leaderboard Data:** Replace the mock leaderboard data with real, aggregated data from the database using a Supabase RPC function.
 -   [ ] **Data Visualization:** Add graphs and charts to the `TowerHistory` component to visualize pH, EC, and harvest trends over time.
 -   [ ] **Plant Catalog:** Implement the "Add from Catalog" feature to allow teachers to quickly add common plants with pre-filled data.
--   [ ] **Robust Row Level Security (RLS):** Review and implement comprehensive RLS policies for all tables to ensure data is secure and only accessible by the owner.
 -   [ ] **Notifications:** Add a system to notify teachers of important events (e.g., "Expected harvest date is approaching").
+-   [ ] **Mobile App:** Develop companion mobile apps for easier kiosk access and photo uploads.
+-   [ ] **Multi-Language Support:** Add internationalization for diverse classroom environments.
