@@ -38,7 +38,7 @@ const Index = () => {
   // Student form state
   const [studentForm, setStudentForm] = useState({
     studentName: "",
-    joinCode: "",
+    kioskPin: "",
     loading: false
   });
 
@@ -145,44 +145,30 @@ const Index = () => {
     setStudentForm(prev => ({ ...prev, loading: true }));
     
     try {
-      const joinCode = studentForm.joinCode.trim().toUpperCase();
       const studentName = studentForm.studentName.trim();
+      const kioskPin = studentForm.kioskPin.trim();
 
       if (!studentName) {
         throw new Error("Please enter your name");
       }
 
-      // Query join_codes table for active code
-      const { data: codes, error: codeError } = await supabase
-        .from("join_codes")
-        .select("classroom_id, is_active")
-        .eq("code", joinCode)
-        .eq("is_active", true)
-        .limit(1);
+      // Find the classroom by kiosk PIN only
+      const { data, error: queryError } = await supabase
+        .from("classrooms")
+        .select("id, name")
+        .eq("kiosk_pin", kioskPin)
+        .single();
 
-      if (codeError) {
-        throw new Error(codeError.message);
+      if (queryError || !data) {
+        throw new Error("Invalid Kiosk PIN. Please check with your teacher.");
       }
 
-      const classroomId = codes?.[0]?.classroom_id;
-      if (!classroomId) {
-        throw new Error("Invalid code. Ask your teacher for a new code.");
-      }
-
-      // Insert student into the classroom
-      const { error: insertError } = await supabase
-        .from("students")
-        .insert({ display_name: studentName, classroom_id: classroomId });
-
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
-
-      // Store student info and navigate to student dashboard
-      localStorage.setItem("student_classroom_id", classroomId);
-      localStorage.setItem("student_display_name", studentName);
+      // Store student info in localStorage (no database insert)
+      localStorage.setItem("student_classroom_id", data.id);
+      localStorage.setItem("student_classroom_name", data.name);
+      localStorage.setItem("student_name", studentName);
       
-      toast({ title: "You're in!", description: "Welcome to the class garden." });
+      toast({ title: `Welcome, ${studentName}!` });
       navigate("/student/dashboard");
     } catch (err: any) {
       toast({ title: "Login failed", description: err.message, variant: "destructive" });
@@ -442,7 +428,7 @@ const Index = () => {
               <Card className="max-w-md mx-auto">
                 <CardHeader>
                   <CardTitle>Student Login</CardTitle>
-                  <p className="text-muted-foreground">Enter your name and class join code to begin</p>
+                  <p className="text-muted-foreground">Enter your name and classroom PIN to begin</p>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleStudentLogin} className="space-y-4">
@@ -457,17 +443,18 @@ const Index = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="joinCode">Join Code</Label>
+                      <Label htmlFor="kioskPin">Classroom PIN</Label>
                       <Input 
-                        id="joinCode" 
+                        id="kioskPin" 
+                        type="password"
                         required 
-                        placeholder="Enter code from teacher"
-                        value={studentForm.joinCode}
-                        onChange={(e) => setStudentForm(prev => ({ ...prev, joinCode: e.target.value }))}
+                        placeholder="4-digit PIN from your teacher"
+                        value={studentForm.kioskPin}
+                        onChange={(e) => setStudentForm(prev => ({ ...prev, kioskPin: e.target.value }))}
                       />
                     </div>
                     <Button type="submit" className="w-full" disabled={studentForm.loading}>
-                      {studentForm.loading ? "Joining Class..." : "Join Class"}
+                      {studentForm.loading ? "Logging In..." : "Log In"}
                     </Button>
                   </form>
                 </CardContent>
