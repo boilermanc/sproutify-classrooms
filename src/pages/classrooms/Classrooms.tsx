@@ -1,3 +1,5 @@
+// src/pages/classrooms/Classrooms.tsx - Updated for new student management system
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 const sb = supabase as any;
@@ -8,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { customAlphabet } from "nanoid";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,8 +22,9 @@ import {
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Copy, Clock } from "lucide-react";
 
+// Updated interfaces for the new system
 interface Classroom {
   id: string;
   name: string;
@@ -30,21 +32,16 @@ interface Classroom {
   created_at: string;
 }
 
-interface JoinCode {
-  id: string;
-  classroom_id: string;
-  code: string;
-  is_active: boolean;
-  created_at: string;
-}
-
 interface Student {
   id: string;
   display_name: string;
+  student_id?: string | null;
+  grade_level?: string | null;
+  has_logged_in: boolean;
+  first_login_at?: string | null;
+  last_login_at?: string | null;
+  created_at: string;
 }
-
-const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No confusing chars
-const nanoid = customAlphabet(alphabet, 6);
 
 export default function Classrooms() {
   const { toast } = useToast();
@@ -85,7 +82,6 @@ export default function Classrooms() {
 
   const loadClassrooms = async () => {
     if (!userId) return;
-    // SECURITY FIX: Only select classrooms belonging to the current teacher
     const { data, error } = await sb
       .from("classrooms")
       .select("id,name,kiosk_pin,created_at")
@@ -124,81 +120,14 @@ export default function Classrooms() {
     loadClassrooms();
   };
 
-  const fetchActiveCode = async (classroomId: string): Promise<JoinCode | null> => {
-    const { data, error } = await sb
-      .from("join_codes")
-      .select("id,classroom_id,code,is_active,created_at")
-      .eq("classroom_id", classroomId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (error) {
-      toast({ title: "Error fetching code", description: error.message, variant: "destructive" });
-      return null;
-    }
-    return data?.[0] ?? null;
-  };
-
-  const generateJoinCode = async (classroomId: string) => {
-    const code = nanoid();
-    await sb.from("join_codes").update({ is_active: false }).eq("classroom_id", classroomId);
-    const { error } = await sb.from("join_codes").insert({ classroom_id: classroomId, code, is_active: true });
-    if (error) {
-      toast({ title: "Error generating code", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Join code generated", description: code });
-    }
-  };
-
-  const disableActiveCode = async (classroomId: string) => {
-    const { error } = await sb.from("join_codes").update({ is_active: false }).eq("classroom_id", classroomId).eq("is_active", true);
-    if (error) {
-      toast({ title: "Error disabling code", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Join code disabled" });
-    }
-  };
-
-  const copy = async (text?: string | null) => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({ title: "Copied to clipboard!" });
-    } catch (e) {
-      toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" });
-    }
-  };
-
-  const fetchStudents = async (classroomId: string): Promise<Student[]> => {
-    const { data, error } = await sb
-      .from("students")
-      .select("id, display_name")
-      .eq("classroom_id", classroomId)
-      .order("created_at", { ascending: true });
-    if (error) {
-      toast({ title: "Error fetching students", description: error.message, variant: "destructive" });
-      return [];
-    }
-    return data || [];
-  };
-
-  const deleteStudent = async (studentId: string) => {
-    const { error } = await sb.from("students").delete().eq("id", studentId);
-    if (error) {
-      toast({ title: "Error removing student", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Student removed" });
-    }
-  };
-
   return (
     <div className="container max-w-5xl py-8">
-      <SEO title="Classrooms | Sproutify School" description="Manage classrooms and student join codes." canonical="/app/classrooms" />
+      <SEO title="Classrooms | Sproutify School" description="Manage classrooms and students." canonical="/app/classrooms" />
 
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Classrooms</h1>
         <Button asChild variant="outline">
-          <Link to="/app/help#invite-students">How to invite students</Link>
+          <Link to="/app/help#student-management">How to manage students</Link>
         </Button>
       </header>
 
@@ -208,7 +137,7 @@ export default function Classrooms() {
             <CardTitle>Sign in required</CardTitle>
           </CardHeader>
           <CardContent>
-            Please sign in to manage classrooms and join codes.
+            Please sign in to manage classrooms and students.
           </CardContent>
         </Card>
       )}
@@ -227,6 +156,7 @@ export default function Classrooms() {
               <div className="space-y-2">
                 <Label htmlFor="pin">Kiosk PIN</Label>
                 <Input id="pin" value={kioskPin} onChange={(e) => setKioskPin(e.target.value)} placeholder="e.g. 4932" required />
+                <p className="text-xs text-muted-foreground">Students will use this PIN to log in</p>
               </div>
               <Button type="submit">Create</Button>
             </form>
@@ -235,10 +165,18 @@ export default function Classrooms() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Open Kiosk Mode</CardTitle>
+            <CardTitle>Student Login System</CardTitle>
           </CardHeader>
           <CardContent>
-            Use Kiosk Mode on a shared device for students to join using a code.
+            <p className="text-sm text-muted-foreground mb-4">
+              Students log in with their <strong>name</strong> + <strong>classroom PIN</strong>. 
+              No more temporary join codes needed!
+            </p>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>• Add students to your class list</p>
+              <p>• Share your classroom PIN with students</p>
+              <p>• Track which students are participating</p>
+            </div>
           </CardContent>
           <CardFooter>
             <Button asChild>
@@ -251,17 +189,8 @@ export default function Classrooms() {
       <Separator className="my-8" />
 
       <section className="grid gap-4">
-        {classrooms.map((c) => (
-          <ClassroomRow
-            key={c.id}
-            classroom={c}
-            onGenerate={() => generateJoinCode(c.id)}
-            onDisable={() => disableActiveCode(c.id)}
-            onCopy={copy}
-            fetchActiveCode={() => fetchActiveCode(c.id)}
-            fetchStudents={() => fetchStudents(c.id)}
-            onDeleteStudent={(studentId) => deleteStudent(studentId)}
-          />
+        {classrooms.map((classroom) => (
+          <ClassroomRow key={classroom.id} classroom={classroom} />
         ))}
         {classrooms.length === 0 && (
           <p className="text-muted-foreground">No classrooms yet. Create one above.</p>
@@ -271,125 +200,481 @@ export default function Classrooms() {
   );
 }
 
-function ClassroomRow({
-  classroom, onGenerate, onDisable, onCopy, fetchActiveCode, fetchStudents, onDeleteStudent
-}: {
-  classroom: Classroom;
-  onGenerate: () => Promise<void>;
-  onDisable: () => Promise<void>;
-  onCopy: (text?: string | null) => void;
-  fetchActiveCode: () => Promise<JoinCode | null>;
-  fetchStudents: () => Promise<Student[]>;
-  onDeleteStudent: (studentId: string) => Promise<void>;
-}) {
-  const [activeCode, setActiveCode] = useState<JoinCode | null>(null);
+// Updated ClassroomRow component with student management
+function ClassroomRow({ classroom }: { classroom: Classroom }) {
+  const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Add student form state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [newStudentName, setNewStudentName] = useState("");
+  const [newStudentId, setNewStudentId] = useState("");
+  const [newGradeLevel, setNewGradeLevel] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load students for this classroom
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await sb
+        .from("students")
+        .select(`
+          id,
+          display_name,
+          student_id,
+          grade_level,
+          has_logged_in,
+          first_login_at,
+          last_login_at,
+          created_at
+        `)
+        .eq("classroom_id", classroom.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching students:", error);
+        toast({ 
+          title: "Error loading students", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      setStudents(data || []);
+    } catch (error) {
+      console.error("Unexpected error loading students:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      const [code, studentList] = await Promise.all([
-        fetchActiveCode(),
-        fetchStudents(),
-      ]);
-      setActiveCode(code);
-      setStudents(studentList);
-      setLoading(false);
-    };
-    loadData();
-  }, [classroom.id, fetchActiveCode, fetchStudents, refreshKey]);
+    loadStudents();
+  }, [classroom.id]);
 
-  const handleGenerate = async () => {
-    await onGenerate();
-    setRefreshKey(key => key + 1);
+  const copyKioskPin = async () => {
+    try {
+      await navigator.clipboard.writeText(classroom.kiosk_pin);
+      toast({ title: "Copied!", description: "Kiosk PIN copied to clipboard" });
+    } catch (e) {
+      toast({ 
+        title: "Copy failed", 
+        description: "Could not copy to clipboard.", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const handleDisable = async () => {
-    await onDisable();
-    setRefreshKey(key => key + 1);
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const name = newStudentName.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Please enter the student's name." });
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const { error } = await sb
+        .from("students")
+        .insert({
+          classroom_id: classroom.id,
+          display_name: name,
+          student_id: newStudentId.trim() || null,
+          grade_level: newGradeLevel.trim() || null,
+          has_logged_in: false
+        });
+
+      if (error) {
+        if (error.code === "23505" && error.message.includes("students_unique_name_per_classroom")) {
+          toast({ 
+            title: "Duplicate name", 
+            description: `"${name}" is already in this class. Please use their full name or add a middle initial.`,
+            variant: "destructive"
+          });
+        } else {
+          console.error("Error adding student:", error);
+          toast({ 
+            title: "Could not add student", 
+            description: error.message,
+            variant: "destructive"
+          });
+        }
+        setSubmitting(false);
+        return;
+      }
+
+      // Success
+      toast({ title: "Student added", description: `${name} has been added to ${classroom.name}.` });
+      
+      // Clear form
+      setNewStudentName("");
+      setNewStudentId("");
+      setNewGradeLevel("");
+      setShowAddDialog(false);
+      
+      // Refresh student list
+      loadStudents();
+      
+    } catch (error) {
+      console.error("Unexpected error adding student:", error);
+      toast({ 
+        title: "Error", 
+        description: "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
-    await onDeleteStudent(studentId);
-    setRefreshKey(key => key + 1);
+  const handleDeleteStudent = async (student: Student) => {
+    try {
+      const { error } = await sb
+        .from("students")
+        .delete()
+        .eq("id", student.id);
+
+      if (error) {
+        console.error("Error deleting student:", error);
+        toast({ 
+          title: "Could not remove student", 
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({ title: "Student removed", description: `${student.display_name} has been removed from the class.` });
+      loadStudents();
+    } catch (error) {
+      console.error("Unexpected error deleting student:", error);
+      toast({ 
+        title: "Error", 
+        description: "Could not remove student. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
+
+  const startEditing = (student: Student) => {
+    setEditingStudent(student);
+    setNewStudentName(student.display_name);
+    setNewStudentId(student.student_id || "");
+    setNewGradeLevel(student.grade_level || "");
+  };
+
+  const handleEditStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+    
+    setSubmitting(true);
+
+    try {
+      const { error } = await sb
+        .from("students")
+        .update({
+          display_name: newStudentName.trim(),
+          student_id: newStudentId.trim() || null,
+          grade_level: newGradeLevel.trim() || null
+        })
+        .eq("id", editingStudent.id);
+
+      if (error) {
+        if (error.code === "23505" && error.message.includes("students_unique_name_per_classroom")) {
+          toast({ 
+            title: "Duplicate name", 
+            description: "That name is already in use in this class.",
+            variant: "destructive"
+          });
+        } else {
+          console.error("Error updating student:", error);
+          toast({ 
+            title: "Could not update student", 
+            description: error.message,
+            variant: "destructive"
+          });
+        }
+        setSubmitting(false);
+        return;
+      }
+
+      toast({ title: "Student updated", description: "Student information has been saved." });
+      setEditingStudent(null);
+      loadStudents();
+      
+    } catch (error) {
+      console.error("Unexpected error updating student:", error);
+      toast({ 
+        title: "Error", 
+        description: "Could not update student. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatLastLogin = (dateString?: string | null) => {
+    if (!dateString) return "Never";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const activeStudentCount = students.filter(s => s.has_logged_in).length;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>{classroom.name}</CardTitle>
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              {classroom.name}
+              <Badge variant="outline">
+                {students.length} students
+              </Badge>
+              {activeStudentCount > 0 && (
+                <Badge variant="default">
+                  {activeStudentCount} active
+                </Badge>
+              )}
+            </CardTitle>
+          </div>
           <Button asChild variant="outline">
-            <Link to={`/app/kiosk?classId=${classroom.id}`}>Kiosk for this class</Link>
+            <Link to={`/app/kiosk?classId=${classroom.id}`}>
+              Open Kiosk
+            </Link>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid md:grid-cols-3 gap-4 items-end">
-          <div>
-            <Label>Kiosk PIN</Label>
-            <p className="font-mono">{classroom.kiosk_pin}</p>
+      <CardContent className="space-y-6">
+        
+        {/* Classroom Access Info - Simplified */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Classroom PIN</Label>
+            <div className="flex items-center space-x-2">
+              <code className="bg-muted px-2 py-1 rounded font-mono text-sm">
+                {classroom.kiosk_pin}
+              </code>
+              <Button variant="outline" size="sm" onClick={copyKioskPin}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Share this PIN with students for kiosk access
+            </p>
           </div>
-          <div>
-            <Label>Active Join Code</Label>
-            <p className="font-mono">{activeCode?.code ?? (loading ? "..." : "None")}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleGenerate}>Generate</Button>
-            <Button variant="outline" onClick={() => onCopy(activeCode?.code)} disabled={!activeCode?.code}>Copy</Button>
-            <Button variant="secondary" onClick={handleDisable} disabled={!activeCode?.code}>Disable</Button>
+          <div className="space-y-2">
+            <Label>Student Access</Label>
+            <p className="text-sm text-muted-foreground">
+              Students log in with their <strong>name</strong> + <strong>PIN</strong>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              No more temporary join codes needed!
+            </p>
           </div>
         </div>
 
         <Separator />
 
+        {/* Student Management */}
         <div>
-          <div className="flex justify-between items-center">
-            <Label>Students ({students.length})</Label>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" disabled={students.length === 0}>Manage</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Manage Students in "{classroom.name}"</DialogTitle>
-                  <DialogDescription>
-                    You can remove students from your class roster here. This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="max-h-60 overflow-y-auto space-y-2 pr-4">
-                  {students.map(student => (
-                    <div key={student.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                      <span>{student.display_name}</span>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteStudent(student.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline">Done</Button>
-                    </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+          <div className="flex items-center justify-between mb-4">
+            <Label className="flex items-center gap-2">
+              Students ({students.length})
+              {activeStudentCount > 0 && (
+                <Badge variant="secondary">
+                  {activeStudentCount} active
+                </Badge>
+              )}
+            </Label>
+            <Button size="sm" onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Student
+            </Button>
           </div>
+
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading students...</p>
-          ) : students.length > 0 ? (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {students.map(student => (
-                <Badge key={student.id} variant="secondary">{student.display_name}</Badge>
+          ) : students.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No students added yet. Click "Add Student" to create your class list.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {students.map((student) => (
+                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div>
+                      <p className="font-medium">{student.display_name}</p>
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        {student.student_id && <span>ID: {student.student_id}</span>}
+                        {student.grade_level && <span>Grade: {student.grade_level}</span>}
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Last login: {formatLastLogin(student.last_login_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant={student.has_logged_in ? "default" : "secondary"}>
+                      {student.has_logged_in ? "Active" : "Not logged in"}
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={() => startEditing(student)}>
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => handleDeleteStudent(student)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-2">No students have joined yet.</p>
           )}
         </div>
+
+        {/* Quick Stats */}
+        {students.length > 0 && (
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+            <div className="text-center">
+              <p className="text-2xl font-bold">{students.length}</p>
+              <p className="text-xs text-muted-foreground">Total Students</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-600">{activeStudentCount}</p>
+              <p className="text-xs text-muted-foreground">Have Logged In</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-orange-600">{students.length - activeStudentCount}</p>
+              <p className="text-xs text-muted-foreground">Never Logged In</p>
+            </div>
+          </div>
+        )}
       </CardContent>
+
+      {/* Add Student Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Student to {classroom.name}</DialogTitle>
+            <DialogDescription>
+              Add a new student to your classroom. They'll be able to log in using their name and the classroom PIN.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddStudent}>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="studentName">Student Name *</Label>
+                <Input
+                  id="studentName"
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Full name (e.g., Sarah Johnson)"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use their full name - this is what they'll type to log in.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentId">Student ID (optional)</Label>
+                <Input
+                  id="studentId"
+                  value={newStudentId}
+                  onChange={(e) => setNewStudentId(e.target.value)}
+                  placeholder="School ID number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gradeLevel">Grade Level (optional)</Label>
+                <Input
+                  id="gradeLevel"
+                  value={newGradeLevel}
+                  onChange={(e) => setNewGradeLevel(e.target.value)}
+                  placeholder="e.g., 5th Grade, Grade 10"
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Adding..." : "Add Student"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={editingStudent !== null} onOpenChange={() => setEditingStudent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+            <DialogDescription>
+              Update student information. Note: Login tracking data cannot be modified.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditStudent}>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="editStudentName">Student Name *</Label>
+                <Input
+                  id="editStudentName"
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Full name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editStudentId">Student ID</Label>
+                <Input
+                  id="editStudentId"
+                  value={newStudentId}
+                  onChange={(e) => setNewStudentId(e.target.value)}
+                  placeholder="School ID number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editGradeLevel">Grade Level</Label>
+                <Input
+                  id="editGradeLevel"
+                  value={newGradeLevel}
+                  onChange={(e) => setNewGradeLevel(e.target.value)}
+                  placeholder="e.g., 5th Grade"
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
