@@ -375,7 +375,7 @@ const Index = () => {
               </Card>
             </TabsContent>
 
-            <!-- Email Signup Tab -->
+            {/* Email Signup Tab */}
             <TabsContent value="info" className="mt-8">
               <Card className="max-w-md mx-auto">
                 <CardHeader>
