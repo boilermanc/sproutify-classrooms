@@ -1,4 +1,4 @@
-// src/pages/Index.tsx - Updated for Clarity
+// src/pages/Index.tsx - Final Version
 
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
@@ -26,10 +26,9 @@ const Index = () => {
             A simple, student‑friendly way to track vertical tower growing in the classroom. Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
           </p>
 
-          {/* --- NEW: Main container for the two user roles --- */}
           <div className="space-y-8">
             
-            {/* --- NEW: Card for Teacher Actions --- */}
+            {/* --- Card for Teacher Actions --- */}
             <div className="bg-card/50 backdrop-blur-sm p-6 rounded-lg border">
               <h2 className="text-2xl font-bold mb-2">For Teachers</h2>
               <p className="text-muted-foreground mb-4">
@@ -37,25 +36,24 @@ const Index = () => {
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button asChild variant="hero" size="lg">
-                  {/* Changed text for better clarity */}
                   <Link to="/auth/register">Register Your School</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg">
-                  {/* Changed text for better clarity */}
                   <Link to="/auth/login">Teacher Sign In</Link>
                 </Button>
               </div>
             </div>
 
-            {/* --- NEW: Card for Student Actions --- */}
+            {/* --- Card for Student Actions --- */}
             <div className="bg-card/50 backdrop-blur-sm p-6 rounded-lg border">
               <h2 className="text-2xl font-bold mb-2">For Students</h2>
               <p className="text-muted-foreground mb-4">
                 Log your tower's vitals, record harvests, and see your class progress.
               </p>
-              {/* This is the new, clear button for students */}
+              
               <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto">
-                <Link to="/kiosk">Enter Class PIN to Log In</Link>
+                {/* === UPDATED LINK TO POINT TO THE NEW STUDENT LOGIN PAGE === */}
+                <Link to="/auth/student-login">Enter Class PIN to Log In</Link>
               </Button>
             </div>
 
