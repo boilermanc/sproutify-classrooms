@@ -40,6 +40,14 @@ const Index = () => {
     loading: false
   });
 
+  // Email signup form state
+  const [emailForm, setEmailForm] = useState({
+    email: "",
+    firstName: "",
+    schoolName: "",
+    loading: false
+  });
+
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (regForm.password !== regForm.confirmPassword) {
@@ -84,18 +92,41 @@ const Index = () => {
     }, 1500);
   };
 
+  const handleEmailSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailForm(prev => ({ ...prev, loading: true }));
+    
+    // Simulate API call - in real implementation, this would add to email list
+    setTimeout(() => {
+      toast({ 
+        title: "Thanks for your interest!", 
+        description: "We'll keep you updated on Sproutify School and send you educational resources."
+      });
+      setEmailForm(prev => ({ ...prev, loading: false }));
+      // Reset form
+      setEmailForm({
+        email: "",
+        firstName: "",
+        schoolName: "",
+        loading: false
+      });
+    }, 1500);
+  };
+
   const plans = [
     {
       id: "basic",
       name: "Basic",
-      price: "$19.99",
+      originalPrice: "$19.99",
+      promoPrice: "$9.99", 
       description: "Perfect for small classrooms and getting started with aeroponic education.",
       features: ["Up to 3 towers", "50 student accounts", "Basic curriculum modules", "Student progress tracking", "Email support"]
     },
     {
       id: "professional", 
       name: "Professional",
-      price: "$39.99",
+      originalPrice: "$39.99",
+      promoPrice: "$19.99",
       description: "Ideal for larger classrooms and comprehensive agricultural education programs.",
       popular: true,
       features: ["Up to 10 towers", "200 student accounts", "Complete curriculum library", "Advanced analytics & reporting", "Teacher collaboration tools", "Priority email support"]
@@ -103,7 +134,8 @@ const Index = () => {
     {
       id: "school",
       name: "School", 
-      price: "$79.99",
+      originalPrice: "$79.99",
+      promoPrice: "$39.99",
       description: "Comprehensive solution for entire schools and district-wide implementations.",
       features: ["Unlimited towers", "Unlimited student accounts", "Custom curriculum development", "District-wide reporting", "Administrator dashboard", "Dedicated account manager"]
     }
@@ -137,10 +169,11 @@ const Index = () => {
         {/* Auth Section */}
         <section className="mb-20">
           <Tabs defaultValue="register" className="max-w-4xl mx-auto">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="register">Start Free Trial</TabsTrigger>
               <TabsTrigger value="login">Teacher Login</TabsTrigger>
               <TabsTrigger value="student">Student Login</TabsTrigger>
+              <TabsTrigger value="info">Get Info</TabsTrigger>
             </TabsList>
 
             {/* Registration Tab */}
@@ -214,8 +247,11 @@ const Index = () => {
                         />
                       </div>
                       <Button type="submit" className="w-full" disabled={regForm.loading}>
-                        {regForm.loading ? "Creating Account..." : `Start Free Trial - ${plans.find(p => p.id === selectedPlan)?.name}`}
+                        {regForm.loading ? "Creating Account..." : `Start 7-Day Free Trial - ${plans.find(p => p.id === selectedPlan)?.name}`}
                       </Button>
+                      <p className="text-center text-sm text-muted-foreground mt-2">
+                        Then 50% off for first 3 months • Cancel anytime
+                      </p>
                     </form>
                   </CardContent>
                 </Card>
@@ -239,7 +275,12 @@ const Index = () => {
                                 {plan.name}
                                 {plan.popular && <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>}
                               </CardTitle>
-                              <p className="text-2xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground line-through">{plan.originalPrice}</span>
+                                <p className="text-2xl font-bold text-green-600">{plan.promoPrice}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+                                <Badge variant="destructive" className="text-xs">50% OFF</Badge>
+                              </div>
+                              <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
                             </div>
                             <div className={`w-4 h-4 rounded-full border-2 ${selectedPlan === plan.id ? 'bg-primary border-primary' : 'border-muted-foreground'}`} />
                           </div>
@@ -333,7 +374,74 @@ const Index = () => {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <!-- Email Signup Tab -->
+            <TabsContent value="info" className="mt-8">
+              <Card className="max-w-md mx-auto">
+                <CardHeader>
+                  <CardTitle>Get Updates & Resources</CardTitle>
+                  <p className="text-muted-foreground">Stay informed about Sproutify School and receive educational resources</p>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleEmailSignup} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="infoEmail">Email Address</Label>
+                      <Input 
+                        id="infoEmail" 
+                        type="email" 
+                        required 
+                        placeholder="teacher@school.edu"
+                        value={emailForm.email}
+                        onChange={(e) => setEmailForm(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="infoFirstName">First Name</Label>
+                      <Input 
+                        id="infoFirstName" 
+                        required 
+                        placeholder="Jane"
+                        value={emailForm.firstName}
+                        onChange={(e) => setEmailForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="infoSchoolName">School Name</Label>
+                      <Input 
+                        id="infoSchoolName" 
+                        required 
+                        placeholder="Springfield Elementary"
+                        value={emailForm.schoolName}
+                        onChange={(e) => setEmailForm(prev => ({ ...prev, schoolName: e.target.value }))}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={emailForm.loading}>
+                      {emailForm.loading ? "Subscribing..." : "Join Our Educator Community"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Get early access updates, curriculum resources, and educational tips. No spam, unsubscribe anytime.
+                    </p>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
+        </section>
+
+        {/* Back to School Promo Banner */}
+        <section className="text-center mb-12">
+          <Card className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border-green-500/20 max-w-3xl mx-auto">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Badge className="bg-red-500 text-white">Limited Time</Badge>
+                <Badge className="bg-green-500 text-white">Back to School</Badge>
+              </div>
+              <h3 className="text-xl font-bold mb-2">50% Off First 3 Months + 7-Day Free Trial</h3>
+              <p className="text-muted-foreground text-sm">
+                Start your classroom garden journey with our special back-to-school pricing. Valid through September 2025.
+              </p>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Features Section */}
