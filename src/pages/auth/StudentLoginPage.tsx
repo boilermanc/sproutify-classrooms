@@ -1,4 +1,4 @@
-// src/pages/auth/StudentLoginPage.tsx - Final Version with Homepage Link
+// src/pages/auth/StudentLoginPage.tsx - Fixed Version with Student Name + Kiosk PIN
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 export default function StudentLoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [className, setClassName] = useState("");
+  const [studentName, setStudentName] = useState("");
   const [kioskPin, setKioskPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -24,24 +24,26 @@ export default function StudentLoginPage() {
     setLoading(true);
     setError("");
 
+    // Find the classroom by kiosk PIN only
     const { data, error: queryError } = await supabase
       .from("classrooms")
       .select("id, name")
-      .eq("name", className.trim())
       .eq("kiosk_pin", kioskPin.trim())
       .single();
 
     if (queryError || !data) {
       console.error("Login failed:", queryError);
-      setError("Invalid Classroom Name or PIN. Please check with your teacher.");
+      setError("Invalid Kiosk PIN. Please check with your teacher.");
       setLoading(false);
       return;
     }
 
+    // Store student info in localStorage
     localStorage.setItem("student_classroom_id", data.id);
     localStorage.setItem("student_classroom_name", data.name);
+    localStorage.setItem("student_name", studentName.trim());
     
-    toast({ title: `Welcome, ${data.name}!` });
+    toast({ title: `Welcome, ${studentName}!` });
 
     navigate("/student/dashboard");
   };
@@ -51,7 +53,7 @@ export default function StudentLoginPage() {
       <SEO title="Student Login | Sproutify School" />
       <div className="w-full max-w-md">
 
-        {/* --- ADDED: Logo Link back to Home Page --- */}
+        {/* Logo Link back to Home Page */}
         <div className="text-center mb-8">
           <Link to="/">
             <img 
@@ -61,33 +63,32 @@ export default function StudentLoginPage() {
             />
           </Link>
         </div>
-        {/* --- END OF ADDITION --- */}
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Student & Team Login</CardTitle>
-            <CardDescription>Enter your class name and PIN to begin.</CardDescription>
+            <CardTitle className="text-2xl">Student Login</CardTitle>
+            <CardDescription>Enter your name and your classroom's PIN to begin.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="className">Classroom Name</Label>
+                <Label htmlFor="studentName">Your Name</Label>
                 <Input
-                  id="className"
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  placeholder="e.g. The Mighty Growers"
+                  id="studentName"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  placeholder="e.g. Alex Smith"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kioskPin">Kiosk PIN</Label>
+                <Label htmlFor="kioskPin">Classroom PIN</Label>
                 <Input
                   id="kioskPin"
                   type="password"
                   value={kioskPin}
                   onChange={(e) => setKioskPin(e.target.value)}
-                  placeholder="4-digit PIN"
+                  placeholder="4-digit PIN from your teacher"
                   required
                 />
               </div>
