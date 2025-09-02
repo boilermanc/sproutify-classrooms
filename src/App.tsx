@@ -1,4 +1,4 @@
-// src/App.tsx - CORRECTED ROUTER FILE
+// src/App.tsx - Updated to remove old student login system
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -27,7 +27,6 @@ import TermsOfService from "@/pages/legal/TermsOfService";
 import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
 import CookiePolicy from "@/pages/legal/CookiePolicy";
 import Accessibility from "@/pages/legal/Accessibility";
-import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
@@ -58,7 +57,6 @@ const App = () => (
         <Routes>
           {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Index />} />
-          <Route path="/student-login" element={<StudentLoginPage />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiePolicy />} />
