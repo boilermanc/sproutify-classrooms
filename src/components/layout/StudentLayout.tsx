@@ -25,7 +25,8 @@ export default function StudentLayout({ children }: PropsWithChildren) {
   const handleLogout = () => {
     localStorage.removeItem("student_classroom_id");
     localStorage.removeItem("student_classroom_name");
-    navigate("/app/kiosk");
+    // Navigate to home page instead of kiosk
+    navigate("/");
   };
 
   // Don't render anything until the auth check is complete
