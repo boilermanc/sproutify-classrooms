@@ -1,45 +1,35 @@
-// src/pages/Index.tsx - Clean version without Lovable references
+// src/pages/Index.tsx - Minimal working version
 
 import { Button } from "@/components/ui/button";
-import { SEO } from "@/components/SEO";
-import { GradientBackground } from "@/components/GradientBackground";
-import { Footer } from "@/components/Footer";
 import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background relative flex flex-col">
-      <SEO
-        title="Sproutify School | Classroom Tower Tracker"
-        description="Manage classroom vertical tower gardens: track vitals, pests, plants, and harvests with friendly dashboards."
-        canonical="/"
-      />
-      <GradientBackground className="absolute inset-0" />
-      <main className="relative container mx-auto px-6 py-24 flex-1 flex items-center">
+    <div className="min-h-screen bg-background flex flex-col">
+      <main className="container mx-auto px-6 py-24 flex-1 flex items-center">
         <div className="max-w-4xl mx-auto w-full text-center">
-          {/* Hero Section */}
-          <div className="mb-12">
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent mb-6">
-              Sproutify School
-            </h1>
-            <div className="text-lg text-green-700 font-medium mb-4">GROW SMARTER</div>
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12">
-              A simple, student‑friendly way to track vertical tower growing in the classroom. 
-              Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
-            </p>
+          
+          <h1 className="text-4xl font-bold text-green-700 mb-4">
+            Sproutify School
+          </h1>
+          
+          <div className="text-lg text-green-600 font-medium mb-4">
+            GROW SMARTER
           </div>
+          
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-12">
+            A simple, student‑friendly way to track vertical tower growing in the classroom. 
+            Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
+          </p>
 
-          {/* Login Options - Simplified Layout */}
-          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-8">
+          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
             
             {/* Teacher Section */}
-            <div className="p-8 border-2 border-primary/20 rounded-lg bg-white/50 backdrop-blur-sm hover:border-primary/40 transition-colors">
-              <div className="mb-4">
-                <div className="text-2xl font-bold mb-2">🎓 Teachers</div>
-                <p className="text-muted-foreground text-sm">
-                  Manage classrooms, track towers, and monitor student progress
-                </p>
-              </div>
+            <div className="p-8 border-2 border-blue-200 rounded-lg bg-blue-50">
+              <div className="text-2xl font-bold mb-2">👩‍🏫 Teachers</div>
+              <p className="text-gray-600 text-sm mb-4">
+                Manage classrooms, track towers, and monitor student progress
+              </p>
               <div className="space-y-3">
                 <Button asChild className="w-full" size="lg">
                   <Link to="/auth/register">Register as Teacher</Link>
@@ -48,42 +38,27 @@ const Index = () => {
                   <Link to="/auth/login">Sign In</Link>
                 </Button>
               </div>
-              <div className="text-xs text-muted-foreground mt-4">
-                Create classrooms • Manage students • Track garden data
-              </div>
             </div>
 
             {/* Student Section */}
-            <div className="p-8 border-2 border-green-200 rounded-lg bg-green-50/50 backdrop-blur-sm hover:border-green-300 transition-colors">
-              <div className="mb-4">
-                <div className="text-2xl font-bold mb-2">🌱 Students</div>
-                <p className="text-muted-foreground text-sm">
-                  Log in to your class and contribute to the garden
-                </p>
-              </div>
+            <div className="p-8 border-2 border-green-200 rounded-lg bg-green-50">
+              <div className="text-2xl font-bold mb-2">🌱 Students</div>
+              <p className="text-gray-600 text-sm mb-4">
+                Log in to your class and contribute to the garden
+              </p>
               <div className="space-y-3">
                 <Button asChild className="w-full bg-green-600 hover:bg-green-700" size="lg">
                   <Link to="/app/kiosk">Student Login</Link>
                 </Button>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-gray-600">
                   Enter your <strong>name</strong> + <strong>classroom PIN</strong>
                 </div>
-              </div>
-              <div className="text-xs text-muted-foreground mt-4">
-                Upload photos • Log data • Track plant growth
               </div>
             </div>
 
           </div>
-
-          {/* Help Text */}
-          <div className="text-sm text-muted-foreground">
-            <strong>Teachers:</strong> Create and manage classroom gardens • 
-            <strong className="ml-4">Students:</strong> Contribute to your class garden with your teacher's PIN
-          </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 };
