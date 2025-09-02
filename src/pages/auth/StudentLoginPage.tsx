@@ -1,4 +1,4 @@
-// src/pages/auth/StudentLoginPage.tsx
+// src/pages/auth/StudentLoginPage.tsx - Final Version with Homepage Link
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -50,6 +50,19 @@ export default function StudentLoginPage() {
     <div className="container flex items-center justify-center min-h-screen">
       <SEO title="Student Login | Sproutify School" />
       <div className="w-full max-w-md">
+
+        {/* --- ADDED: Logo Link back to Home Page --- */}
+        <div className="text-center mb-8">
+          <Link to="/">
+            <img 
+              src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
+              alt="Sproutify School Logo" 
+              className="h-16 inline-block" 
+            />
+          </Link>
+        </div>
+        {/* --- END OF ADDITION --- */}
+
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Student & Team Login</CardTitle>
@@ -87,7 +100,6 @@ export default function StudentLoginPage() {
         </Card>
         <div className="mt-4 text-center text-sm">
           Are you a teacher?{" "}
-          {/* THIS IS THE CORRECTED LINE */}
           <Link to="/auth/login" className="underline">
             Teacher Login
           </Link>
