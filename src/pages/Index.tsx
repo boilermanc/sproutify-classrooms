@@ -3,16 +3,18 @@ import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
 import { GradientBackground } from "@/components/GradientBackground";
 import { Footer } from "@/components/Footer";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState("professional");
   
   // Registration form state
@@ -57,39 +59,113 @@ const Index = () => {
     
     setRegForm(prev => ({ ...prev, loading: true }));
     
-    // Simulate API call - in real implementation, this would create the account
-    setTimeout(() => {
+    try {
+      // 1) Create auth user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ 
+        email: regForm.email, 
+        password: regForm.password 
+      });
+      if (signUpError || !signUpData?.user) {
+        throw new Error(signUpError?.message ?? "Sign up failed");
+      }
+      const userId = signUpData.user.id;
+
+      // 2) Upsert/find school
+      const { data: existingSchools, error: schoolLookupError } = await supabase
+        .from("schools")
+        .select("id")
+        .eq("name", regForm.schoolName)
+        .limit(1);
+      if (schoolLookupError) throw new Error(schoolLookupError.message);
+
+      let schoolId: string;
+      if (existingSchools && existingSchools.length > 0) {
+        schoolId = existingSchools[0].id;
+      } else {
+        const { data: newSchool, error: schoolInsertError } = await supabase
+          .from("schools")
+          .insert({ name: regForm.schoolName })
+          .select()
+          .single();
+        if (schoolInsertError || !newSchool) throw new Error(schoolInsertError?.message ?? "School insert failed");
+        schoolId = newSchool.id;
+      }
+
+      // 3) Profile - Use UPSERT to handle existing records
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: userId,
+        first_name: regForm.firstName,
+        last_name: regForm.lastName,
+        school_id: schoolId,
+      }, {
+        onConflict: 'id'
+      });
+      if (profileError) throw new Error(profileError.message);
+
+      // 4) Role
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: userId,
+        role: "teacher",
+      });
+      if (roleError) throw new Error(roleError.message);
+
       toast({ 
-        title: "Account Created!", 
+        title: "Account created!", 
         description: `Welcome to Sproutify School ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} plan. Check your email to confirm your account.`
       });
+      navigate("/app");
+    } catch (err: any) {
+      toast({ title: "Signup failed", description: err.message ?? "Something went wrong", variant: "destructive" });
+    } finally {
       setRegForm(prev => ({ ...prev, loading: false }));
-      // In real implementation, redirect to dashboard or confirmation page
-    }, 2000);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginForm(prev => ({ ...prev, loading: true }));
     
-    // Simulate API call
-    setTimeout(() => {
-      toast({ title: "Welcome back!", description: "Redirecting to your dashboard..." });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email: loginForm.email, 
+        password: loginForm.password 
+      });
+      if (error) throw new Error(error.message);
+      toast({ title: "Welcome back!" });
+      navigate("/app");
+    } catch (err: any) {
+      toast({ title: "Sign in failed", description: err.message ?? "Check your email/password", variant: "destructive" });
+    } finally {
       setLoginForm(prev => ({ ...prev, loading: false }));
-      // In real implementation, redirect to /app
-    }, 1500);
+    }
   };
 
   const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setStudentForm(prev => ({ ...prev, loading: true }));
     
-    // Simulate API call
-    setTimeout(() => {
-      toast({ title: `Welcome, ${studentForm.className}!`, description: "Accessing your class dashboard..." });
+    try {
+      const { data, error: queryError } = await supabase
+        .from("classrooms")
+        .select("id, name")
+        .eq("name", studentForm.className.trim())
+        .eq("kiosk_pin", studentForm.kioskPin.trim())
+        .single();
+
+      if (queryError || !data) {
+        throw new Error("Invalid Classroom Name or PIN. Please check with your teacher.");
+      }
+
+      localStorage.setItem("student_classroom_id", data.id);
+      localStorage.setItem("student_classroom_name", data.name);
+      
+      toast({ title: `Welcome, ${data.name}!` });
+      navigate("/student/dashboard");
+    } catch (err: any) {
+      toast({ title: "Login failed", description: err.message, variant: "destructive" });
+    } finally {
       setStudentForm(prev => ({ ...prev, loading: false }));
-      // In real implementation, redirect to student dashboard
-    }, 1500);
+    }
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
