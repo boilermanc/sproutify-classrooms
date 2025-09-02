@@ -1,4 +1,4 @@
-// src/pages/kiosk/Kiosk.tsx - Updated for new student management system
+// src/pages/kiosk/Kiosk.tsx - Updated for new student management system with dashboard redirect
 
 import { useState } from "react";
 import { SEO } from "@/components/SEO";
@@ -16,12 +16,10 @@ export default function Kiosk() {
   const [studentName, setStudentName] = useState("");
   const [kioskPin, setKioskPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [successName, setSuccessName] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setSuccessName(null);
 
     const name = studentName.trim();
     const pin = kioskPin.trim();
@@ -98,10 +96,11 @@ export default function Kiosk() {
         return;
       }
 
-      // Success!
-      setSuccessName(name);
-      setStudentName("");
-      setKioskPin("");
+      // Success! Store student session data and redirect
+      localStorage.setItem("student_classroom_id", classroom.id);
+      localStorage.setItem("student_classroom_name", classroom.name);
+      localStorage.setItem("student_id", student.id);
+      localStorage.setItem("student_name", name);
       
       const welcomeMessage = isFirstLogin 
         ? `Welcome to ${classroom.name}, ${name}! This is your first time logging in.`
@@ -111,6 +110,11 @@ export default function Kiosk() {
         title: "Login successful!", 
         description: welcomeMessage 
       });
+
+      // Redirect to student dashboard after brief delay for toast
+      setTimeout(() => {
+        window.location.href = "/student/dashboard";
+      }, 1500);
 
     } catch (error) {
       console.error("Unexpected error during login:", error);
@@ -174,14 +178,6 @@ export default function Kiosk() {
             <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? "Signing in..." : "Sign In"}
             </Button>
-            {successName && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-800">
-                  <strong>Success!</strong> {successName}, you're now logged in. 
-                  You can hand the device to the next student or continue using the garden features.
-                </p>
-              </div>
-            )}
           </form>
         </CardContent>
       </Card>
