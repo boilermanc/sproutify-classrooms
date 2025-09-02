@@ -15,8 +15,8 @@ export default function StudentLayout({ children }: PropsWithChildren) {
     const classroomName = localStorage.getItem("student_classroom_name");
 
     if (!classroomId || !classroomName) {
-      // If not "logged in", redirect to the student login page
-      navigate("/student-login");
+      // If not "logged in", redirect to the kiosk page
+      navigate("/app/kiosk");
     } else {
       setClassName(classroomName);
     }
@@ -25,7 +25,7 @@ export default function StudentLayout({ children }: PropsWithChildren) {
   const handleLogout = () => {
     localStorage.removeItem("student_classroom_id");
     localStorage.removeItem("student_classroom_name");
-    navigate("/student-login");
+    navigate("/app/kiosk");
   };
 
   // Don't render anything until the auth check is complete
