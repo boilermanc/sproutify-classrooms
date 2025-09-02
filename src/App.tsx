@@ -1,110 +1,122 @@
-// src/pages/auth/StudentLoginPage.tsx
+// src/App.tsx - Updated with new Student Login Route
 
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { SEO } from "@/components/SEO";
-import { Loader2 } from "lucide-react";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import AppLayout from "@/components/layout/AppLayout";
+import Login from "@/pages/auth/Login";
+import RegisterTeacher from "@/pages/auth/RegisterTeacher";
+import ResetPassword from "@/pages/auth/ResetPassword";
+import DashboardHome from "@/pages/dashboard/Home";
+import TowersList from "@/pages/towers/TowersList";
+import NewTower from "@/pages/towers/NewTower";
+import TowerDetail from "@/pages/towers/TowerDetail";
+import Leaderboard from "@/pages/leaderboard/Leaderboard";
+import AppStoreProviderWrapper from "@/components/AppStoreProviderWrapper";
+import PlantCatalog from "@/pages/catalog/PlantCatalog";
+import Classrooms from "@/pages/classrooms/Classrooms";
+import Kiosk from "@/pages/kiosk/Kiosk";
+import HelpCenter from "@/pages/help/HelpCenter";
+import Profile from "@/pages/profile/Profile";
+import AccountSettings from "@/pages/settings/AccountSettings";
+import TermsOfService from "@/pages/legal/TermsOfService";
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import CookiePolicy from "@/pages/legal/CookiePolicy";
+import Accessibility from "@/pages/legal/Accessibility";
+import StudentLayout from "@/components/layout/StudentLayout";
+import StudentDashboard from "@/pages/kiosk/StudentDashboard";
+import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
+import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
+import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
+import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
+import StudentPestForm from "@/pages/kiosk/StudentPestForm";
+import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
+import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
-export default function StudentLoginPage() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [className, setClassName] = useState("");
-  const [kioskPin, setKioskPin] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+// Pest & Disease Guide imports
+import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
+import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+// Catalog page imports
+import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
+import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 
-    const { data, error: queryError } = await supabase
-      .from("classrooms")
-      .select("id, name")
-      .eq("name", className.trim())
-      .eq("kiosk_pin", kioskPin.trim())
-      .single();
+// === 1. IMPORT THE NEW STUDENT LOGIN PAGE ===
+import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
-    if (queryError || !data) {
-      console.error("Login failed:", queryError);
-      setError("Invalid Classroom Name or PIN. Please check with your teacher.");
-      setLoading(false);
-      return;
-    }
 
-    localStorage.setItem("student_classroom_id", data.id);
-    localStorage.setItem("student_classroom_name", data.name);
-    
-    toast({ title: `Welcome, ${data.name}!` });
+const queryClient = new QueryClient();
 
-    navigate("/student/dashboard");
-  };
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          {/* --- PUBLIC ROUTES --- */}
+          <Route path="/" element={<Index />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="/accessibility" element={<Accessibility />} />
 
-  return (
-    <div className="container flex items-center justify-center min-h-screen">
-      <SEO title="Student Login | Sproutify School" />
-      <div className="w-full max-w-md">
+          {/* --- AUTH ROUTES --- */}
+          <Route path="/auth">
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<RegisterTeacher />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+            {/* === 2. ADD THE ROUTE FOR THE STUDENT LOGIN PAGE === */}
+            <Route path="student-login" element={<StudentLoginPage />} />
+          </Route>
+          
+          {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
+          <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
+            <Route path="dashboard" element={<StudentDashboard />} />
+            <Route path="tower/:id" element={<StudentTowerDetail />} />
+            <Route path="vitals" element={<StudentVitalsForm />} />
+            <Route path="harvest" element={<StudentHarvestForm />} />
+            <Route path="waste" element={<StudentWasteForm />} />
+            <Route path="pests" element={<StudentPestForm />} />
+            <Route path="add-plant" element={<StudentPlantForm />} />
+            <Route path="photos" element={<StudentPhotoForm />} />
+            <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
+          </Route>
 
-        {/* --- NEW: Logo Link back to Home Page --- */}
-        <div className="text-center mb-8">
-          <Link to="/">
-            <img 
-              src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
-              alt="Sproutify School Logo" 
-              className="h-16 inline-block" 
-            />
-          </Link>
-        </div>
-        {/* --- END NEW --- */}
+          {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
+          <Route path="/app" element={<AppStoreProviderWrapper />}>
+            <Route index element={<DashboardHome />} />
+            <Route path="towers" >
+              <Route index element={<TowersList />} />
+              <Route path="new" element={<NewTower />} />
+              <Route path=":id" element={<TowerDetail />} />
+            </Route>
+            
+            <Route path="catalog">
+              <Route index element={<PlantCatalog />} />
+              <Route path="manage" element={<ManageClassroomCatalog />} />
+              <Route path="global" element={<GlobalPlantCatalog />} />
+            </Route>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Student & Team Login</CardTitle>
-            <CardDescription>Enter your class name and PIN to begin.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="className">Classroom Name</Label>
-                <Input
-                  id="className"
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  placeholder="e.g. The Mighty Growers"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kioskPin">Kiosk PIN</Label>
-                <Input
-                  id="kioskPin"
-                  type="password"
-                  value={kioskPin}
-                  onChange={(e) => setKioskPin(e.target.value)}
-                  placeholder="4-digit PIN"
-                  required
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Log In"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-        <div className="mt-4 text-center text-sm">
-          Are you a teacher?{" "}
-          <Link to="/auth/login" className="underline">
-            Teacher Login
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
+            <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="classrooms" element={<Classrooms />} />
+            <Route path="kiosk" element={<Kiosk />} />
+            <Route path="help" element={<HelpCenter />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
+
+          {/* --- CATCH-ALL ROUTE --- */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
