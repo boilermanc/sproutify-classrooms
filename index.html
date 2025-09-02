@@ -1,36 +1,110 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    
-    <!-- This is the new, complete code from RealFaviconGenerator -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest">
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sproutify School | Classroom Tower Tracker</title>
-    <meta name="description" content="Track classroom vertical tower gardens: pH, EC, lighting, pests, plants, harvests, and leaderboards with Sproutify School." />
-    <meta name="author" content="Sproutify" />
+// src/pages/Index.tsx - Updated with clearer teacher vs student distinction
 
-    <link rel="canonical" href="/" />
+import { Button } from "@/components/ui/button";
+import { SEO } from "@/components/SEO";
+import { GradientBackground } from "@/components/GradientBackground";
+import { Footer } from "@/components/Footer";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserCheck, GraduationCap, Users } from "lucide-react";
 
-    <meta property="og:title" content="Sproutify School | Classroom Tower Tracker" />
-    <meta property="og:description" content="Student-friendly app to manage tower gardens, track growth, and compete across classes and schools." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+const Index = () => {
+  return (
+    <div className="min-h-screen bg-background relative flex flex-col">
+      <SEO
+        title="Sproutify School | Classroom Tower Tracker"
+        description="Manage classroom vertical tower gardens: track vitals, pests, plants, and harvests with friendly dashboards."
+        canonical="/"
+      />
+      <GradientBackground className="absolute inset-0" />
+      <main className="relative container mx-auto px-6 py-24 flex-1 flex items-center">
+        <div className="max-w-5xl mx-auto w-full">
+          {/* Hero Section */}
+          <div className="text-center mb-12">
+            {/* Text-based logo instead of Lovable image */}
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent mb-6">
+              Sproutify School
+            </h1>
+            <div className="text-lg text-green-700 font-medium mb-2">GROW SMARTER</div>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              A simple, student‑friendly way to track vertical tower growing in the classroom. 
+              Add towers, log pH/EC and lighting, manage pests, record harvests and celebrate wins on leaderboards.
+            </p>
+          </div>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+          {/* Login Options - Two Clear Sections */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            
+            {/* Teacher Login Section */}
+            <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto mb-3 p-3 bg-primary/10 rounded-full w-fit">
+                  <GraduationCap className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Teachers</CardTitle>
+                <p className="text-muted-foreground text-sm">
+                  Manage classrooms, track towers, and monitor student progress
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <Button asChild className="w-full" size="lg">
+                  <Link to="/auth/register">
+                    <UserCheck className="mr-2 h-5 w-5" />
+                    Register as Teacher
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full" size="lg">
+                  <Link to="/auth/login">Sign In</Link>
+                </Button>
+                <div className="text-xs text-muted-foreground text-center pt-2">
+                  Create classrooms • Manage students • Track garden data
+                </div>
+              </CardContent>
+            </Card>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+            {/* Student Login Section */}
+            <Card className="border-2 border-green-200 hover:border-green-300 transition-colors">
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto mb-3 p-3 bg-green-100 rounded-full w-fit">
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+                <CardTitle className="text-2xl">Students</CardTitle>
+                <p className="text-muted-foreground text-sm">
+                  Log in to your class and contribute to the garden
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <Button asChild className="w-full bg-green-600 hover:bg-green-700" size="lg">
+                  <Link to="/app/kiosk">
+                    <Users className="mr-2 h-5 w-5" />
+                    Student Login
+                  </Link>
+                </Button>
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Enter your <strong>name</strong> + <strong>classroom PIN</strong>
+                  </p>
+                  <div className="text-xs text-muted-foreground">
+                    Upload photos • Log data • Track plant growth
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* Additional Help Text */}
+          <div className="text-center mt-8 text-sm text-muted-foreground">
+            <p>
+              <strong>Teachers:</strong> Create and manage classroom gardens • 
+              <strong className="ml-4">Students:</strong> Contribute to your class garden with your teacher's PIN
+            </p>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
+export default Index;
