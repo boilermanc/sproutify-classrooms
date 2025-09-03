@@ -27,10 +27,17 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
+// DEBUG: Check environment variables
+console.log('🌱 GARDEN_NETWORK feature flag:', process.env.VITE_ENABLE_GARDEN_NETWORK);
+console.log('🌱 NODE_ENV:', process.env.NODE_ENV);
+console.log('🌱 Feature flag result:', process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true');
+
 // Feature flag for Garden Network
 const FEATURE_FLAGS = {
   GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true',
 };
+
+console.log('🌱 FEATURE_FLAGS.GARDEN_NETWORK:', FEATURE_FLAGS.GARDEN_NETWORK);
 
 const coreItems = [
   { title: "Dashboard", url: "/app", icon: Gauge },
@@ -58,6 +65,8 @@ const items = [
   ...(FEATURE_FLAGS.GARDEN_NETWORK ? networkItems : []),
   ...settingsItems
 ];
+
+console.log('🌱 Final items array:', items.map(item => item.title));
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -87,6 +96,8 @@ export function AppSidebar() {
 
   const networkNavItems = FEATURE_FLAGS.GARDEN_NETWORK ? networkItems : [];
   const settingsNavItems = FEATURE_FLAGS.GARDEN_NETWORK ? settingsItems : [];
+
+  console.log('🌱 Rendering sidebar with network items:', networkNavItems.map(item => item.title));
 
   return (
     <Sidebar collapsible="icon" className={collapsed ? "w-14" : "w-60"}>
