@@ -1,0 +1,81 @@
+/* Make the whole ML block look like shadcn cards/forms */
+.ml-embedded .ml-form-embedContainer,
+.ml-embedded .ml-form-embedWrapper {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Header/body spacing */
+.ml-embedded .ml-form-embedBody,
+.ml-embedded .ml-form-successBody {
+  padding: 0 !important;
+}
+
+/* Form wrapper */
+.ml-embedded form,
+.ml-embedded .ml-block-form {
+  display: block;
+}
+
+/* Inputs */
+.ml-embedded input[type="text"],
+.ml-embedded input[type="email"],
+.ml-embedded input[type="tel"],
+.ml-embedded input[type="password"],
+.ml-embedded textarea,
+.ml-embedded select {
+  @apply w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none ring-0;
+}
+
+.ml-embedded input::placeholder,
+.ml-embedded textarea::placeholder {
+  @apply text-muted-foreground;
+}
+
+/* Field rows spacing */
+.ml-embedded .ml-form-fieldRow {
+  @apply mb-3;
+}
+
+/* Consent/checkbox text */
+.ml-embedded .ml-form-embedPermissions,
+.ml-embedded .label-description {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Submit button */
+.ml-embedded .ml-form-embedSubmit button.primary,
+.ml-embedded .ml-button-horizontal button,
+.ml-embedded button[type="submit"] {
+  @apply w-full rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground;
+}
+
+/* Submit hover/focus */
+.ml-embedded .ml-form-embedSubmit button.primary:hover,
+.ml-embedded .ml-button-horizontal button:hover {
+  @apply opacity-90;
+}
+
+/* Error state */
+.ml-embedded .ml-error input,
+.ml-embedded .ml-error textarea,
+.ml-embedded .ml-error select {
+  @apply border-destructive;
+}
+
+/* Success state */
+.ml-embedded .row-success h4 {
+  @apply text-xl font-semibold text-foreground mb-2;
+}
+.ml-embedded .row-success p {
+  @apply text-muted-foreground;
+}
+
+/* Make it responsive and avoid their fixed widths */
+.ml-embedded .ml-form-embedWrapper.embedDefault,
+.ml-embedded .ml-form-embedWrapper.embedPopup,
+.ml-embedded .ml-form-embedWrapper.embedForm {
+  width: 100% !important;
+  max-width: 100% !important;
+}
