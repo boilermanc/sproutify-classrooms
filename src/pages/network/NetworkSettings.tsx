@@ -14,6 +14,12 @@ import { NetworkSettings } from '@/integrations/supabase/types';
 import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
 
+console.log('NetworkSettings render:', { 
+  selectedClassroom: state.selectedClassroom,
+  initialLoad,
+  loading 
+});
+
 export default function NetworkSettingsPage() {
   const { state } = useAppStore();
   const [settings, setSettings] = useState<NetworkSettings>({
