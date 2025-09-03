@@ -1,4 +1,4 @@
-// src/pages/classrooms/Classrooms.tsx - Updated with DATABASE-based Garden Network selection
+// src/pages/classrooms/Classrooms.tsx - Updated with multi-classroom Garden Network selection
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +32,7 @@ interface Classroom {
   kiosk_pin: string;
   created_at: string;
   teacher_id?: string;
-  is_selected_for_network?: boolean; // ADD THIS
+  is_selected_for_network?: boolean;
 }
 
 interface Student {
@@ -48,7 +48,7 @@ interface Student {
 
 export default function Classrooms() {
   const { toast } = useToast();
-  const { dispatch } = useAppStore(); // ADD THIS
+  const { dispatch } = useAppStore();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -87,7 +87,7 @@ export default function Classrooms() {
     if (!userId) return;
     const { data, error } = await sb
       .from("classrooms")
-      .select("id,name,kiosk_pin,created_at,teacher_id,is_selected_for_network") // ADD is_selected_for_network
+      .select("id,name,kiosk_pin,created_at,teacher_id,is_selected_for_network")
       .eq("teacher_id", userId)
       .order("created_at", { ascending: true });
 
@@ -98,12 +98,14 @@ export default function Classrooms() {
     
     setClassrooms(data || []);
     
-    // UPDATE APPSTORE with selected classroom
-    const selectedClassroom = data?.find((c: Classroom) => c.is_selected_for_network);
-    if (selectedClassroom) {
+    // Update AppStore with all selected classrooms (you might want to store an array)
+    const selectedClassrooms = data?.filter((c: Classroom) => c.is_selected_for_network);
+    if (selectedClassrooms && selectedClassrooms.length > 0) {
+      // For now, we'll keep the existing single classroom approach
+      // but you could update your AppStore to handle multiple selected classrooms
       dispatch({
         type: "SET_SELECTED_CLASSROOM",
-        payload: selectedClassroom
+        payload: selectedClassrooms[0] // Or handle multiple classrooms differently
       });
     }
   };
@@ -203,7 +205,7 @@ export default function Classrooms() {
 
       <section className="grid gap-4">
         {classrooms.map((classroom) => (
-          <ClassroomRow key={classroom.id} classroom={classroom} onReload={loadClassrooms} />
+          <ClassroomRow key={classroom.id} classroom={classroom} onReload={loadClassrooms} userId={userId} />
         ))}
         {classrooms.length === 0 && (
           <p className="text-muted-foreground">No classrooms yet. Create one above.</p>
@@ -213,13 +215,13 @@ export default function Classrooms() {
   );
 }
 
-// Updated ClassroomRow component with DATABASE-based Garden Network selection
-function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload: () => void }) {
+// Updated ClassroomRow component with multi-classroom Garden Network selection
+function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; onReload: () => void; userId: string | null }) {
   const { toast } = useToast();
   const { dispatch } = useAppStore();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selecting, setSelecting] = useState(false); // ADD LOADING STATE
+  const [selecting, setSelecting] = useState(false);
   
   // Add student form state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -229,38 +231,43 @@ function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload:
   const [newGradeLevel, setNewGradeLevel] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // UPDATED DATABASE-BASED SELECTION FUNCTION
+  // UPDATED: Toggle classroom network selection (allows multiple classrooms per teacher)
   const selectClassroomForNetwork = async () => {
     setSelecting(true);
     try {
+      // Toggle the selection: if currently selected, deselect it; if not selected, select it
+      const newSelectionState = !isSelectedForNetwork;
+      
       const { error } = await sb
         .from('classrooms')
-        .update({ is_selected_for_network: true })
+        .update({ is_selected_for_network: newSelectionState })
         .eq('id', classroom.id);
 
       if (error) {
-        console.error('Error selecting classroom:', error);
+        console.error('Error updating classroom selection:', error);
         toast({ 
           title: "Error", 
-          description: "Failed to select classroom. Please try again.", 
+          description: "Failed to update classroom selection. Please try again.", 
           variant: "destructive" 
         });
         return;
       }
 
-      // Update AppStore
+      // Update AppStore if needed (you might want to track all selected classrooms)
       dispatch({
         type: "SET_SELECTED_CLASSROOM",
-        payload: { ...classroom, is_selected_for_network: true }
+        payload: { ...classroom, is_selected_for_network: newSelectionState }
       });
 
       toast({ 
-        title: "Classroom selected", 
-        description: `${classroom.name} is now your active classroom for Garden Network.`,
+        title: newSelectionState ? "Classroom added to network" : "Classroom removed from network", 
+        description: newSelectionState 
+          ? `${classroom.name} is now active on Garden Network.`
+          : `${classroom.name} has been removed from Garden Network.`,
         duration: 3000
       });
 
-      // Reload to get updated state
+      // Reload all classrooms to update the UI
       onReload();
 
     } catch (error) {
@@ -511,8 +518,9 @@ function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload:
                 </Badge>
               )}
               {isSelectedForNetwork && (
-                <Badge variant="default" className="bg-green-600">
-                  Network Active
+                <Badge className="bg-green-600 hover:bg-green-600 text-white border-green-600">
+                  <Network className="h-3 w-3 mr-1" />
+                  On Network
                 </Badge>
               )}
             </CardTitle>
@@ -522,11 +530,20 @@ function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload:
               onClick={selectClassroomForNetwork}
               variant={isSelectedForNetwork ? "default" : "outline"}
               size="sm"
-              className={isSelectedForNetwork ? "bg-green-600 hover:bg-green-700" : ""}
+              className={
+                isSelectedForNetwork 
+                  ? "bg-green-600 hover:bg-green-700 border-green-600 text-white" 
+                  : "hover:bg-green-50 hover:border-green-300"
+              }
               disabled={selecting}
             >
               <Network className="h-4 w-4 mr-2" />
-              {selecting ? "Selecting..." : isSelectedForNetwork ? "Selected" : "Select for Network"}
+              {selecting 
+                ? "Updating..." 
+                : isSelectedForNetwork 
+                  ? "Remove from Network" 
+                  : "Add to Network"
+              }
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link to={`/app/kiosk?classId=${classroom.id}`}>
@@ -543,11 +560,11 @@ function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload:
             <div className="flex items-center gap-2 mb-1">
               <Network className="h-4 w-4 text-green-600" />
               <span className="text-sm font-medium text-green-800">
-                Garden Network Ready
+                On Garden Network
               </span>
             </div>
             <p className="text-xs text-green-700">
-              This classroom is selected for Garden Network features. 
+              This classroom is participating in Garden Network features. 
               <Link to="/app/network" className="font-medium hover:underline ml-1">
                 Go to Garden Network →
               </Link>
