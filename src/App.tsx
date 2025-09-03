@@ -1,4 +1,4 @@
-// src/App.tsx - Updated with new Student Login Route
+// src/App.tsx - Updated with Garden Network Routes
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -45,11 +45,41 @@ import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
 import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
 import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 
-// === 1. IMPORT THE NEW STUDENT LOGIN PAGE ===
+// Student Login page import
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
+// Garden Network imports (with conditional loading)
+const FEATURE_FLAGS = {
+  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true',
+};
+
+// Lazy load Garden Network components to avoid bundle bloat when disabled
+const NetworkDashboard = FEATURE_FLAGS.GARDEN_NETWORK 
+  ? React.lazy(() => import("@/pages/network/NetworkDashboard"))
+  : null;
+const NetworkSettings = FEATURE_FLAGS.GARDEN_NETWORK 
+  ? React.lazy(() => import("@/pages/network/NetworkSettings"))
+  : null;
+const ClassroomDiscovery = FEATURE_FLAGS.GARDEN_NETWORK 
+  ? React.lazy(() => import("@/pages/network/ClassroomDiscovery"))
+  : null;
+const MyConnections = FEATURE_FLAGS.GARDEN_NETWORK 
+  ? React.lazy(() => import("@/pages/network/MyConnections"))
+  : null;
+const ChallengeCenter = FEATURE_FLAGS.GARDEN_NETWORK 
+  ? React.lazy(() => import("@/pages/network/ChallengeCenter"))
+  : null;
+
+import React, { Suspense } from "react";
 
 const queryClient = new QueryClient();
+
+// Loading component for lazy-loaded routes
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -70,7 +100,6 @@ const App = () => (
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
             <Route path="reset-password" element={<ResetPassword />} />
-            {/* === 2. ADD THE ROUTE FOR THE STUDENT LOGIN PAGE === */}
             <Route path="student-login" element={<StudentLoginPage />} />
           </Route>
           
@@ -90,6 +119,7 @@ const App = () => (
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
+            
             <Route path="towers" >
               <Route index element={<TowersList />} />
               <Route path="new" element={<NewTower />} />
@@ -101,6 +131,52 @@ const App = () => (
               <Route path="manage" element={<ManageClassroomCatalog />} />
               <Route path="global" element={<GlobalPlantCatalog />} />
             </Route>
+
+            {/* --- GARDEN NETWORK ROUTES (FEATURE FLAGGED) --- */}
+            {FEATURE_FLAGS.GARDEN_NETWORK && (
+              <Route path="network">
+                <Route 
+                  index 
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <NetworkDashboard />
+                    </Suspense>
+                  } 
+                />
+                <Route 
+                  path="settings" 
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <NetworkSettings />
+                    </Suspense>
+                  } 
+                />
+                <Route 
+                  path="discover" 
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ClassroomDiscovery />
+                    </Suspense>
+                  } 
+                />
+                <Route 
+                  path="connections" 
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <MyConnections />
+                    </Suspense>
+                  } 
+                />
+                <Route 
+                  path="challenges" 
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <ChallengeCenter />
+                    </Suspense>
+                  } 
+                />
+              </Route>
+            )}
 
             <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
