@@ -1,4 +1,4 @@
-// src/App.tsx - Updated with Garden Network Routes
+// src/App.tsx – Garden Network routes + robust feature flag
 
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -39,45 +39,34 @@ import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 
-// Pest & Disease Guide imports
+// Guides
 import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
 import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
 
-// Catalog page imports
+// Catalog
 import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
 import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 
-// Student Login page import
+// Auth
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
-// Garden Network feature flag - HARDCODED TO TRUE
-const FEATURE_FLAGS = {
-  GARDEN_NETWORK: true, // Hardcoded to always enable Garden Network
-};
+// -------- Feature flag (read from Vite env) --------
+const rawFlag = String(import.meta.env.VITE_ENABLE_GARDEN_NETWORK ?? "true").toLowerCase();
+const GARDEN_NETWORK = ["1", "true", "yes", "on"].includes(rawFlag);
 
-// Lazy load Garden Network components to avoid bundle bloat when disabled
-const NetworkDashboard = FEATURE_FLAGS.GARDEN_NETWORK
-  ? React.lazy(() => import("@/pages/network/NetworkDashboard"))
-  : null;
-const NetworkSettings = FEATURE_FLAGS.GARDEN_NETWORK
-  ? React.lazy(() => import("@/pages/network/NetworkSettings"))
-  : null;
-const ClassroomDiscovery = FEATURE_FLAGS.GARDEN_NETWORK
-  ? React.lazy(() => import("@/pages/network/ClassroomDiscovery"))
-  : null;
-const MyConnections = FEATURE_FLAGS.GARDEN_NETWORK
-  ? React.lazy(() => import("@/pages/network/MyConnections"))
-  : null;
-const ChallengeCenter = FEATURE_FLAGS.GARDEN_NETWORK
-  ? React.lazy(() => import("@/pages/network/ChallengeCenter"))
-  : null;
+// Lazy-loaded Garden Network pages
+const NetworkDashboard = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/NetworkDashboard")) : null;
+const NetworkSettings  = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/NetworkSettings"))  : null;
+const ClassroomDiscovery = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/ClassroomDiscovery")) : null;
+const MyConnections   = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/MyConnections"))   : null;
+const ChallengeCenter = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/ChallengeCenter")) : null;
 
 const queryClient = new QueryClient();
 
-// Loading component for lazy-loaded routes
+// Loading skeleton for lazy routes
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[400px]">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
   </div>
 );
 
@@ -103,7 +92,7 @@ const App = () => (
             <Route path="student-login" element={<StudentLoginPage />} />
           </Route>
 
-          {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
+          {/* --- STUDENT PORTAL (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="tower/:id" element={<StudentTowerDetail />} />
@@ -116,7 +105,8 @@ const App = () => (
             <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
           </Route>
 
-          {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
+          {/* --- TEACHER APP (PROTECTED) --- */}
+          {/* AppStoreProviderWrapper already wraps AppLayout + <Outlet /> */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
 
@@ -132,8 +122,8 @@ const App = () => (
               <Route path="global" element={<GlobalPlantCatalog />} />
             </Route>
 
-            {/* --- GARDEN NETWORK ROUTES (FEATURE FLAGGED) --- */}
-            {FEATURE_FLAGS.GARDEN_NETWORK && (
+            {/* --- GARDEN NETWORK --- */}
+            {GARDEN_NETWORK && (
               <Route path="network">
                 <Route
                   index
@@ -187,7 +177,7 @@ const App = () => (
             <Route path="settings" element={<AccountSettings />} />
           </Route>
 
-          {/* --- CATCH-ALL ROUTE --- */}
+          {/* --- 404 --- */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
