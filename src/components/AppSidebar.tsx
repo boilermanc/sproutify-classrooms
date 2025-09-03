@@ -32,9 +32,9 @@ console.log('🌱 GARDEN_NETWORK feature flag:', process.env.VITE_ENABLE_GARDEN_
 console.log('🌱 NODE_ENV:', process.env.NODE_ENV);
 console.log('🌱 Feature flag result:', process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true');
 
-// Feature flag for Garden Network
+// Feature flag for Garden Network - HARDCODED TO TRUE
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true',
+  GARDEN_NETWORK: true, // Hardcoded to always enable Garden Network
 };
 
 console.log('🌱 FEATURE_FLAGS.GARDEN_NETWORK:', FEATURE_FLAGS.GARDEN_NETWORK);
