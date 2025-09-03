@@ -6,7 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { NetworkService, NetworkSettings } from '@/services/networkService';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Info, Shield, Users, Globe, Eye, EyeOff } from 'lucide-react';
+import { NetworkService } from '@/services/networkService';
+import { NetworkSettings } from '@/integrations/supabase/types';
 import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
 
@@ -18,9 +22,15 @@ export default function NetworkSettingsPage() {
     visibility_level: 'invite_only',
     share_harvest_data: true,
     share_photos: false,
-    share_growth_tips: true
+    share_growth_tips: true,
+    display_name: null,
+    bio: null,
+    region: null,
+    grade_level: null,
+    school_type: null
   });
   const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     if (state.selectedClassroom?.id) {
@@ -33,13 +43,38 @@ export default function NetworkSettingsPage() {
       const existing = await NetworkService.getNetworkSettings(state.selectedClassroom!.id);
       if (existing) {
         setSettings(existing);
+      } else {
+        // Set default display name to classroom name if no settings exist
+        setSettings(prev => ({
+          ...prev,
+          display_name: state.selectedClassroom?.name || null
+        }));
       }
     } catch (error) {
       console.error('Failed to load network settings:', error);
+      toast.error('Failed to load network settings');
+    } finally {
+      setInitialLoad(false);
     }
   };
 
   const handleSave = async () => {
+    // Basic validation
+    if (settings.is_network_enabled) {
+      if (!settings.display_name?.trim()) {
+        toast.error('Display name is required when joining the network');
+        return;
+      }
+      if (settings.display_name.length > 100) {
+        toast.error('Display name must be less than 100 characters');
+        return;
+      }
+      if (settings.bio && settings.bio.length > 500) {
+        toast.error('Bio must be less than 500 characters');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await NetworkService.upsertNetworkSettings(settings);
@@ -52,9 +87,63 @@ export default function NetworkSettingsPage() {
     }
   };
 
+  const handleNetworkToggle = (enabled: boolean) => {
+    setSettings(prev => ({ 
+      ...prev, 
+      is_network_enabled: enabled,
+      // Set default display name when enabling
+      display_name: enabled && !prev.display_name ? state.selectedClassroom?.name || '' : prev.display_name
+    }));
+  };
+
   if (!state.selectedClassroom) {
-    return <div>Please select a classroom first.</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+          <div>
+            <h2 className="text-xl font-semibold">Select a Classroom</h2>
+            <p className="text-muted-foreground">
+              Please select a classroom to configure network settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  if (initialLoad) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const getVisibilityInfo = (level: string) => {
+    switch (level) {
+      case 'public':
+        return {
+          icon: <Globe className="h-4 w-4" />,
+          description: 'Your classroom will be discoverable by all Garden Network members',
+          privacy: 'Most open'
+        };
+      case 'network_only':
+        return {
+          icon: <Users className="h-4 w-4" />,
+          description: 'Only visible to classrooms you\'re already connected with',
+          privacy: 'More private'
+        };
+      default: // invite_only
+        return {
+          icon: <Shield className="h-4 w-4" />,
+          description: 'Others can send you connection requests, but you won\'t appear in public searches',
+          privacy: 'Balanced'
+        };
+    }
+  };
+
+  const visibilityInfo = getVisibilityInfo(settings.visibility_level);
 
   return (
     <div className="space-y-6">
@@ -67,117 +156,297 @@ export default function NetworkSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Network Participation</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Network Participation
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="network-enabled" className="text-base font-medium">
+                Join the Garden Network
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Connect with educators and students worldwide
+              </p>
+            </div>
             <Switch
               id="network-enabled"
               checked={settings.is_network_enabled}
-              onCheckedChange={(checked) => 
-                setSettings(prev => ({ ...prev, is_network_enabled: checked }))
-              }
+              onCheckedChange={handleNetworkToggle}
             />
-            <Label htmlFor="network-enabled" className="text-base">
-              Join the Garden Network
-            </Label>
           </div>
           
           {settings.is_network_enabled && (
-            <div className="space-y-4 pl-6 border-l-2 border-primary/20">
-              <div className="space-y-2">
-                <Label htmlFor="visibility">Visibility Level</Label>
-                <Select 
-                  value={settings.visibility_level} 
-                  onValueChange={(value: any) => 
-                    setSettings(prev => ({ ...prev, visibility_level: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">Public - Discoverable by all</SelectItem>
-                    <SelectItem value="invite_only">Invite Only - Accept requests only</SelectItem>
-                    <SelectItem value="network_only">Connected Only - Visible to connections</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="display-name">Display Name</Label>
-                <Input
-                  id="display-name"
-                  value={settings.display_name || ''}
-                  onChange={(e) => 
-                    setSettings(prev => ({ ...prev, display_name: e.target.value }))
-                  }
-                  placeholder={`${state.selectedClassroom.name}`}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Classroom Description</Label>
-                <Textarea
-                  id="bio"
-                  value={settings.bio || ''}
-                  onChange={(e) => 
-                    setSettings(prev => ({ ...prev, bio: e.target.value }))
-                  }
-                  placeholder="Tell other classrooms about your growing goals and experience..."
-                  rows={3}
-                />
-              </div>
-            </div>
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Welcome to the Garden Network! Your classroom will be able to connect with others, 
+                participate in challenges, and share growing experiences.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
 
       {settings.is_network_enabled && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Sharing Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="share-harvest"
-                checked={settings.share_harvest_data}
-                onCheckedChange={(checked) => 
-                  setSettings(prev => ({ ...prev, share_harvest_data: checked }))
-                }
-              />
-              <Label htmlFor="share-harvest">Share harvest totals for leaderboards</Label>
-            </div>
+        <>
+          {/* Profile Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Classroom Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="display-name">
+                    Display Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="display-name"
+                    value={settings.display_name || ''}
+                    onChange={(e) => 
+                      setSettings(prev => ({ ...prev, display_name: e.target.value }))
+                    }
+                    placeholder={`${state.selectedClassroom.name}`}
+                    maxLength={100}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    How your classroom appears to others in the network
+                  </p>
+                </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="share-photos"
-                checked={settings.share_photos}
-                onCheckedChange={(checked) => 
-                  setSettings(prev => ({ ...prev, share_photos: checked }))
-                }
-              />
-              <Label htmlFor="share-photos">Share tower photos in network gallery</Label>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Classroom Description</Label>
+                  <Textarea
+                    id="bio"
+                    value={settings.bio || ''}
+                    onChange={(e) => 
+                      setSettings(prev => ({ ...prev, bio: e.target.value }))
+                    }
+                    placeholder="Tell other classrooms about your growing goals, experience level, and what you hope to achieve..."
+                    rows={3}
+                    maxLength={500}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {settings.bio?.length || 0}/500 characters
+                  </p>
+                </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="share-tips"
-                checked={settings.share_growth_tips}
-                onCheckedChange={(checked) => 
-                  setSettings(prev => ({ ...prev, share_growth_tips: checked }))
-                }
-              />
-              <Label htmlFor="share-tips">Share growing tips and success stories</Label>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="region">Region/Location</Label>
+                    <Input
+                      id="region"
+                      value={settings.region || ''}
+                      onChange={(e) => 
+                        setSettings(prev => ({ ...prev, region: e.target.value }))
+                      }
+                      placeholder="e.g. California, UK, Ontario"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade-level">Grade Level</Label>
+                    <Select 
+                      value={settings.grade_level || ''} 
+                      onValueChange={(value) => 
+                        setSettings(prev => ({ ...prev, grade_level: value || null }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select grade level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Not specified</SelectItem>
+                        <SelectItem value="K-2">K-2 (Ages 5-8)</SelectItem>
+                        <SelectItem value="3-5">3-5 (Ages 8-11)</SelectItem>
+                        <SelectItem value="6-8">6-8 (Ages 11-14)</SelectItem>
+                        <SelectItem value="9-12">9-12 (Ages 14-18)</SelectItem>
+                        <SelectItem value="College">College/University</SelectItem>
+                        <SelectItem value="Adult">Adult Education</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="school-type">School Type</Label>
+                    <Select 
+                      value={settings.school_type || ''} 
+                      onValueChange={(value) => 
+                        setSettings(prev => ({ ...prev, school_type: value as any || null }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select school type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Not specified</SelectItem>
+                        <SelectItem value="elementary">Elementary School</SelectItem>
+                        <SelectItem value="middle">Middle School</SelectItem>
+                        <SelectItem value="high">High School</SelectItem>
+                        <SelectItem value="college">College/University</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Visibility Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {settings.visibility_level === 'public' ? <Globe className="h-5 w-5" /> : 
+                 settings.visibility_level === 'network_only' ? <Users className="h-5 w-5" /> : 
+                 <Shield className="h-5 w-5" />}
+                Visibility & Privacy
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="visibility">Who can discover your classroom?</Label>
+                  <Select 
+                    value={settings.visibility_level} 
+                    onValueChange={(value: any) => 
+                      setSettings(prev => ({ ...prev, visibility_level: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          <span>Public - Discoverable by all</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="invite_only">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          <span>Invite Only - Accept requests only</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="network_only">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span>Connected Only - Visible to connections</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                    {visibilityInfo.icon}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{visibilityInfo.description}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {visibilityInfo.privacy}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Sharing Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Data Sharing Preferences
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="share-harvest" className="text-base">
+                      Share harvest data for leaderboards
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow your harvest totals to appear in network leaderboards and challenges
+                    </p>
+                  </div>
+                  <Switch
+                    id="share-harvest"
+                    checked={settings.share_harvest_data}
+                    onCheckedChange={(checked) => 
+                      setSettings(prev => ({ ...prev, share_harvest_data: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="share-photos" className="text-base">
+                      Share tower photos in network gallery
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Let other classrooms see photos of your tower progress
+                    </p>
+                  </div>
+                  <Switch
+                    id="share-photos"
+                    checked={settings.share_photos}
+                    onCheckedChange={(checked) => 
+                      setSettings(prev => ({ ...prev, share_photos: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="share-tips" className="text-base">
+                      Share growing tips and success stories
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Contribute to the community knowledge base
+                    </p>
+                  </div>
+                  <Switch
+                    id="share-tips"
+                    checked={settings.share_growth_tips}
+                    onCheckedChange={(checked) => 
+                      setSettings(prev => ({ ...prev, share_growth_tips: checked }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Privacy Note:</strong> No individual student information is ever shared. 
+                  Only classroom-level data and teacher-approved content is visible to the network.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      <Button onClick={handleSave} disabled={loading} className="w-full">
-        {loading ? 'Saving...' : 'Save Settings'}
-      </Button>
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {settings.is_network_enabled ? 
+            'Your classroom is part of the Garden Network' : 
+            'Network participation is currently disabled'}
+        </div>
+        <Button onClick={handleSave} disabled={loading}>
+          {loading ? 'Saving...' : 'Save Settings'}
+        </Button>
+      </div>
     </div>
   );
 }
