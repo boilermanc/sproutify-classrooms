@@ -1,5 +1,6 @@
 // src/App.tsx - Updated with Garden Network Routes
 
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -70,7 +71,6 @@ const ChallengeCenter = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/ChallengeCenter"))
   : null;
 
-import React, { Suspense } from "react";
 
 const queryClient = new QueryClient();
 
