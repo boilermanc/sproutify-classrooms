@@ -1,3 +1,4 @@
+// src/context/AppStore.tsx - Updated with classroom selection functionality
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 import { nanoid } from "nanoid";
 
@@ -45,10 +46,22 @@ export type Harvest = {
   destination: string; // cafeteria, donation, home, etc
 };
 
-type State = {
-  towers: Tower[];
+// ADD CLASSROOM TYPE FOR GARDEN NETWORK
+export type Classroom = {
+  id: string;
+  name: string;
+  kiosk_pin: string;
+  created_at: string;
+  teacher_id?: string;
 };
 
+// UPDATED STATE TO INCLUDE SELECTED CLASSROOM
+type State = {
+  towers: Tower[];
+  selectedClassroom: Classroom | null; // ADD THIS
+};
+
+// UPDATED ACTION TYPE TO INCLUDE CLASSROOM SELECTION
 type Action =
   | { type: "ADD_TOWER"; payload: { name: string; ports: TowerPortConfig } }
   | { type: "UPDATE_VITALS"; payload: { id: string; ph?: number; ec?: number; lightHours?: number } }
@@ -56,10 +69,13 @@ type Action =
   | { type: "ADD_PLANT"; payload: { towerId: string; plant: Plant } }
   | { type: "UPDATE_PLANT"; payload: { towerId: string; plant: Plant } }
   | { type: "ADD_HARVEST"; payload: { towerId: string; harvest: Harvest } }
-  | { type: "SET_WASTE"; payload: { towerId: string; grams: number } };
+  | { type: "SET_WASTE"; payload: { towerId: string; grams: number } }
+  | { type: "SET_SELECTED_CLASSROOM"; payload: Classroom | null }; // ADD THIS
 
+// UPDATED INITIAL STATE
 const initialState: State = {
   towers: [],
+  selectedClassroom: null, // ADD THIS
 };
 
 function reducer(state: State, action: Action): State {
@@ -138,6 +154,13 @@ function reducer(state: State, action: Action): State {
         ),
       };
     }
+    // ADD NEW CASE FOR CLASSROOM SELECTION
+    case "SET_SELECTED_CLASSROOM": {
+      return {
+        ...state,
+        selectedClassroom: action.payload,
+      };
+    }
     default:
       return state;
   }
@@ -196,4 +219,9 @@ export function newPest(partial?: Partial<PestLog>): PestLog {
     action: "",
     ...partial,
   };
+}
+
+// HELPER FUNCTION FOR CLASSROOM SELECTION (OPTIONAL)
+export function setSelectedClassroom(classroom: Classroom | null): Action {
+  return { type: "SET_SELECTED_CLASSROOM", payload: classroom };
 }
