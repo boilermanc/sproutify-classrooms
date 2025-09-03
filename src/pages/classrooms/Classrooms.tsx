@@ -1,4 +1,4 @@
-// src/pages/classrooms/Classrooms.tsx - Updated for new student management system
+// src/pages/classrooms/Classrooms.tsx - Updated with Garden Network selection
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,9 @@ import {
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Edit2, Copy, Clock } from "lucide-react";
+import { Plus, Trash2, Edit2, Copy, Clock, Network } from "lucide-react";
+// ADD THIS IMPORT
+import { useAppStore } from "@/context/AppStore";
 
 // Updated interfaces for the new system
 interface Classroom {
@@ -30,6 +32,7 @@ interface Classroom {
   name: string;
   kiosk_pin: string;
   created_at: string;
+  teacher_id?: string; // Add this for AppStore compatibility
 }
 
 interface Student {
@@ -84,7 +87,7 @@ export default function Classrooms() {
     if (!userId) return;
     const { data, error } = await sb
       .from("classrooms")
-      .select("id,name,kiosk_pin,created_at")
+      .select("id,name,kiosk_pin,created_at,teacher_id")
       .eq("teacher_id", userId)
       .order("created_at", { ascending: true });
 
@@ -200,9 +203,10 @@ export default function Classrooms() {
   );
 }
 
-// Updated ClassroomRow component with student management
+// Updated ClassroomRow component with Garden Network selection
 function ClassroomRow({ classroom }: { classroom: Classroom }) {
   const { toast } = useToast();
+  const { state, dispatch } = useAppStore(); // ADD THIS LINE
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -213,6 +217,22 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
   const [newStudentId, setNewStudentId] = useState("");
   const [newGradeLevel, setNewGradeLevel] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // ADD THIS FUNCTION for Garden Network selection
+  const selectClassroomForNetwork = () => {
+    dispatch({ 
+      type: "SET_SELECTED_CLASSROOM", 
+      payload: classroom 
+    });
+    toast({ 
+      title: "Classroom selected", 
+      description: `${classroom.name} is now your active classroom for Garden Network.`,
+      duration: 3000
+    });
+  };
+
+  // Check if this classroom is currently selected
+  const isSelectedForNetwork = state.selectedClassroom?.id === classroom.id;
 
   // Load students for this classroom
   const loadStudents = async () => {
@@ -449,17 +469,53 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
                   {activeStudentCount} active
                 </Badge>
               )}
+              {/* ADD SELECTED INDICATOR */}
+              {isSelectedForNetwork && (
+                <Badge variant="default" className="bg-green-600">
+                  Network Active
+                </Badge>
+              )}
             </CardTitle>
           </div>
-          <Button asChild variant="outline">
-            <Link to={`/app/kiosk?classId=${classroom.id}`}>
-              Open Kiosk
-            </Link>
-          </Button>
+          {/* UPDATED BUTTON SECTION */}
+          <div className="flex gap-2">
+            <Button 
+              onClick={selectClassroomForNetwork}
+              variant={isSelectedForNetwork ? "default" : "outline"}
+              size="sm"
+              className={isSelectedForNetwork ? "bg-green-600 hover:bg-green-700" : ""}
+            >
+              <Network className="h-4 w-4 mr-2" />
+              {isSelectedForNetwork ? "Selected" : "Select for Network"}
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/app/kiosk?classId=${classroom.id}`}>
+                Open Kiosk
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         
+        {/* Garden Network Status Info - ADD THIS SECTION */}
+        {isSelectedForNetwork && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Network className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">
+                Garden Network Ready
+              </span>
+            </div>
+            <p className="text-xs text-green-700">
+              This classroom is selected for Garden Network features. 
+              <Link to="/app/network" className="font-medium hover:underline ml-1">
+                Go to Garden Network →
+              </Link>
+            </p>
+          </div>
+        )}
+
         {/* Classroom Access Info - Simplified */}
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
