@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,29 @@ import { NetworkSettings as NetworkSettingsType } from '@/integrations/supabase/
 import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
 
+function describeVisibility(level: string) {
+  switch (level) {
+    case 'public':
+      return {
+        icon: <Globe className="h-4 w-4" />,
+        description: 'Your classroom will be discoverable by all Garden Network members',
+        privacy: 'Most open',
+      };
+    case 'network_only':
+      return {
+        icon: <Users className="h-4 w-4" />,
+        description: "Only visible to classrooms you're already connected with",
+        privacy: 'More private',
+      };
+    default: // invite_only
+      return {
+        icon: <Shield className="h-4 w-4" />,
+        description: "Others can send you connection requests, but you won't appear in public searches",
+        privacy: 'Balanced',
+      };
+  }
+}
+
 export default function NetworkSettingsPage() {
   const { state } = useAppStore();
 
@@ -28,18 +51,18 @@ export default function NetworkSettingsPage() {
     bio: null,
     region: null,
     grade_level: null,
-    school_type: null
+    school_type: null,
   });
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // Helpful debug AFTER state exists
+  // Debug (safe – inside component and effect)
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('NetworkSettings render:', {
       selectedClassroom: state.selectedClassroom,
       initialLoad,
-      loading
+      loading,
     });
   }, [state.selectedClassroom, initialLoad, loading]);
 
@@ -48,35 +71,36 @@ export default function NetworkSettingsPage() {
     if (state.selectedClassroom?.id && settings.classroom_id !== state.selectedClassroom.id) {
       setSettings(prev => ({ ...prev, classroom_id: state.selectedClassroom!.id }));
     }
-  }, [state.selectedClassroom?.id]); // intentionally not including settings to avoid loops
-
-  useEffect(() => {
-    if (state.selectedClassroom?.id) {
-      loadSettings();
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.selectedClassroom?.id]);
 
-  const loadSettings = async () => {
-    try {
-      const existing = await NetworkService.getNetworkSettings(state.selectedClassroom!.id);
-      if (existing) {
-        setSettings(existing);
-      } else {
-        // Default display name to classroom name if no settings exist
-        setSettings(prev => ({
-          ...prev,
-          classroom_id: state.selectedClassroom!.id,
-          display_name: state.selectedClassroom?.name || null
-        }));
+  useEffect(() => {
+    const run = async () => {
+      if (!state.selectedClassroom?.id) {
+        setInitialLoad(false);
+        return;
       }
-    } catch (error) {
-      console.error('Failed to load network settings:', error);
-      toast.error('Failed to load network settings');
-    } finally {
-      setInitialLoad(false);
-    }
-  };
+      try {
+        const existing = await NetworkService.getNetworkSettings(state.selectedClassroom.id);
+        if (existing) {
+          setSettings(existing);
+        } else {
+          setSettings(prev => ({
+            ...prev,
+            classroom_id: state.selectedClassroom.id,
+            display_name: state.selectedClassroom.name || null,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load network settings:', err);
+        toast.error('Failed to load network settings');
+      } finally {
+        setInitialLoad(false);
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedClassroom?.id]);
 
   const handleSave = async () => {
     // Basic validation
@@ -111,11 +135,11 @@ export default function NetworkSettingsPage() {
     setSettings(prev => ({
       ...prev,
       is_network_enabled: enabled,
-      // Default display name when enabling
-      display_name: enabled && !prev.display_name ? (state.selectedClassroom?.name || '') : prev.display_name
+      display_name: enabled && !prev.display_name ? (state.selectedClassroom?.name || '') : prev.display_name,
     }));
   };
 
+  // ---- Early returns (safe because *no hooks are below this point*) ----
   if (!state.selectedClassroom) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -140,28 +164,7 @@ export default function NetworkSettingsPage() {
     );
   }
 
-  const visibilityInfo = useMemo(() => {
-    switch (settings.visibility_level) {
-      case 'public':
-        return {
-          icon: <Globe className="h-4 w-4" />,
-          description: 'Your classroom will be discoverable by all Garden Network members',
-          privacy: 'Most open'
-        };
-      case 'network_only':
-        return {
-          icon: <Users className="h-4 w-4" />,
-          description: "Only visible to classrooms you're already connected with",
-          privacy: 'More private'
-        };
-      default: // invite_only
-        return {
-          icon: <Shield className="h-4 w-4" />,
-          description: "Others can send you connection requests, but you won't appear in public searches",
-          privacy: 'Balanced'
-        };
-    }
-  }, [settings.visibility_level]);
+  const visibilityInfo = describeVisibility(settings.visibility_level);
 
   return (
     <div className="space-y-6">
@@ -185,9 +188,7 @@ export default function NetworkSettingsPage() {
               <Label htmlFor="network-enabled" className="text-base font-medium">
                 Join the Garden Network
               </Label>
-              <p className="text-sm text-muted-foreground">
-                Connect with educators and students worldwide
-              </p>
+              <p className="text-sm text-muted-foreground">Connect with educators and students worldwide</p>
             </div>
             <Switch
               id="network-enabled"
@@ -227,15 +228,11 @@ export default function NetworkSettingsPage() {
                   <Input
                     id="display-name"
                     value={settings.display_name || ''}
-                    onChange={(e) =>
-                      setSettings(prev => ({ ...prev, display_name: e.target.value }))
-                    }
+                    onChange={(e) => setSettings(prev => ({ ...prev, display_name: e.target.value }))}
                     placeholder={`${state.selectedClassroom.name}`}
                     maxLength={100}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    How your classroom appears to others in the network
-                  </p>
+                  <p className="text-xs text-muted-foreground">How your classroom appears to others in the network</p>
                 </div>
 
                 <div className="space-y-2">
@@ -243,16 +240,12 @@ export default function NetworkSettingsPage() {
                   <Textarea
                     id="bio"
                     value={settings.bio || ''}
-                    onChange={(e) =>
-                      setSettings(prev => ({ ...prev, bio: e.target.value }))
-                    }
+                    onChange={(e) => setSettings(prev => ({ ...prev, bio: e.target.value }))}
                     placeholder="Tell other classrooms about your growing goals, experience level, and what you hope to achieve..."
                     rows={3}
                     maxLength={500}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {settings.bio?.length || 0}/500 characters
-                  </p>
+                  <p className="text-xs text-muted-foreground">{settings.bio?.length || 0}/500 characters</p>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-4">
@@ -261,9 +254,7 @@ export default function NetworkSettingsPage() {
                     <Input
                       id="region"
                       value={settings.region || ''}
-                      onChange={(e) =>
-                        setSettings(prev => ({ ...prev, region: e.target.value }))
-                      }
+                      onChange={(e) => setSettings(prev => ({ ...prev, region: e.target.value }))}
                       placeholder="e.g. California, UK, Ontario"
                     />
                   </div>
@@ -272,9 +263,7 @@ export default function NetworkSettingsPage() {
                     <Label htmlFor="grade-level">Grade Level</Label>
                     <Select
                       value={settings.grade_level || ''}
-                      onValueChange={(value) =>
-                        setSettings(prev => ({ ...prev, grade_level: value || null }))
-                      }
+                      onValueChange={(value) => setSettings(prev => ({ ...prev, grade_level: value || null }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select grade level" />
@@ -295,9 +284,7 @@ export default function NetworkSettingsPage() {
                     <Label htmlFor="school-type">School Type</Label>
                     <Select
                       value={settings.school_type || ''}
-                      onValueChange={(value) =>
-                        setSettings(prev => ({ ...prev, school_type: (value as any) || null }))
-                      }
+                      onValueChange={(value) => setSettings(prev => ({ ...prev, school_type: (value as any) || null }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select school type" />
@@ -322,8 +309,8 @@ export default function NetworkSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {settings.visibility_level === 'public' ? <Globe className="h-5 w-5" /> :
-                  settings.visibility_level === 'network_only' ? <Users className="h-5 w-5" /> :
-                    <Shield className="h-5 w-5" />}
+                 settings.visibility_level === 'network_only' ? <Users className="h-5 w-5" /> :
+                 <Shield className="h-5 w-5" />}
                 Visibility & Privacy
               </CardTitle>
             </CardHeader>
@@ -333,9 +320,7 @@ export default function NetworkSettingsPage() {
                   <Label htmlFor="visibility">Who can discover your classroom?</Label>
                   <Select
                     value={settings.visibility_level}
-                    onValueChange={(value: any) =>
-                      setSettings(prev => ({ ...prev, visibility_level: value }))
-                    }
+                    onValueChange={(value: any) => setSettings(prev => ({ ...prev, visibility_level: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -367,9 +352,7 @@ export default function NetworkSettingsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{visibilityInfo.description}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {visibilityInfo.privacy}
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs">{visibilityInfo.privacy}</Badge>
                       </div>
                     </div>
                   </div>
@@ -377,89 +360,12 @@ export default function NetworkSettingsPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Data Sharing Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Data Sharing Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="share-harvest" className="text-base">
-                      Share harvest data for leaderboards
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow your harvest totals to appear in network leaderboards and challenges
-                    </p>
-                  </div>
-                  <Switch
-                    id="share-harvest"
-                    checked={settings.share_harvest_data}
-                    onCheckedChange={(checked) =>
-                      setSettings(prev => ({ ...prev, share_harvest_data: checked }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="share-photos" className="text-base">
-                      Share tower photos in network gallery
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Let other classrooms see photos of your tower progress
-                    </p>
-                  </div>
-                  <Switch
-                    id="share-photos"
-                    checked={settings.share_photos}
-                    onCheckedChange={(checked) =>
-                      setSettings(prev => ({ ...prev, share_photos: checked }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="share-tips" className="text-base">
-                      Share growing tips and success stories
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Contribute to the community knowledge base
-                    </p>
-                  </div>
-                  <Switch
-                    id="share-tips"
-                    checked={settings.share_growth_tips}
-                    onCheckedChange={(checked) =>
-                      setSettings(prev => ({ ...prev, share_growth_tips: checked }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <Alert>
-                <Shield className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Privacy Note:</strong> No individual student information is ever shared.
-                  Only classroom-level data and teacher-approved content is visible to the network.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
         </>
       )}
 
       <div className="flex justify-between items-center">
         <div className="text-sm text-muted-foreground">
-          {settings.is_network_enabled ?
-            'Your classroom is part of the Garden Network' :
-            'Network participation is currently disabled'}
+          {settings.is_network_enabled ? 'Your classroom is part of the Garden Network' : 'Network participation is currently disabled'}
         </div>
         <Button onClick={handleSave} disabled={loading}>
           {loading ? 'Saving...' : 'Save Settings'}
