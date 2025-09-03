@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AppLayout from "@/components/layout/AppLayout";
@@ -55,22 +56,21 @@ const FEATURE_FLAGS = {
 };
 
 // Lazy load Garden Network components to avoid bundle bloat when disabled
-const NetworkDashboard = FEATURE_FLAGS.GARDEN_NETWORK 
+const NetworkDashboard = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/NetworkDashboard"))
   : null;
-const NetworkSettings = FEATURE_FLAGS.GARDEN_NETWORK 
+const NetworkSettings = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/NetworkSettings"))
   : null;
-const ClassroomDiscovery = FEATURE_FLAGS.GARDEN_NETWORK 
+const ClassroomDiscovery = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/ClassroomDiscovery"))
   : null;
-const MyConnections = FEATURE_FLAGS.GARDEN_NETWORK 
+const MyConnections = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/MyConnections"))
   : null;
-const ChallengeCenter = FEATURE_FLAGS.GARDEN_NETWORK 
+const ChallengeCenter = FEATURE_FLAGS.GARDEN_NETWORK
   ? React.lazy(() => import("@/pages/network/ChallengeCenter"))
   : null;
-
 
 const queryClient = new QueryClient();
 
@@ -102,7 +102,7 @@ const App = () => (
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="student-login" element={<StudentLoginPage />} />
           </Route>
-          
+
           {/* --- STUDENT PORTAL ROUTES (PROTECTED) --- */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
@@ -119,13 +119,13 @@ const App = () => (
           {/* --- TEACHER APP ROUTES (PROTECTED) --- */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
-            
-            <Route path="towers" >
+
+            <Route path="towers">
               <Route index element={<TowersList />} />
               <Route path="new" element={<NewTower />} />
               <Route path=":id" element={<TowerDetail />} />
             </Route>
-            
+
             <Route path="catalog">
               <Route index element={<PlantCatalog />} />
               <Route path="manage" element={<ManageClassroomCatalog />} />
@@ -135,45 +135,45 @@ const App = () => (
             {/* --- GARDEN NETWORK ROUTES (FEATURE FLAGGED) --- */}
             {FEATURE_FLAGS.GARDEN_NETWORK && (
               <Route path="network">
-                <Route 
-                  index 
+                <Route
+                  index
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <NetworkDashboard />
                     </Suspense>
-                  } 
+                  }
                 />
-                <Route 
-                  path="settings" 
+                <Route
+                  path="settings"
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <NetworkSettings />
                     </Suspense>
-                  } 
+                  }
                 />
-                <Route 
-                  path="discover" 
+                <Route
+                  path="discover"
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <ClassroomDiscovery />
                     </Suspense>
-                  } 
+                  }
                 />
-                <Route 
-                  path="connections" 
+                <Route
+                  path="connections"
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <MyConnections />
                     </Suspense>
-                  } 
+                  }
                 />
-                <Route 
-                  path="challenges" 
+                <Route
+                  path="challenges"
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <ChallengeCenter />
                     </Suspense>
-                  } 
+                  }
                 />
               </Route>
             )}

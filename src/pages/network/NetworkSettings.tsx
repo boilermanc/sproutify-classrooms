@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -8,21 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Info, Shield, Users, Globe, Eye, EyeOff } from 'lucide-react';
+import { Info, Shield, Users, Globe } from 'lucide-react';
 import { NetworkService } from '@/services/networkService';
-import { NetworkSettings } from '@/integrations/supabase/types';
+import { NetworkSettings as NetworkSettingsType } from '@/integrations/supabase/types';
 import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
 
-console.log('NetworkSettings render:', { 
-  selectedClassroom: state.selectedClassroom,
-  initialLoad,
-  loading 
-});
-
 export default function NetworkSettingsPage() {
   const { state } = useAppStore();
-  const [settings, setSettings] = useState<NetworkSettings>({
+
+  const [settings, setSettings] = useState<NetworkSettingsType>({
     classroom_id: state.selectedClassroom?.id || '',
     is_network_enabled: false,
     visibility_level: 'invite_only',
@@ -38,10 +33,28 @@ export default function NetworkSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
+  // Helpful debug AFTER state exists
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('NetworkSettings render:', {
+      selectedClassroom: state.selectedClassroom,
+      initialLoad,
+      loading
+    });
+  }, [state.selectedClassroom, initialLoad, loading]);
+
+  // Keep classroom_id in sync when the selected classroom appears/changes
+  useEffect(() => {
+    if (state.selectedClassroom?.id && settings.classroom_id !== state.selectedClassroom.id) {
+      setSettings(prev => ({ ...prev, classroom_id: state.selectedClassroom!.id }));
+    }
+  }, [state.selectedClassroom?.id]); // intentionally not including settings to avoid loops
+
   useEffect(() => {
     if (state.selectedClassroom?.id) {
       loadSettings();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.selectedClassroom?.id]);
 
   const loadSettings = async () => {
@@ -50,9 +63,10 @@ export default function NetworkSettingsPage() {
       if (existing) {
         setSettings(existing);
       } else {
-        // Set default display name to classroom name if no settings exist
+        // Default display name to classroom name if no settings exist
         setSettings(prev => ({
           ...prev,
+          classroom_id: state.selectedClassroom!.id,
           display_name: state.selectedClassroom?.name || null
         }));
       }
@@ -94,11 +108,11 @@ export default function NetworkSettingsPage() {
   };
 
   const handleNetworkToggle = (enabled: boolean) => {
-    setSettings(prev => ({ 
-      ...prev, 
+    setSettings(prev => ({
+      ...prev,
       is_network_enabled: enabled,
-      // Set default display name when enabling
-      display_name: enabled && !prev.display_name ? state.selectedClassroom?.name || '' : prev.display_name
+      // Default display name when enabling
+      display_name: enabled && !prev.display_name ? (state.selectedClassroom?.name || '') : prev.display_name
     }));
   };
 
@@ -126,8 +140,8 @@ export default function NetworkSettingsPage() {
     );
   }
 
-  const getVisibilityInfo = (level: string) => {
-    switch (level) {
+  const visibilityInfo = useMemo(() => {
+    switch (settings.visibility_level) {
       case 'public':
         return {
           icon: <Globe className="h-4 w-4" />,
@@ -137,19 +151,17 @@ export default function NetworkSettingsPage() {
       case 'network_only':
         return {
           icon: <Users className="h-4 w-4" />,
-          description: 'Only visible to classrooms you\'re already connected with',
+          description: "Only visible to classrooms you're already connected with",
           privacy: 'More private'
         };
       default: // invite_only
         return {
           icon: <Shield className="h-4 w-4" />,
-          description: 'Others can send you connection requests, but you won\'t appear in public searches',
+          description: "Others can send you connection requests, but you won't appear in public searches",
           privacy: 'Balanced'
         };
     }
-  };
-
-  const visibilityInfo = getVisibilityInfo(settings.visibility_level);
+  }, [settings.visibility_level]);
 
   return (
     <div className="space-y-6">
@@ -183,12 +195,12 @@ export default function NetworkSettingsPage() {
               onCheckedChange={handleNetworkToggle}
             />
           </div>
-          
+
           {settings.is_network_enabled && (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Welcome to the Garden Network! Your classroom will be able to connect with others, 
+                Welcome to the Garden Network! Your classroom will be able to connect with others,
                 participate in challenges, and share growing experiences.
               </AlertDescription>
             </Alert>
@@ -202,7 +214,7 @@ export default function NetworkSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
+                <Users className="h-5 w-5" />
                 Classroom Profile
               </CardTitle>
             </CardHeader>
@@ -215,7 +227,7 @@ export default function NetworkSettingsPage() {
                   <Input
                     id="display-name"
                     value={settings.display_name || ''}
-                    onChange={(e) => 
+                    onChange={(e) =>
                       setSettings(prev => ({ ...prev, display_name: e.target.value }))
                     }
                     placeholder={`${state.selectedClassroom.name}`}
@@ -231,7 +243,7 @@ export default function NetworkSettingsPage() {
                   <Textarea
                     id="bio"
                     value={settings.bio || ''}
-                    onChange={(e) => 
+                    onChange={(e) =>
                       setSettings(prev => ({ ...prev, bio: e.target.value }))
                     }
                     placeholder="Tell other classrooms about your growing goals, experience level, and what you hope to achieve..."
@@ -249,7 +261,7 @@ export default function NetworkSettingsPage() {
                     <Input
                       id="region"
                       value={settings.region || ''}
-                      onChange={(e) => 
+                      onChange={(e) =>
                         setSettings(prev => ({ ...prev, region: e.target.value }))
                       }
                       placeholder="e.g. California, UK, Ontario"
@@ -258,9 +270,9 @@ export default function NetworkSettingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="grade-level">Grade Level</Label>
-                    <Select 
-                      value={settings.grade_level || ''} 
-                      onValueChange={(value) => 
+                    <Select
+                      value={settings.grade_level || ''}
+                      onValueChange={(value) =>
                         setSettings(prev => ({ ...prev, grade_level: value || null }))
                       }
                     >
@@ -281,10 +293,10 @@ export default function NetworkSettingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="school-type">School Type</Label>
-                    <Select 
-                      value={settings.school_type || ''} 
-                      onValueChange={(value) => 
-                        setSettings(prev => ({ ...prev, school_type: value as any || null }))
+                    <Select
+                      value={settings.school_type || ''}
+                      onValueChange={(value) =>
+                        setSettings(prev => ({ ...prev, school_type: (value as any) || null }))
                       }
                     >
                       <SelectTrigger>
@@ -309,9 +321,9 @@ export default function NetworkSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                {settings.visibility_level === 'public' ? <Globe className="h-5 w-5" /> : 
-                 settings.visibility_level === 'network_only' ? <Users className="h-5 w-5" /> : 
-                 <Shield className="h-5 w-5" />}
+                {settings.visibility_level === 'public' ? <Globe className="h-5 w-5" /> :
+                  settings.visibility_level === 'network_only' ? <Users className="h-5 w-5" /> :
+                    <Shield className="h-5 w-5" />}
                 Visibility & Privacy
               </CardTitle>
             </CardHeader>
@@ -319,9 +331,9 @@ export default function NetworkSettingsPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Who can discover your classroom?</Label>
-                  <Select 
-                    value={settings.visibility_level} 
-                    onValueChange={(value: any) => 
+                  <Select
+                    value={settings.visibility_level}
+                    onValueChange={(value: any) =>
                       setSettings(prev => ({ ...prev, visibility_level: value }))
                     }
                   >
@@ -349,7 +361,7 @@ export default function NetworkSettingsPage() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  
+
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                     {visibilityInfo.icon}
                     <div className="flex-1">
@@ -388,7 +400,7 @@ export default function NetworkSettingsPage() {
                   <Switch
                     id="share-harvest"
                     checked={settings.share_harvest_data}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setSettings(prev => ({ ...prev, share_harvest_data: checked }))
                     }
                   />
@@ -406,7 +418,7 @@ export default function NetworkSettingsPage() {
                   <Switch
                     id="share-photos"
                     checked={settings.share_photos}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setSettings(prev => ({ ...prev, share_photos: checked }))
                     }
                   />
@@ -424,7 +436,7 @@ export default function NetworkSettingsPage() {
                   <Switch
                     id="share-tips"
                     checked={settings.share_growth_tips}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setSettings(prev => ({ ...prev, share_growth_tips: checked }))
                     }
                   />
@@ -434,7 +446,7 @@ export default function NetworkSettingsPage() {
               <Alert>
                 <Shield className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Privacy Note:</strong> No individual student information is ever shared. 
+                  <strong>Privacy Note:</strong> No individual student information is ever shared.
                   Only classroom-level data and teacher-approved content is visible to the network.
                 </AlertDescription>
               </Alert>
@@ -445,8 +457,8 @@ export default function NetworkSettingsPage() {
 
       <div className="flex justify-between items-center">
         <div className="text-sm text-muted-foreground">
-          {settings.is_network_enabled ? 
-            'Your classroom is part of the Garden Network' : 
+          {settings.is_network_enabled ?
+            'Your classroom is part of the Garden Network' :
             'Network participation is currently disabled'}
         </div>
         <Button onClick={handleSave} disabled={loading}>

@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
-  CardDescription 
+  CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Trophy, 
-  Settings, 
-  Search, 
+import {
+  Users,
+  Trophy,
+  Settings,
+  Search,
   Plus,
   Network,
   TrendingUp,
@@ -52,6 +52,7 @@ interface Classroom {
 }
 
 export default function NetworkDashboard() {
+  const navigate = useNavigate();
   const { state, dispatch } = useAppStore();
   const [stats, setStats] = useState<NetworkStats>({
     is_network_enabled: false,
@@ -66,7 +67,7 @@ export default function NetworkDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
 
-  // Get user ID and load selected classroom
+  // Get user ID
   useEffect(() => {
     const initializeUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -75,18 +76,18 @@ export default function NetworkDashboard() {
     initializeUser();
   }, []);
 
-  // Load selected classroom from database if not in AppStore
+  // Load selected classroom from DB if not in AppStore
   useEffect(() => {
     const loadSelectedClassroom = async () => {
       if (!userId) return;
 
-      // First check if AppStore has a selected classroom
+      // First: AppStore
       if (state.selectedClassroom?.is_selected_for_network) {
         setSelectedClassroom(state.selectedClassroom);
         return;
       }
 
-      // If not, query database for classrooms with is_selected_for_network = true
+      // Fallback: query DB
       try {
         const { data, error } = await sb
           .from('classrooms')
@@ -97,7 +98,7 @@ export default function NetworkDashboard() {
           .single();
 
         if (error) {
-          if (error.code !== 'PGRST116') { // Not "no rows returned"
+          if (error.code !== 'PGRST116') {
             console.error('Error loading selected classroom:', error);
           }
           setSelectedClassroom(null);
@@ -106,11 +107,7 @@ export default function NetworkDashboard() {
 
         if (data) {
           setSelectedClassroom(data);
-          // Also update the AppStore so other components know
-          dispatch({
-            type: 'SET_SELECTED_CLASSROOM',
-            payload: data
-          });
+          dispatch({ type: 'SET_SELECTED_CLASSROOM', payload: data });
         }
       } catch (error) {
         console.error('Failed to load selected classroom:', error);
@@ -124,16 +121,17 @@ export default function NetworkDashboard() {
     if (selectedClassroom?.id) {
       loadDashboardData();
     } else {
-      setLoading(false); // Stop loading if no classroom selected
+      setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClassroom?.id]);
 
   const loadDashboardData = async () => {
     if (!selectedClassroom?.id) return;
-    
+
     setLoading(true);
     try {
-      // Load network settings first
+      // Load network settings
       const settings = await NetworkService.getNetworkSettings(selectedClassroom.id);
       setNetworkSettings(settings);
 
@@ -143,7 +141,7 @@ export default function NetworkDashboard() {
         return;
       }
 
-      // Load network activity stats
+      // Load activity stats
       const activity = await NetworkService.getMyNetworkActivity(selectedClassroom.id);
       setStats({
         is_network_enabled: true,
@@ -153,7 +151,7 @@ export default function NetworkDashboard() {
         network_rank: activity.network_rank
       });
 
-      // Load recent activity (simplified for now)
+      // Demo recent activity
       setRecentActivity([
         {
           type: 'connection',
@@ -168,7 +166,6 @@ export default function NetworkDashboard() {
           timestamp: '1 day ago'
         }
       ]);
-
     } catch (error) {
       console.error('Failed to load network dashboard:', error);
       toast.error('Failed to load network data');
@@ -177,10 +174,8 @@ export default function NetworkDashboard() {
     }
   };
 
-  const enableNetwork = () => {
-    // Redirect to settings to enable network
-    window.location.href = '/app/network/settings';
-  };
+  // ✅ client-side navigation (fixes the blank-page issue)
+  const enableNetwork = () => navigate('/app/network/settings');
 
   if (loading) {
     return (
@@ -248,7 +243,7 @@ export default function NetworkDashboard() {
                 <div className="text-muted-foreground">Compare your growth with similar classrooms</div>
               </div>
             </div>
-            
+
             <div className="pt-4">
               <Button onClick={enableNetwork} size="lg">
                 Get Started
@@ -276,8 +271,8 @@ export default function NetworkDashboard() {
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-1">
             {networkSettings?.visibility_level === 'public' ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            {networkSettings?.visibility_level === 'public' ? 'Public' : 
-             networkSettings?.visibility_level === 'invite_only' ? 'Invite Only' : 'Connected Only'}
+            {networkSettings?.visibility_level === 'public' ? 'Public' :
+              networkSettings?.visibility_level === 'invite_only' ? 'Invite Only' : 'Connected Only'}
           </Badge>
           <Button variant="outline" size="sm" asChild>
             <Link to="/app/network/settings">
@@ -361,7 +356,7 @@ export default function NetworkDashboard() {
                 Discover New Classrooms
               </Link>
             </Button>
-            
+
             <Button variant="outline" className="justify-start" asChild>
               <Link to="/app/network/connections">
                 <Users className="h-4 w-4 mr-2" />
@@ -398,7 +393,7 @@ export default function NetworkDashboard() {
               Latest updates from your network
             </CardDescription>
           </CardHeader>
-          <CardContent>
+        <CardContent>
             {recentActivity.length > 0 ? (
               <div className="space-y-4">
                 {recentActivity.map((activity, index) => (
