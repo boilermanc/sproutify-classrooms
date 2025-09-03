@@ -1,4 +1,4 @@
-// src/App.tsx – Garden Network routes + robust feature flag
+// src/App.tsx – always register Garden Network routes
 
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -50,20 +50,15 @@ import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 // Auth
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
-// -------- Feature flag (read from Vite env) --------
-const rawFlag = String(import.meta.env.VITE_ENABLE_GARDEN_NETWORK ?? "true").toLowerCase();
-const GARDEN_NETWORK = ["1", "true", "yes", "on"].includes(rawFlag);
-
-// Lazy-loaded Garden Network pages
-const NetworkDashboard = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/NetworkDashboard")) : null;
-const NetworkSettings  = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/NetworkSettings"))  : null;
-const ClassroomDiscovery = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/ClassroomDiscovery")) : null;
-const MyConnections   = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/MyConnections"))   : null;
-const ChallengeCenter = GARDEN_NETWORK ? React.lazy(() => import("@/pages/network/ChallengeCenter")) : null;
+// Garden Network (lazy-loaded but ALWAYS routed)
+const NetworkDashboard = React.lazy(() => import("@/pages/network/NetworkDashboard"));
+const NetworkSettings  = React.lazy(() => import("@/pages/network/NetworkSettings"));
+const ClassroomDiscovery = React.lazy(() => import("@/pages/network/ClassroomDiscovery"));
+const MyConnections   = React.lazy(() => import("@/pages/network/MyConnections"));
+const ChallengeCenter = React.lazy(() => import("@/pages/network/ChallengeCenter"));
 
 const queryClient = new QueryClient();
 
-// Loading skeleton for lazy routes
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[400px]">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -77,14 +72,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* --- PUBLIC ROUTES --- */}
+          {/* Public */}
           <Route path="/" element={<Index />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="/accessibility" element={<Accessibility />} />
 
-          {/* --- AUTH ROUTES --- */}
+          {/* Auth */}
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
@@ -92,7 +87,7 @@ const App = () => (
             <Route path="student-login" element={<StudentLoginPage />} />
           </Route>
 
-          {/* --- STUDENT PORTAL (PROTECTED) --- */}
+          {/* Student (protected) */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="tower/:id" element={<StudentTowerDetail />} />
@@ -105,8 +100,7 @@ const App = () => (
             <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
           </Route>
 
-          {/* --- TEACHER APP (PROTECTED) --- */}
-          {/* AppStoreProviderWrapper already wraps AppLayout + <Outlet /> */}
+          {/* Teacher app (protected) */}
           <Route path="/app" element={<AppStoreProviderWrapper />}>
             <Route index element={<DashboardHome />} />
 
@@ -122,51 +116,49 @@ const App = () => (
               <Route path="global" element={<GlobalPlantCatalog />} />
             </Route>
 
-            {/* --- GARDEN NETWORK --- */}
-            {GARDEN_NETWORK && (
-              <Route path="network">
-                <Route
-                  index
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <NetworkDashboard />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="settings"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <NetworkSettings />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="discover"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <ClassroomDiscovery />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="connections"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <MyConnections />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="challenges"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <ChallengeCenter />
-                    </Suspense>
-                  }
-                />
-              </Route>
-            )}
+            {/* Garden Network — routes are always present */}
+            <Route path="network">
+              <Route
+                index
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <NetworkDashboard />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <NetworkSettings />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="discover"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ClassroomDiscovery />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="connections"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <MyConnections />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="challenges"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ChallengeCenter />
+                  </Suspense>
+                }
+              />
+            </Route>
 
             <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
@@ -177,7 +169,7 @@ const App = () => (
             <Route path="settings" element={<AccountSettings />} />
           </Route>
 
-          {/* --- 404 --- */}
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
