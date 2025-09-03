@@ -1,12 +1,13 @@
-// src/components/AppStoreProviderWrapper.tsx
+import AppLayout from "@/components/layout/AppLayout";
 import { AppStoreProvider } from "@/context/AppStore";
 import { Outlet } from "react-router-dom";
 
 export default function AppStoreProviderWrapper() {
   return (
     <AppStoreProvider>
-      {/* TEMP: bypass AppLayout to isolate a layout problem */}
-      <Outlet />
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </AppStoreProvider>
   );
 }
