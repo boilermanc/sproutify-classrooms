@@ -25,6 +25,9 @@ import {
 import { NetworkService } from '@/services/networkService';
 import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+const sb = supabase as any;
 
 interface NetworkStats {
   is_network_enabled: boolean;
@@ -42,8 +45,14 @@ interface RecentActivity {
   classroom_name?: string;
 }
 
+interface Classroom {
+  id: string;
+  name: string;
+  is_selected_for_network?: boolean;
+}
+
 export default function NetworkDashboard() {
-  const { state } = useAppStore();
+  const { state, dispatch } = useAppStore();
   const [stats, setStats] = useState<NetworkStats>({
     is_network_enabled: false,
     connection_count: 0,
@@ -54,20 +63,78 @@ export default function NetworkDashboard() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [networkSettings, setNetworkSettings] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
+
+  // Get user ID and load selected classroom
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    initializeUser();
+  }, []);
+
+  // Load selected classroom from database if not in AppStore
+  useEffect(() => {
+    const loadSelectedClassroom = async () => {
+      if (!userId) return;
+
+      // First check if AppStore has a selected classroom
+      if (state.selectedClassroom?.is_selected_for_network) {
+        setSelectedClassroom(state.selectedClassroom);
+        return;
+      }
+
+      // If not, query database for classrooms with is_selected_for_network = true
+      try {
+        const { data, error } = await sb
+          .from('classrooms')
+          .select('id, name, is_selected_for_network')
+          .eq('teacher_id', userId)
+          .eq('is_selected_for_network', true)
+          .limit(1)
+          .single();
+
+        if (error) {
+          if (error.code !== 'PGRST116') { // Not "no rows returned"
+            console.error('Error loading selected classroom:', error);
+          }
+          setSelectedClassroom(null);
+          return;
+        }
+
+        if (data) {
+          setSelectedClassroom(data);
+          // Also update the AppStore so other components know
+          dispatch({
+            type: 'SET_SELECTED_CLASSROOM',
+            payload: data
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load selected classroom:', error);
+      }
+    };
+
+    loadSelectedClassroom();
+  }, [userId, state.selectedClassroom, dispatch]);
 
   useEffect(() => {
-    if (state.selectedClassroom?.id) {
+    if (selectedClassroom?.id) {
       loadDashboardData();
+    } else {
+      setLoading(false); // Stop loading if no classroom selected
     }
-  }, [state.selectedClassroom?.id]);
+  }, [selectedClassroom?.id]);
 
   const loadDashboardData = async () => {
-    if (!state.selectedClassroom?.id) return;
+    if (!selectedClassroom?.id) return;
     
     setLoading(true);
     try {
       // Load network settings first
-      const settings = await NetworkService.getNetworkSettings(state.selectedClassroom.id);
+      const settings = await NetworkService.getNetworkSettings(selectedClassroom.id);
       setNetworkSettings(settings);
 
       if (!settings?.is_network_enabled) {
@@ -77,7 +144,7 @@ export default function NetworkDashboard() {
       }
 
       // Load network activity stats
-      const activity = await NetworkService.getMyNetworkActivity(state.selectedClassroom.id);
+      const activity = await NetworkService.getMyNetworkActivity(selectedClassroom.id);
       setStats({
         is_network_enabled: true,
         connection_count: activity.connection_count,
@@ -115,7 +182,15 @@ export default function NetworkDashboard() {
     window.location.href = '/app/network/settings';
   };
 
-  if (!state.selectedClassroom) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!selectedClassroom) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
@@ -130,14 +205,6 @@ export default function NetworkDashboard() {
             <Link to="/app/classrooms">Go to Classrooms</Link>
           </Button>
         </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -203,7 +270,7 @@ export default function NetworkDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Garden Network</h1>
           <p className="text-muted-foreground">
-            Welcome to your network dashboard, {state.selectedClassroom.name}
+            Welcome to your network dashboard, {selectedClassroom.name}
           </p>
         </div>
         <div className="flex items-center gap-2">
