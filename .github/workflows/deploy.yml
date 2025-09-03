@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # Vite build-time env (keep using your existing secret names)
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
@@ -35,7 +36,7 @@ jobs:
           echo "commit=${GITHUB_SHA}" > dist/build-info.txt
           date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ" >> dist/build-info.txt
 
-          # HTML marker (use printf to avoid heredoc YAML pitfalls)
+          # HTML marker (quick version page)
           printf '%s\n' \
             '<!doctype html>' \
             '<meta charset="utf-8">' \
@@ -48,7 +49,7 @@ jobs:
             '</script>' \
             > dist/build-info.html
 
-          # .htaccess: never cache index.html + serve files directly + SPA fallback
+          # .htaccess (for portability; Nginx rules are set in Plesk)
           printf '%s\n' \
             '# Never cache the SPA entry so new bundles get picked up immediately' \
             '<IfModule mod_headers.c>' \
@@ -63,13 +64,9 @@ jobs:
             '<IfModule mod_rewrite.c>' \
             '  RewriteEngine On' \
             '  RewriteBase /' \
-            '' \
-            '  # If it'\''s an existing file or directory, serve it as-is' \
             '  RewriteCond %{REQUEST_FILENAME} -f [OR]' \
             '  RewriteCond %{REQUEST_FILENAME} -d' \
             '  RewriteRule ^ - [L]' \
-            '' \
-            '  # Otherwise, fall back to the SPA entry' \
             '  RewriteRule . /index.html [L]' \
             '</IfModule>' \
             > dist/.htaccess
@@ -81,10 +78,16 @@ jobs:
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
 
+          # Ensure this ends with a trailing slash (the docroot of the site)
           TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}  # e.g. /var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs/
           SOURCE: "dist/"
-          ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
 
+          # Keep ACME files under .well-known, delete everything else not in dist
+          ARGS: >-
+            -avz --delete --human-readable --progress
+            --exclude='.well-known/**'
+
+          # Post-deploy sanity output (optional)
           SCRIPT_AFTER: |
             set -e
             cd "${TARGET}"
