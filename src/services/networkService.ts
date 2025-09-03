@@ -1,12 +1,24 @@
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  NetworkSettings, 
-  ClassroomConnection, 
-  NetworkChallenge, 
-  ChallengeParticipation 
+import {
+  NetworkSettings,
+  ClassroomConnection,
+  NetworkChallenge,
+  ChallengeParticipation
 } from '@/integrations/supabase/types';
 
-// Extended interfaces for richer data queries
+// ----- Schema-aware client wrapper -------------------------------------------
+const SCHEMA = (import.meta as any)?.env?.VITE_DB_SCHEMA || 'public';
+const db = SCHEMA && SCHEMA !== 'public' ? supabase.schema(SCHEMA) : supabase;
+
+function ensureNo406(status?: number | null) {
+  if (status === 406) {
+    throw new Error(
+      'Supabase 406: set VITE_DB_SCHEMA to the schema that contains your tables (e.g. "app" or "public").'
+    );
+  }
+}
+
+// ----- Extended interfaces ---------------------------------------------------
 export interface ClassroomWithProfile {
   id: string;
   name: string;
@@ -63,53 +75,54 @@ export interface ClassroomDiscoveryFilters {
 }
 
 export class NetworkService {
-  
-  // ========================================
-  // NETWORK SETTINGS MANAGEMENT
-  // ========================================
-  
+  // ===========================================================================
+  // NETWORK SETTINGS
+  // ===========================================================================
   static async getNetworkSettings(classroomId: string): Promise<NetworkSettings | null> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_network_settings')
       .select('*')
       .eq('classroom_id', classroomId)
-      .single();
-    
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    return data || null;
   }
 
   static async upsertNetworkSettings(settings: NetworkSettings): Promise<NetworkSettings> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_network_settings')
       .upsert(settings, { onConflict: 'classroom_id' })
       .select()
-      .single();
-    
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error) throw error;
-    return data;
+    return data as NetworkSettings;
   }
 
   static async disableNetwork(classroomId: string): Promise<void> {
-    const { error } = await supabase
+    const { error, status } = await db
       .from('classroom_network_settings')
       .update({ is_network_enabled: false })
       .eq('classroom_id', classroomId);
-    
+
+    ensureNo406(status);
     if (error) throw error;
   }
 
-  // ========================================
+  // ===========================================================================
   // CLASSROOM DISCOVERY
-  // ========================================
-  
+  // ===========================================================================
   static async discoverClassrooms(
     currentClassroomId: string,
     filters: ClassroomDiscoveryFilters = {}
   ): Promise<ClassroomWithProfile[]> {
-    let query = supabase
+    let query = db
       .from('classroom_network_settings')
-      .select(`
+      .select(
+        `
         *,
         classroom:classrooms!inner (
           id,
@@ -121,42 +134,43 @@ export class NetworkService {
             district
           )
         )
-      `)
+      `
+      )
       .eq('is_network_enabled', true)
       .in('visibility_level', ['public', 'network_only'])
-      .neq('classroom_id', currentClassroomId); // Exclude own classroom
+      .neq('classroom_id', currentClassroomId);
 
-    if (filters.region) {
-      query = query.eq('region', filters.region);
-    }
-    if (filters.grade_level) {
-      query = query.eq('grade_level', filters.grade_level);
-    }
-    if (filters.school_type) {
-      query = query.eq('school_type', filters.school_type);
-    }
+    if (filters.region) query = query.eq('region', filters.region);
+    if (filters.grade_level) query = query.eq('grade_level', filters.grade_level);
+    if (filters.school_type) query = query.eq('school_type', filters.school_type);
     if (filters.search) {
       query = query.or(`display_name.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`);
     }
 
-    const { data, error } = await query.limit(50);
+    const { data, error, status } = await query.limit(50);
+    ensureNo406(status);
     if (error) throw error;
 
-    // If we want to exclude already connected classrooms
+    if (!data) return [];
+
     if (filters.exclude_connected) {
       const connectedIds = await this.getConnectedClassroomIds(currentClassroomId);
-      return data?.filter(item => 
-        !connectedIds.includes(item.classroom_id)
-      ).map(this.mapToClassroomWithProfile) || [];
+      return data
+        .filter((item: any) => !connectedIds.includes(item.classroom_id))
+        .map(this.mapToClassroomWithProfile);
     }
 
-    return data?.map(this.mapToClassroomWithProfile) || [];
+    return data.map(this.mapToClassroomWithProfile);
   }
 
-  static async searchClassroomsByName(searchTerm: string, limit: number = 20): Promise<ClassroomWithProfile[]> {
-    const { data, error } = await supabase
+  static async searchClassroomsByName(
+    searchTerm: string,
+    limit: number = 20
+  ): Promise<ClassroomWithProfile[]> {
+    const { data, error, status } = await db
       .from('classroom_network_settings')
-      .select(`
+      .select(
+        `
         *,
         classroom:classrooms!inner (
           id,
@@ -168,33 +182,31 @@ export class NetworkService {
             district
           )
         )
-      `)
+      `
+      )
       .eq('is_network_enabled', true)
       .eq('visibility_level', 'public')
       .or(`display_name.ilike.%${searchTerm}%,bio.ilike.%${searchTerm}%`)
       .limit(limit);
 
+    ensureNo406(status);
     if (error) throw error;
-    return data?.map(this.mapToClassroomWithProfile) || [];
+    return (data || []).map(this.mapToClassroomWithProfile);
   }
 
-  // ========================================
-  // CONNECTION MANAGEMENT
-  // ========================================
-  
+  // ===========================================================================
+  // CONNECTIONS
+  // ===========================================================================
   static async sendConnectionRequest(
-    requesterClassroomId: string, 
-    targetClassroomId: string, 
+    requesterClassroomId: string,
+    targetClassroomId: string,
     connectionType: 'competition' | 'collaboration' | 'mentorship',
     message?: string
   ): Promise<ClassroomConnection> {
-    // First check if a connection already exists
     const existing = await this.getExistingConnection(requesterClassroomId, targetClassroomId);
-    if (existing) {
-      throw new Error('A connection request already exists between these classrooms');
-    }
+    if (existing) throw new Error('A connection request already exists between these classrooms');
 
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_connections')
       .insert({
         requester_classroom_id: requesterClassroomId,
@@ -204,16 +216,18 @@ export class NetworkService {
         status: 'pending'
       })
       .select()
-      .single();
-    
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error) throw error;
-    return data;
+    return data as ClassroomConnection;
   }
 
   static async getMyConnections(classroomId: string): Promise<ConnectionWithDetails[]> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_connections')
-      .select(`
+      .select(
+        `
         *,
         requester_classroom:classroom_network_settings!classroom_connections_requester_classroom_id_fkey (
           classroom_id,
@@ -227,23 +241,25 @@ export class NetworkService {
           bio,
           classroom:classrooms (name)
         )
-      `)
+      `
+      )
       .or(`requester_classroom_id.eq.${classroomId},target_classroom_id.eq.${classroomId}`)
       .eq('status', 'accepted')
       .order('accepted_at', { ascending: false });
-    
+
+    ensureNo406(status);
     if (error) throw error;
-    return data || [];
+    return (data || []) as ConnectionWithDetails[];
   }
 
   static async getPendingRequests(classroomId: string): Promise<{
     incoming: ConnectionWithDetails[];
     outgoing: ConnectionWithDetails[];
   }> {
-    // Incoming requests (where we are the target)
-    const { data: incoming, error: incomingError } = await supabase
+    const { data: incoming, error: incomingError, status: s1 } = await db
       .from('classroom_connections')
-      .select(`
+      .select(
+        `
         *,
         requester_classroom:classroom_network_settings!classroom_connections_requester_classroom_id_fkey (
           classroom_id,
@@ -251,17 +267,19 @@ export class NetworkService {
           bio,
           classroom:classrooms (name)
         )
-      `)
+      `
+      )
       .eq('target_classroom_id', classroomId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
+    ensureNo406(s1);
     if (incomingError) throw incomingError;
 
-    // Outgoing requests (where we are the requester)
-    const { data: outgoing, error: outgoingError } = await supabase
+    const { data: outgoing, error: outgoingError, status: s2 } = await db
       .from('classroom_connections')
-      .select(`
+      .select(
+        `
         *,
         target_classroom:classroom_network_settings!classroom_connections_target_classroom_id_fkey (
           classroom_id,
@@ -269,89 +287,91 @@ export class NetworkService {
           bio,
           classroom:classrooms (name)
         )
-      `)
+      `
+      )
       .eq('requester_classroom_id', classroomId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
+    ensureNo406(s2);
     if (outgoingError) throw outgoingError;
 
     return {
-      incoming: incoming || [],
-      outgoing: outgoing || []
+      incoming: (incoming || []) as ConnectionWithDetails[],
+      outgoing: (outgoing || []) as ConnectionWithDetails[]
     };
   }
 
   static async respondToConnectionRequest(
-    connectionId: string, 
-    status: 'accepted' | 'declined'
+    connectionId: string,
+    statusValue: 'accepted' | 'declined'
   ): Promise<ClassroomConnection> {
-    const updateData: any = { status };
-    if (status === 'accepted') {
-      updateData.accepted_at = new Date().toISOString();
-    }
+    const updateData: any = { status: statusValue };
+    if (statusValue === 'accepted') updateData.accepted_at = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_connections')
       .update(updateData)
       .eq('id', connectionId)
       .select()
-      .single();
-    
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error) throw error;
-    return data;
+    return data as ClassroomConnection;
   }
 
   static async removeConnection(connectionId: string): Promise<void> {
-    const { error } = await supabase
-      .from('classroom_connections')
-      .delete()
-      .eq('id', connectionId);
-    
+    const { error, status } = await db.from('classroom_connections').delete().eq('id', connectionId);
+    ensureNo406(status);
     if (error) throw error;
   }
 
   static async blockClassroom(connectionId: string): Promise<void> {
-    const { error } = await supabase
+    const { error, status } = await db
       .from('classroom_connections')
       .update({ status: 'blocked' })
       .eq('id', connectionId);
-    
+
+    ensureNo406(status);
     if (error) throw error;
   }
 
-  // ========================================
-  // CHALLENGE SYSTEM
-  // ========================================
-  
+  // ===========================================================================
+  // CHALLENGES
+  // ===========================================================================
   static async getActiveChallenges(classroomId?: string): Promise<ChallengeWithParticipation[]> {
-    let query = supabase
+    let query = db
       .from('network_challenges')
-      .select(`
+      .select(
+        `
         *,
         participation:classroom_challenge_participation(count)
-      `)
+      `
+      )
       .eq('is_active', true)
       .gte('end_date', new Date().toISOString().split('T')[0])
       .order('start_date', { ascending: true });
 
-    const { data: challenges, error } = await query;
+    const { data: challenges, error, status } = await query;
+    ensureNo406(status);
     if (error) throw error;
 
     if (!challenges) return [];
 
-    // If classroomId provided, check participation status
     if (classroomId) {
-      const { data: participations } = await supabase
+      const { data: participations, status: s2 } = await db
         .from('classroom_challenge_participation')
         .select('*')
         .eq('classroom_id', classroomId);
 
+      ensureNo406(s2);
+
       const participationMap = new Map(
-        participations?.map(p => [p.challenge_id, p]) || []
+        (participations || []).map((p: any) => [p.challenge_id, p])
       );
 
-      return challenges.map(challenge => ({
+      return (challenges as any[]).map((challenge: any) => ({
         ...challenge,
         participation_count: challenge.participation?.[0]?.count || 0,
         is_participating: participationMap.has(challenge.id),
@@ -359,7 +379,7 @@ export class NetworkService {
       }));
     }
 
-    return challenges.map(challenge => ({
+    return (challenges as any[]).map((challenge: any) => ({
       ...challenge,
       participation_count: challenge.participation?.[0]?.count || 0,
       is_participating: false
@@ -367,52 +387,51 @@ export class NetworkService {
   }
 
   static async joinChallenge(classroomId: string, challengeId: string): Promise<ChallengeParticipation> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_challenge_participation')
-      .insert({
-        classroom_id: classroomId,
-        challenge_id: challengeId
-      })
+      .insert({ classroom_id: classroomId, challenge_id: challengeId })
       .select()
-      .single();
-    
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error) throw error;
-    return data;
+    return data as ChallengeParticipation;
   }
 
   static async leaveChallenge(classroomId: string, challengeId: string): Promise<void> {
-    const { error } = await supabase
+    const { error, status } = await db
       .from('classroom_challenge_participation')
       .delete()
       .eq('classroom_id', classroomId)
       .eq('challenge_id', challengeId);
-    
+
+    ensureNo406(status);
     if (error) throw error;
   }
 
   static async getChallengeLeaderboard(challengeId: string): Promise<any[]> {
-    // This would be implemented with a more complex query or RPC function
-    // For now, return basic structure
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_challenge_participation')
-      .select(`
+      .select(
+        `
         *,
         classroom:classrooms (
           name,
           network_settings:classroom_network_settings (display_name)
         )
-      `)
+      `
+      )
       .eq('challenge_id', challengeId)
       .order('final_score', { ascending: false, nullsFirst: false });
 
+    ensureNo406(status);
     if (error) throw error;
     return data || [];
   }
 
-  // ========================================
-  // NETWORK LEADERBOARD
-  // ========================================
-  
+  // ===========================================================================
+  // LEADERBOARD
+  // ===========================================================================
   static async getNetworkLeaderboard(
     classroomId: string,
     filters: {
@@ -422,116 +441,116 @@ export class NetworkService {
       limit?: number;
     } = {}
   ): Promise<NetworkLeaderboardEntry[]> {
-    // This would ideally be implemented as a Supabase RPC function for performance
-    // For now, we'll do a basic implementation
-    
-    let baseQuery = supabase
+    // Pull classrooms with network settings; include teacher_id for later aggregation
+    let baseQuery = db
       .from('classroom_network_settings')
-      .select(`
+      .select(
+        `
         classroom_id,
         display_name,
         region,
         grade_level,
         classroom:classrooms!inner (
+          id,
           name,
+          teacher_id,
           teacher:profiles (school_name)
         )
-      `)
+      `
+      )
       .eq('is_network_enabled', true)
       .eq('share_harvest_data', true);
 
-    if (filters.region) {
-      baseQuery = baseQuery.eq('region', filters.region);
-    }
-    if (filters.grade_level) {
-      baseQuery = baseQuery.eq('grade_level', filters.grade_level);
-    }
+    if (filters.region) baseQuery = baseQuery.eq('region', filters.region);
+    if (filters.grade_level) baseQuery = baseQuery.eq('grade_level', filters.grade_level);
 
-    const { data: networkClassrooms, error } = await baseQuery.limit(filters.limit || 100);
-    
+    const { data: networkClassrooms, error, status } = await baseQuery.limit(filters.limit || 100);
+    ensureNo406(status);
     if (error) throw error;
     if (!networkClassrooms) return [];
 
-    // Get connected classroom IDs if filtering by connections
-    const connectedIds = filters.connected_only 
+    const connectedIds = filters.connected_only
       ? await this.getConnectedClassroomIds(classroomId)
       : [];
 
-    // For each classroom, we would need to aggregate their harvest data
-    // This is simplified - in production this should be a database function
     const leaderboardEntries: NetworkLeaderboardEntry[] = [];
-    
-    for (const classroom of networkClassrooms) {
-      // Skip if filtering by connections and not connected
-      if (filters.connected_only && !connectedIds.includes(classroom.classroom_id)) {
-        continue;
-      }
 
-      // Get harvest totals for this classroom
-      const { data: harvests } = await supabase
+    for (const classroom of networkClassrooms as any[]) {
+      const cls = classroom.classroom as any;
+      if (!cls) continue;
+
+      if (filters.connected_only && !connectedIds.includes(classroom.classroom_id)) continue;
+
+      // Harvest totals (simplified; ideally via RPC)
+      const { data: harvests, status: sH } = await db
         .from('harvests')
         .select('weight_grams, plant_quantity')
-        .eq('teacher_id', (classroom.classroom as any).teacher_id);
+        .eq('teacher_id', cls.teacher_id);
 
-      const totalWeight = harvests?.reduce((sum, h) => sum + h.weight_grams, 0) || 0;
-      const totalPlants = harvests?.reduce((sum, h) => sum + (h.plant_quantity || 0), 0) || 0;
+      ensureNo406(sH);
 
-      // Get tower count
-      const { count: towerCount } = await supabase
+      const totalWeight = (harvests || []).reduce((sum: number, h: any) => sum + (h.weight_grams || 0), 0);
+      const totalPlants = (harvests || []).reduce((sum: number, h: any) => sum + (h.plant_quantity || 0), 0);
+
+      // Tower count
+      const { count: towerCount, status: sT } = await db
         .from('towers')
         .select('*', { count: 'exact', head: true })
-        .eq('teacher_id', (classroom.classroom as any).teacher_id);
+        .eq('teacher_id', cls.teacher_id);
+
+      ensureNo406(sT);
 
       leaderboardEntries.push({
         classroom_id: classroom.classroom_id,
-        classroom_name: (classroom.classroom as any).name,
+        classroom_name: cls.name,
         display_name: classroom.display_name,
         total_harvest_weight: totalWeight,
         total_harvest_plants: totalPlants,
         tower_count: towerCount || 0,
         region: classroom.region,
         grade_level: classroom.grade_level,
-        school_name: (classroom.classroom as any).teacher?.school_name || null,
+        school_name: cls.teacher?.school_name || null,
         is_connected: connectedIds.includes(classroom.classroom_id)
       });
     }
 
-    // Sort by harvest weight descending
     return leaderboardEntries.sort((a, b) => b.total_harvest_weight - a.total_harvest_weight);
   }
 
-  // ========================================
-  // HELPER METHODS
-  // ========================================
-  
+  // ===========================================================================
+  // HELPERS
+  // ===========================================================================
   private static async getExistingConnection(
-    classroomId1: string, 
+    classroomId1: string,
     classroomId2: string
   ): Promise<ClassroomConnection | null> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_connections')
       .select('*')
-      .or(`and(requester_classroom_id.eq.${classroomId1},target_classroom_id.eq.${classroomId2}),and(requester_classroom_id.eq.${classroomId2},target_classroom_id.eq.${classroomId1})`)
-      .single();
-    
+      .or(
+        `and(requester_classroom_id.eq.${classroomId1},target_classroom_id.eq.${classroomId2}),` +
+          `and(requester_classroom_id.eq.${classroomId2},target_classroom_id.eq.${classroomId1})`
+      )
+      .maybeSingle();
+
+    ensureNo406(status);
     if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    return data || null;
   }
 
   private static async getConnectedClassroomIds(classroomId: string): Promise<string[]> {
-    const { data, error } = await supabase
+    const { data, error, status } = await db
       .from('classroom_connections')
       .select('requester_classroom_id, target_classroom_id')
       .or(`requester_classroom_id.eq.${classroomId},target_classroom_id.eq.${classroomId}`)
       .eq('status', 'accepted');
-    
+
+    ensureNo406(status);
     if (error) throw error;
-    
-    return data?.map(conn => 
-      conn.requester_classroom_id === classroomId 
-        ? conn.target_classroom_id 
-        : conn.requester_classroom_id
-    ) || [];
+
+    return (data || []).map((conn: any) =>
+      conn.requester_classroom_id === classroomId ? conn.target_classroom_id : conn.requester_classroom_id
+    );
   }
 
   private static mapToClassroomWithProfile(item: any): ClassroomWithProfile {
@@ -557,43 +576,33 @@ export class NetworkService {
     };
   }
 
-  // ========================================
-  // STATISTICS AND ANALYTICS
-  // ========================================
-  
+  // ===========================================================================
+  // STATS (basic)
+  // ===========================================================================
   static async getNetworkStats(): Promise<{
     total_classrooms: number;
     total_connections: number;
     active_challenges: number;
     total_harvest_weight: number;
   }> {
-    const [
-      { count: classroomCount },
-      { count: connectionCount },
-      { count: challengeCount },
-    ] = await Promise.all([
-      supabase
-        .from('classroom_network_settings')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_network_enabled', true),
-      supabase
-        .from('classroom_connections')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'accepted'),
-      supabase
-        .from('network_challenges')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-    ]);
+    const [{ count: classroomCount, status: s1 }, { count: connectionCount, status: s2 }, { count: challengeCount, status: s3 }] =
+      await Promise.all([
+        db.from('classroom_network_settings').select('*', { count: 'exact', head: true }).eq('is_network_enabled', true),
+        db.from('classroom_connections').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
+        db.from('network_challenges').select('*', { count: 'exact', head: true }).eq('is_active', true)
+      ]);
 
-    // This would need a more sophisticated query for harvest totals
-    // For now, return basic stats
+    ensureNo406(s1);
+    ensureNo406(s2);
+    ensureNo406(s3);
+
     return {
       total_classrooms: classroomCount || 0,
       total_connections: connectionCount || 0,
       active_challenges: challengeCount || 0,
-      total_harvest_weight: 0 // Would need aggregation
+      total_harvest_weight: 0
     };
+    // NOTE: For real harvest totals, create a SQL view or RPC to aggregate server-side.
   }
 
   static async getMyNetworkActivity(classroomId: string): Promise<{
@@ -602,11 +611,7 @@ export class NetworkService {
     active_challenges: number;
     network_rank: number | null;
   }> {
-    const [
-      connections,
-      pendingRequests,
-      challenges
-    ] = await Promise.all([
+    const [connections, pending, challenges] = await Promise.all([
       this.getMyConnections(classroomId),
       this.getPendingRequests(classroomId),
       this.getActiveChallenges(classroomId)
@@ -616,9 +621,9 @@ export class NetworkService {
 
     return {
       connection_count: connections.length,
-      pending_requests: pendingRequests.incoming.length,
+      pending_requests: pending.incoming.length,
       active_challenges: activeChallenges.length,
-      network_rank: null // Would need leaderboard position calculation
+      network_rank: null
     };
   }
 }
