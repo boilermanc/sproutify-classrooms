@@ -49,9 +49,9 @@ import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 // Student Login page import
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
-// Garden Network imports (with conditional loading)
+// Garden Network feature flag - HARDCODED TO TRUE
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true',
+  GARDEN_NETWORK: true, // Hardcoded to always enable Garden Network
 };
 
 // Lazy load Garden Network components to avoid bundle bloat when disabled
