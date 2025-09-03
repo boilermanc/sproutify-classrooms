@@ -1,4 +1,4 @@
-// src/pages/classrooms/Classrooms.tsx - Updated with Garden Network selection
+// src/pages/classrooms/Classrooms.tsx - Updated with DATABASE-based Garden Network selection
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,6 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { Plus, Trash2, Edit2, Copy, Clock, Network } from "lucide-react";
-// ADD THIS IMPORT
 import { useAppStore } from "@/context/AppStore";
 
 // Updated interfaces for the new system
@@ -32,7 +31,8 @@ interface Classroom {
   name: string;
   kiosk_pin: string;
   created_at: string;
-  teacher_id?: string; // Add this for AppStore compatibility
+  teacher_id?: string;
+  is_selected_for_network?: boolean; // ADD THIS
 }
 
 interface Student {
@@ -48,6 +48,7 @@ interface Student {
 
 export default function Classrooms() {
   const { toast } = useToast();
+  const { dispatch } = useAppStore(); // ADD THIS
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -59,7 +60,6 @@ export default function Classrooms() {
   useEffect(() => {
     let mounted = true;
 
-    // Set up auth listener then get session
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
       if (mounted) {
         setUserId(session?.user?.id ?? null);
@@ -87,7 +87,7 @@ export default function Classrooms() {
     if (!userId) return;
     const { data, error } = await sb
       .from("classrooms")
-      .select("id,name,kiosk_pin,created_at,teacher_id")
+      .select("id,name,kiosk_pin,created_at,teacher_id,is_selected_for_network") // ADD is_selected_for_network
       .eq("teacher_id", userId)
       .order("created_at", { ascending: true });
 
@@ -95,7 +95,17 @@ export default function Classrooms() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
+    
     setClassrooms(data || []);
+    
+    // UPDATE APPSTORE with selected classroom
+    const selectedClassroom = data?.find((c: Classroom) => c.is_selected_for_network);
+    if (selectedClassroom) {
+      dispatch({
+        type: "SET_SELECTED_CLASSROOM",
+        payload: selectedClassroom
+      });
+    }
   };
 
   const createClassroom = async (e: React.FormEvent) => {
@@ -193,7 +203,7 @@ export default function Classrooms() {
 
       <section className="grid gap-4">
         {classrooms.map((classroom) => (
-          <ClassroomRow key={classroom.id} classroom={classroom} />
+          <ClassroomRow key={classroom.id} classroom={classroom} onReload={loadClassrooms} />
         ))}
         {classrooms.length === 0 && (
           <p className="text-muted-foreground">No classrooms yet. Create one above.</p>
@@ -203,12 +213,13 @@ export default function Classrooms() {
   );
 }
 
-// Updated ClassroomRow component with Garden Network selection
-function ClassroomRow({ classroom }: { classroom: Classroom }) {
+// Updated ClassroomRow component with DATABASE-based Garden Network selection
+function ClassroomRow({ classroom, onReload }: { classroom: Classroom; onReload: () => void }) {
   const { toast } = useToast();
-  const { state, dispatch } = useAppStore(); // ADD THIS LINE
+  const { dispatch } = useAppStore();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selecting, setSelecting] = useState(false); // ADD LOADING STATE
   
   // Add student form state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -218,21 +229,54 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
   const [newGradeLevel, setNewGradeLevel] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // ADD THIS FUNCTION for Garden Network selection
-  const selectClassroomForNetwork = () => {
-    dispatch({ 
-      type: "SET_SELECTED_CLASSROOM", 
-      payload: classroom 
-    });
-    toast({ 
-      title: "Classroom selected", 
-      description: `${classroom.name} is now your active classroom for Garden Network.`,
-      duration: 3000
-    });
+  // UPDATED DATABASE-BASED SELECTION FUNCTION
+  const selectClassroomForNetwork = async () => {
+    setSelecting(true);
+    try {
+      const { error } = await sb
+        .from('classrooms')
+        .update({ is_selected_for_network: true })
+        .eq('id', classroom.id);
+
+      if (error) {
+        console.error('Error selecting classroom:', error);
+        toast({ 
+          title: "Error", 
+          description: "Failed to select classroom. Please try again.", 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Update AppStore
+      dispatch({
+        type: "SET_SELECTED_CLASSROOM",
+        payload: { ...classroom, is_selected_for_network: true }
+      });
+
+      toast({ 
+        title: "Classroom selected", 
+        description: `${classroom.name} is now your active classroom for Garden Network.`,
+        duration: 3000
+      });
+
+      // Reload to get updated state
+      onReload();
+
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({ 
+        title: "Error", 
+        description: "Something went wrong. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setSelecting(false);
+    }
   };
 
   // Check if this classroom is currently selected
-  const isSelectedForNetwork = state.selectedClassroom?.id === classroom.id;
+  const isSelectedForNetwork = classroom.is_selected_for_network === true;
 
   // Load students for this classroom
   const loadStudents = async () => {
@@ -329,16 +373,13 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
         return;
       }
 
-      // Success
       toast({ title: "Student added", description: `${name} has been added to ${classroom.name}.` });
       
-      // Clear form
       setNewStudentName("");
       setNewStudentId("");
       setNewGradeLevel("");
       setShowAddDialog(false);
       
-      // Refresh student list
       loadStudents();
       
     } catch (error) {
@@ -469,7 +510,6 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
                   {activeStudentCount} active
                 </Badge>
               )}
-              {/* ADD SELECTED INDICATOR */}
               {isSelectedForNetwork && (
                 <Badge variant="default" className="bg-green-600">
                   Network Active
@@ -477,16 +517,16 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
               )}
             </CardTitle>
           </div>
-          {/* UPDATED BUTTON SECTION */}
           <div className="flex gap-2">
             <Button 
               onClick={selectClassroomForNetwork}
               variant={isSelectedForNetwork ? "default" : "outline"}
               size="sm"
               className={isSelectedForNetwork ? "bg-green-600 hover:bg-green-700" : ""}
+              disabled={selecting}
             >
               <Network className="h-4 w-4 mr-2" />
-              {isSelectedForNetwork ? "Selected" : "Select for Network"}
+              {selecting ? "Selecting..." : isSelectedForNetwork ? "Selected" : "Select for Network"}
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link to={`/app/kiosk?classId=${classroom.id}`}>
@@ -498,7 +538,6 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
       </CardHeader>
       <CardContent className="space-y-6">
         
-        {/* Garden Network Status Info - ADD THIS SECTION */}
         {isSelectedForNetwork && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
@@ -516,7 +555,6 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
           </div>
         )}
 
-        {/* Classroom Access Info - Simplified */}
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Classroom PIN</Label>
@@ -545,7 +583,6 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
 
         <Separator />
 
-        {/* Student Management */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <Label className="flex items-center gap-2">
@@ -606,7 +643,6 @@ function ClassroomRow({ classroom }: { classroom: Classroom }) {
           )}
         </div>
 
-        {/* Quick Stats */}
         {students.length > 0 && (
           <div className="grid grid-cols-3 gap-4 pt-4 border-t">
             <div className="text-center">
