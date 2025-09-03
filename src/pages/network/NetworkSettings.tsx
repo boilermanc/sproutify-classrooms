@@ -37,6 +37,8 @@ function describeVisibility(level: string) {
   }
 }
 
+const NONE = 'not_specified'; // sentinel string for shadcn Select (no empty values)
+
 export default function NetworkSettingsPage() {
   const { state } = useAppStore();
 
@@ -56,7 +58,7 @@ export default function NetworkSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // Debug (safe – inside component and effect)
+  // Debug
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('NetworkSettings render:', {
@@ -66,7 +68,7 @@ export default function NetworkSettingsPage() {
     });
   }, [state.selectedClassroom, initialLoad, loading]);
 
-  // Keep classroom_id in sync when the selected classroom appears/changes
+  // keep classroom_id in sync
   useEffect(() => {
     if (state.selectedClassroom?.id && settings.classroom_id !== state.selectedClassroom.id) {
       setSettings(prev => ({ ...prev, classroom_id: state.selectedClassroom!.id }));
@@ -103,7 +105,7 @@ export default function NetworkSettingsPage() {
   }, [state.selectedClassroom?.id]);
 
   const handleSave = async () => {
-    // Basic validation
+    // validate when enabled
     if (settings.is_network_enabled) {
       if (!settings.display_name?.trim()) {
         toast.error('Display name is required when joining the network');
@@ -139,7 +141,7 @@ export default function NetworkSettingsPage() {
     }));
   };
 
-  // ---- Early returns (safe because *no hooks are below this point*) ----
+  // ---- Early returns (no hooks below) ----
   if (!state.selectedClassroom) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -262,14 +264,17 @@ export default function NetworkSettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="grade-level">Grade Level</Label>
                     <Select
-                      value={settings.grade_level || ''}
-                      onValueChange={(value) => setSettings(prev => ({ ...prev, grade_level: value || null }))}
+                      // never pass '' to shadcn Select; use sentinel
+                      value={settings.grade_level ?? NONE}
+                      onValueChange={(value) =>
+                        setSettings(prev => ({ ...prev, grade_level: value === NONE ? null : value }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select grade level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Not specified</SelectItem>
+                        <SelectItem value={NONE}>Not specified</SelectItem>
                         <SelectItem value="K-2">K-2 (Ages 5-8)</SelectItem>
                         <SelectItem value="3-5">3-5 (Ages 8-11)</SelectItem>
                         <SelectItem value="6-8">6-8 (Ages 11-14)</SelectItem>
@@ -283,14 +288,16 @@ export default function NetworkSettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="school-type">School Type</Label>
                     <Select
-                      value={settings.school_type || ''}
-                      onValueChange={(value) => setSettings(prev => ({ ...prev, school_type: (value as any) || null }))}
+                      value={settings.school_type ?? NONE}
+                      onValueChange={(value) =>
+                        setSettings(prev => ({ ...prev, school_type: (value === NONE ? null : (value as any)) }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select school type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Not specified</SelectItem>
+                        <SelectItem value={NONE}>Not specified</SelectItem>
                         <SelectItem value="elementary">Elementary School</SelectItem>
                         <SelectItem value="middle">Middle School</SelectItem>
                         <SelectItem value="high">High School</SelectItem>
@@ -348,11 +355,15 @@ export default function NetworkSettingsPage() {
                   </Select>
 
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    {visibilityInfo.icon}
+                    {describeVisibility(settings.visibility_level).icon}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">{visibilityInfo.description}</span>
-                        <Badge variant="secondary" className="text-xs">{visibilityInfo.privacy}</Badge>
+                        <span className="text-sm">
+                          {describeVisibility(settings.visibility_level).description}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {describeVisibility(settings.visibility_level).privacy}
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -365,7 +376,9 @@ export default function NetworkSettingsPage() {
 
       <div className="flex justify-between items-center">
         <div className="text-sm text-muted-foreground">
-          {settings.is_network_enabled ? 'Your classroom is part of the Garden Network' : 'Network participation is currently disabled'}
+          {settings.is_network_enabled
+            ? 'Your classroom is part of the Garden Network'
+            : 'Network participation is currently disabled'}
         </div>
         <Button onClick={handleSave} disabled={loading}>
           {loading ? 'Saving...' : 'Save Settings'}
