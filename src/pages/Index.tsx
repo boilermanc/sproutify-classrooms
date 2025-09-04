@@ -13,17 +13,21 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import MailerLiteEmbed from "@/components/MailerLiteEmbed";
 
-// date gate for promos
+/** Gate promos through the end of September (adjust year if needed) */
 const isBackToSchoolActive = () => {
   const now = new Date();
   const end = new Date("2025-09-30T23:59:59-04:00");
   return now <= end;
 };
 
+type LoginPanel = "teacher" | "student" | null;
+
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+
   const [selectedPlan, setSelectedPlan] = useState("professional");
+  const [openLogin, setOpenLogin] = useState<LoginPanel>(null);
 
   // Registration form state
   const [regForm, setRegForm] = useState({
@@ -33,21 +37,21 @@ const Index = () => {
     password: "",
     confirmPassword: "",
     schoolName: "",
-    loading: false
+    loading: false,
   });
 
-  // Login form state
+  // Teacher login
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
-    loading: false
+    loading: false,
   });
 
-  // Student form state
+  // Student login
   const [studentForm, setStudentForm] = useState({
     studentName: "",
     kioskPin: "",
-    loading: false
+    loading: false,
   });
 
   const handleRegistration = async (e: React.FormEvent) => {
@@ -56,17 +60,15 @@ const Index = () => {
       toast({ title: "Passwords don't match", variant: "destructive" });
       return;
     }
-    setRegForm(prev => ({ ...prev, loading: true }));
+    setRegForm((prev) => ({ ...prev, loading: true }));
 
     try {
       // 1) Create auth user
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: regForm.email,
-        password: regForm.password
+        password: regForm.password,
       });
-      if (signUpError || !signUpData?.user) {
-        throw new Error(signUpError?.message ?? "Sign up failed");
-      }
+      if (signUpError || !signUpData?.user) throw new Error(signUpError?.message ?? "Sign up failed");
       const userId = signUpData.user.id;
 
       // 2) Upsert/find school
@@ -90,13 +92,13 @@ const Index = () => {
         schoolId = newSchool.id;
       }
 
-      // 3) Profile - Use UPSERT to handle existing records
+      // 3) Profile
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: userId,
           first_name: regForm.firstName,
           last_name: regForm.lastName,
-          school_id: schoolId
+          school_id: schoolId,
         },
         { onConflict: "id" }
       );
@@ -105,30 +107,31 @@ const Index = () => {
       // 4) Role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: userId,
-        role: "teacher"
+        role: "teacher",
       });
       if (roleError) throw new Error(roleError.message);
 
       toast({
         title: "Account created!",
-        description: `Welcome to Sproutify School ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} plan. Check your email to confirm your account.`
+        description: `Welcome to Sproutify School ${
+          selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)
+        } plan. Check your email to confirm your account.`,
       });
       navigate("/app");
     } catch (err: any) {
       toast({ title: "Signup failed", description: err.message ?? "Something went wrong", variant: "destructive" });
     } finally {
-      setRegForm(prev => ({ ...prev, loading: false }));
+      setRegForm((prev) => ({ ...prev, loading: false }));
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginForm(prev => ({ ...prev, loading: true }));
-
+    setLoginForm((prev) => ({ ...prev, loading: true }));
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: loginForm.email,
-        password: loginForm.password
+        password: loginForm.password,
       });
       if (error) throw new Error(error.message);
       toast({ title: "Welcome back!" });
@@ -136,34 +139,25 @@ const Index = () => {
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message ?? "Check your email/password", variant: "destructive" });
     } finally {
-      setLoginForm(prev => ({ ...prev, loading: false }));
+      setLoginForm((prev) => ({ ...prev, loading: false }));
     }
   };
 
   const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStudentForm(prev => ({ ...prev, loading: true }));
-
+    setStudentForm((prev) => ({ ...prev, loading: true }));
     try {
       const studentName = studentForm.studentName.trim();
       const kioskPin = studentForm.kioskPin.trim();
+      if (!studentName) throw new Error("Please enter your name");
 
-      if (!studentName) {
-        throw new Error("Please enter your name");
-      }
-
-      // Find the classroom by kiosk PIN only
       const { data, error: queryError } = await supabase
         .from("classrooms")
         .select("id, name")
         .eq("kiosk_pin", kioskPin)
         .single();
+      if (queryError || !data) throw new Error("Invalid Kiosk PIN. Please check with your teacher.");
 
-      if (queryError || !data) {
-        throw new Error("Invalid Kiosk PIN. Please check with your teacher.");
-      }
-
-      // Store student info in localStorage (no database insert)
       localStorage.setItem("student_classroom_id", data.id);
       localStorage.setItem("student_classroom_name", data.name);
       localStorage.setItem("student_name", studentName);
@@ -173,7 +167,7 @@ const Index = () => {
     } catch (err: any) {
       toast({ title: "Login failed", description: err.message, variant: "destructive" });
     } finally {
-      setStudentForm(prev => ({ ...prev, loading: false }));
+      setStudentForm((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -184,7 +178,7 @@ const Index = () => {
       originalPrice: "$19.99",
       promoPrice: "$9.99",
       description: "Perfect for small classrooms and getting started with aeroponic education.",
-      features: ["Up to 3 towers", "50 student accounts", "Basic curriculum modules", "Student progress tracking", "Email support"]
+      features: ["Up to 3 towers", "50 student accounts", "Basic curriculum modules", "Student progress tracking", "Email support"],
     },
     {
       id: "professional",
@@ -193,7 +187,14 @@ const Index = () => {
       promoPrice: "$19.99",
       description: "Ideal for larger classrooms and comprehensive agricultural education programs.",
       popular: true,
-      features: ["Up to 10 towers", "200 student accounts", "Complete curriculum library", "Advanced analytics & reporting", "Teacher collaboration tools", "Priority email support"]
+      features: [
+        "Up to 10 towers",
+        "200 student accounts",
+        "Complete curriculum library",
+        "Advanced analytics & reporting",
+        "Teacher collaboration tools",
+        "Priority email support",
+      ],
     },
     {
       id: "school",
@@ -201,8 +202,15 @@ const Index = () => {
       originalPrice: "$79.99",
       promoPrice: "$39.99",
       description: "Comprehensive solution for entire schools and district-wide implementations.",
-      features: ["Unlimited towers", "Unlimited student accounts", "Custom curriculum development", "District-wide reporting", "Administrator dashboard", "Dedicated account manager"]
-    }
+      features: [
+        "Unlimited towers",
+        "Unlimited student accounts",
+        "Custom curriculum development",
+        "District-wide reporting",
+        "Administrator dashboard",
+        "Dedicated account manager",
+      ],
+    },
   ];
 
   return (
@@ -214,9 +222,122 @@ const Index = () => {
       />
       <GradientBackground className="absolute inset-0" />
 
-      <main className="relative container mx-auto px-6 py-16 sm:py-24 flex-1">
+      {/* Sticky top login bar */}
+      <div className="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto px-6 py-3 flex items-center gap-3">
+          <div className="text-sm font-medium grow">Sproutify School</div>
+          <div className="flex gap-2">
+            <Button
+              variant={openLogin === "teacher" ? "default" : "secondary"}
+              onClick={() => setOpenLogin((p) => (p === "teacher" ? null : "teacher"))}
+            >
+              Teacher Login
+            </Button>
+            <Button
+              variant={openLogin === "student" ? "default" : "secondary"}
+              onClick={() => setOpenLogin((p) => (p === "student" ? null : "student"))}
+            >
+              Student Login
+            </Button>
+          </div>
+        </div>
+
+        {/* Expandable panels */}
+        {openLogin === "teacher" && (
+          <div className="border-t">
+            <div className="container mx-auto px-6 py-4">
+              <Card className="max-w-xl mx-auto">
+                <CardHeader>
+                  <CardTitle>Teacher Sign In</CardTitle>
+                  <p className="text-muted-foreground">Welcome back to your classroom dashboard</p>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="loginEmailTop">Email</Label>
+                      <Input
+                        id="loginEmailTop"
+                        type="email"
+                        required
+                        value={loginForm.email}
+                        onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loginPasswordTop">Password</Label>
+                      <Input
+                        id="loginPasswordTop"
+                        type="password"
+                        required
+                        value={loginForm.password}
+                        onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Button type="submit" disabled={loginForm.loading}>
+                        {loginForm.loading ? "Signing in..." : "Sign In"}
+                      </Button>
+                      <Button variant="ghost" type="button" onClick={() => setOpenLogin(null)}>
+                        Close
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {openLogin === "student" && (
+          <div className="border-t">
+            <div className="container mx-auto px-6 py-4">
+              <Card className="max-w-xl mx-auto">
+                <CardHeader>
+                  <CardTitle>Student Login</CardTitle>
+                  <p className="text-muted-foreground">Enter your name and classroom PIN to begin</p>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleStudentLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="studentNameTop">Your Name</Label>
+                      <Input
+                        id="studentNameTop"
+                        required
+                        placeholder="e.g. Alex Smith"
+                        value={studentForm.studentName}
+                        onChange={(e) => setStudentForm((p) => ({ ...p, studentName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="kioskPinTop">Classroom PIN</Label>
+                      <Input
+                        id="kioskPinTop"
+                        type="password"
+                        required
+                        placeholder="4-digit PIN from your teacher"
+                        value={studentForm.kioskPin}
+                        onChange={(e) => setStudentForm((p) => ({ ...p, kioskPin: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Button type="submit" disabled={studentForm.loading}>
+                        {studentForm.loading ? "Logging In..." : "Log In"}
+                      </Button>
+                      <Button variant="ghost" type="button" onClick={() => setOpenLogin(null)}>
+                        Close
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <main className="relative container mx-auto px-6 py-12 sm:py-20 flex-1">
         {/* Hero Section */}
-        <section className="text-center mb-20">
+        <section className="text-center mb-16 sm:mb-20">
           <img
             src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png"
             alt="Sproutify School Logo"
@@ -245,14 +366,11 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Auth Section */}
+        {/* Registration + Info tabs (logins moved to top bar) */}
         <section className="mb-20">
           <Tabs defaultValue="register" className="max-w-4xl mx-auto">
-            {/* Mobile-friendly tab bar */}
-            <TabsList className="flex w-full flex-wrap gap-2 sm:grid sm:grid-cols-4">
+            <TabsList className="flex w-full flex-wrap gap-2 sm:grid sm:grid-cols-2">
               <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="register">Start Free Trial</TabsTrigger>
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="login">Teacher Login</TabsTrigger>
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="student">Student Login</TabsTrigger>
               <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="info">Get Info</TabsTrigger>
             </TabsList>
 
@@ -264,7 +382,7 @@ const Index = () => {
                   <CardHeader>
                     <CardTitle>Create Your Teacher Account</CardTitle>
                     <p className="text-muted-foreground">
-                      Start your free trial with the {plans.find(p => p.id === selectedPlan)?.name} plan
+                      Start your free trial with the {plans.find((p) => p.id === selectedPlan)?.name} plan
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -276,7 +394,7 @@ const Index = () => {
                             id="firstName"
                             required
                             value={regForm.firstName}
-                            onChange={(e) => setRegForm(prev => ({ ...prev, firstName: e.target.value }))}
+                            onChange={(e) => setRegForm((p) => ({ ...p, firstName: e.target.value }))}
                           />
                         </div>
                         <div className="space-y-2">
@@ -285,7 +403,7 @@ const Index = () => {
                             id="lastName"
                             required
                             value={regForm.lastName}
-                            onChange={(e) => setRegForm(prev => ({ ...prev, lastName: e.target.value }))}
+                            onChange={(e) => setRegForm((p) => ({ ...p, lastName: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -296,7 +414,7 @@ const Index = () => {
                           type="email"
                           required
                           value={regForm.email}
-                          onChange={(e) => setRegForm(prev => ({ ...prev, email: e.target.value }))}
+                          onChange={(e) => setRegForm((p) => ({ ...p, email: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -305,7 +423,7 @@ const Index = () => {
                           id="schoolName"
                           required
                           value={regForm.schoolName}
-                          onChange={(e) => setRegForm(prev => ({ ...prev, schoolName: e.target.value }))}
+                          onChange={(e) => setRegForm((p) => ({ ...p, schoolName: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -315,7 +433,7 @@ const Index = () => {
                           type="password"
                           required
                           value={regForm.password}
-                          onChange={(e) => setRegForm(prev => ({ ...prev, password: e.target.value }))}
+                          onChange={(e) => setRegForm((p) => ({ ...p, password: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -325,11 +443,13 @@ const Index = () => {
                           type="password"
                           required
                           value={regForm.confirmPassword}
-                          onChange={(e) => setRegForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          onChange={(e) => setRegForm((p) => ({ ...p, confirmPassword: e.target.value }))}
                         />
                       </div>
                       <Button type="submit" className="w-full" disabled={regForm.loading}>
-                        {regForm.loading ? "Creating Account..." : `Start 7-Day Free Trial - ${plans.find(p => p.id === selectedPlan)?.name}`}
+                        {regForm.loading
+                          ? "Creating Account..."
+                          : `Start 7-Day Free Trial - ${plans.find((p) => p.id === selectedPlan)?.name}`}
                       </Button>
                       <p className="text-center text-sm text-muted-foreground mt-2">
                         Then 50% off for first 3 months • Cancel anytime
@@ -355,7 +475,9 @@ const Index = () => {
                             <div>
                               <CardTitle className="text-lg flex items-center gap-2">
                                 {plan.name}
-                                {plan.popular && <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>}
+                                {plan.popular && (
+                                  <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>
+                                )}
                               </CardTitle>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-muted-foreground line-through">{plan.originalPrice}</span>
@@ -363,11 +485,17 @@ const Index = () => {
                                   {plan.promoPrice}
                                   <span className="text-sm font-normal text-muted-foreground">/month</span>
                                 </p>
-                                <Badge variant="destructive" className="text-xs">50% OFF</Badge>
+                                <Badge variant="destructive" className="text-xs">
+                                  50% OFF
+                                </Badge>
                               </div>
                               <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
                             </div>
-                            <div className={`w-4 h-4 rounded-full border-2 ${selectedPlan === plan.id ? "bg-primary border-primary" : "border-muted-foreground"}`} />
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 ${
+                                selectedPlan === plan.id ? "bg-primary border-primary" : "border-muted-foreground"
+                              }`}
+                            />
                           </div>
                         </CardHeader>
                         <CardContent className="pt-0">
@@ -386,87 +514,14 @@ const Index = () => {
               </div>
             </TabsContent>
 
-            {/* Login Tab */}
-            <TabsContent value="login" className="mt-8">
-              <Card className="max-w-md mx-auto">
-                <CardHeader>
-                  <CardTitle>Teacher Sign In</CardTitle>
-                  <p className="text-muted-foreground">Welcome back to your classroom dashboard</p>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="loginEmail">Email</Label>
-                      <Input
-                        id="loginEmail"
-                        type="email"
-                        required
-                        value={loginForm.email}
-                        onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="loginPassword">Password</Label>
-                      <Input
-                        id="loginPassword"
-                        type="password"
-                        required
-                        value={loginForm.password}
-                        onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={loginForm.loading}>
-                      {loginForm.loading ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Student Login Tab */}
-            <TabsContent value="student" className="mt-8">
-              <Card className="max-w-md mx-auto">
-                <CardHeader>
-                  <CardTitle>Student Login</CardTitle>
-                  <p className="text-muted-foreground">Enter your name and classroom PIN to begin</p>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleStudentLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="studentName">Your Name</Label>
-                      <Input
-                        id="studentName"
-                        required
-                        placeholder="e.g. Alex Smith"
-                        value={studentForm.studentName}
-                        onChange={(e) => setStudentForm(prev => ({ ...prev, studentName: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="kioskPin">Classroom PIN</Label>
-                      <Input
-                        id="kioskPin"
-                        type="password"
-                        required
-                        placeholder="4-digit PIN from your teacher"
-                        value={studentForm.kioskPin}
-                        onChange={(e) => setStudentForm(prev => ({ ...prev, kioskPin: e.target.value }))}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={studentForm.loading}>
-                      {studentForm.loading ? "Logging In..." : "Log In"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Email Signup Tab (MailerLite) */}
+            {/* Info Tab (MailerLite) */}
             <TabsContent value="info" className="mt-8">
               <Card className="max-w-md mx-auto">
                 <CardHeader>
                   <CardTitle>Get Updates & Resources</CardTitle>
-                  <p className="text-muted-foreground">Stay informed about Sproutify School and receive educational resources</p>
+                  <p className="text-muted-foreground">
+                    Stay informed about Sproutify School and receive educational resources
+                  </p>
                 </CardHeader>
                 <CardContent>
                   <MailerLiteEmbed formId="C39UIG" inline />
@@ -494,7 +549,7 @@ const Index = () => {
           </section>
         )}
 
-        {/* Features Section */}
+        {/* Features */}
         <section className="mb-20">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Educational Tools for Every Classroom</h2>
