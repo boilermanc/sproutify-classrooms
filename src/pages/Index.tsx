@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import MailerLiteInline from "@/components/MailerLiteInline";
+import MailerLiteNoScript from "@/components/MailerLiteNoScript";
 
 /** Gate promos through the end of September (adjust year if needed) */
 const isBackToSchoolActive = () => {
@@ -21,10 +21,6 @@ const isBackToSchoolActive = () => {
 };
 
 type LoginPanel = "teacher" | "student" | null;
-
-// Prefer env, but fall back to your numeric account id so it "just works"
-const MAILERLITE_ACCOUNT: string =
-  (import.meta.env.VITE_MAILERLITE_ACCOUNT as string | undefined)?.toString() || "829365";
 
 const Index = () => {
   const { toast } = useToast();
@@ -518,14 +514,14 @@ const Index = () => {
               </div>
             </TabsContent>
 
-            {/* Info Tab (MailerLite) */}
+            {/* Info Tab (MailerLite direct-post, no scripts) */}
             <TabsContent value="info" className="mt-8">
               <Card className="max-w-md mx-auto">
                 <CardHeader>
                   <CardTitle>Get Updates & Resources</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MailerLiteInline accountId={MAILERLITE_ACCOUNT} formId="C39UIG" />
+                  <MailerLiteNoScript />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -1,96 +1,94 @@
-// src/components/MailerLiteInline.tsx
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import React from "react";
 
-type Props = {
-  /** Either your numeric account id "829365" OR a token like "pk_..." */
-  accountId?: string;
-  /** The embedded form id, e.g. "C39UIG" */
-  formId: string;
-  className?: string;
-};
+/**
+ * Zero-JS MailerLite form (direct POST to JSONP endpoint).
+ * - Uses your account id: 829365
+ * - Uses your form numeric id: 164107087019771240
+ * - Opens ML confirmation in a new tab (target="_blank")
+ *
+ * If you ever change forms in MailerLite, update ACCOUNT_ID / FORM_ID below.
+ */
+const ACCOUNT_ID = "829365";
+const FORM_ID = "164107087019771240";
 
-export default function MailerLiteInline({ accountId, formId, className }: Props) {
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const uniqueId = useId();
-  const scriptId = useMemo(() => "ml-universal", []);
-
-  useEffect(() => {
-    if (!accountId) {
-      setError("Missing MailerLite account id (numeric like 829365 or a pk_ token).");
-      return;
-    }
-
-    // Create global ml() queue once
-    const w = window as any;
-    if (!w.ml) {
-      const ml = function (...args: any[]) {
-        (ml as any).q = (ml as any).q || [];
-        (ml as any).q.push(args);
-      };
-      (w as any).ml = ml;
-    }
-
-    // Inject the universal script once
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://assets.mailerlite.com/js/universal.js";
-      script.async = true;
-      script.defer = true;
-
-      // If it's a token (starts with pk_), MailerLite wants data-token attr
-      if (accountId.startsWith("pk_")) {
-        script.setAttribute("data-token", accountId);
-      }
-
-      script.onload = () => {
-        // If it's a numeric account id, initialize via ml('account', '123456')
-        if (!accountId.startsWith("pk_")) {
-          (window as any).ml?.("account", accountId);
-        }
-        setReady(true);
-      };
-      script.onerror = () => setError("Failed to load MailerLite script.");
-      document.head.appendChild(script);
-    } else {
-      // Script already present; ensure numeric account is set
-      if (!accountId.startsWith("pk_")) {
-        (window as any).ml?.("account", accountId);
-      }
-      setReady(true);
-    }
-  }, [accountId, scriptId]);
-
-  // Ask ML to (re)hydrate this embedded form when ready
-  useEffect(() => {
-    if (!ready || !accountId || !containerRef.current) return;
-    const target = containerRef.current.querySelector(".ml-embedded") as HTMLElement | null;
-    if (!target) return;
-
-    target.setAttribute("data-form", formId);
-    try {
-      (window as any).ml?.("refresh"); // harmless if not supported
-    } catch {
-      /* no-op */
-    }
-  }, [ready, accountId, formId]);
-
-  if (error) {
-    return (
-      <div className={`rounded-md border p-4 text-sm ${className ?? ""}`}>
-        <div className="font-medium mb-1">MailerLite not configured</div>
-        <div className="text-muted-foreground">{error}</div>
-      </div>
-    );
-  }
+export default function MailerLiteNoScript({ className = "" }: { className?: string }) {
+  const action = `https://assets.mailerlite.com/jsonp/${ACCOUNT_ID}/forms/${FORM_ID}/subscribe`;
 
   return (
-    <div ref={containerRef} className={className}>
-      {/* This is what the universal script hydrates */}
-      <div id={`ml-wrapper-${uniqueId}`} className="ml-embedded" data-form={formId} />
-    </div>
+    <form
+      action={action}
+      method="post"
+      target="_blank"
+      className={`space-y-4 ${className}`}
+      aria-label="Subscribe to Sproutify School updates"
+    >
+      {/* Email */}
+      <div className="space-y-1">
+        <label htmlFor="ml-email" className="text-sm font-medium">
+          Email <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="ml-email"
+          name="fields[email]"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@school.org"
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
+      {/* First name */}
+      <div className="space-y-1">
+        <label htmlFor="ml-name" className="text-sm font-medium">
+          First Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="ml-name"
+          name="fields[name]"
+          type="text"
+          required
+          autoComplete="given-name"
+          placeholder="Alex"
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
+      {/* School name */}
+      <div className="space-y-1">
+        <label htmlFor="ml-school" className="text-sm font-medium">
+          School Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="ml-school"
+          name="fields[school_name]"
+          type="text"
+          required
+          placeholder="Riverdale High"
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
+      {/* Optional consent (not required by endpoint unless the form enforces it) */}
+      <div className="flex items-start gap-2">
+        <input id="ml-consent" type="checkbox" defaultChecked className="mt-1" />
+        <label htmlFor="ml-consent" className="text-sm text-muted-foreground">
+          I’d like updates about educational resources and early access opportunities.
+        </label>
+      </div>
+
+      {/* Hidden inputs ML expects */}
+      <input type="hidden" name="ml-submit" value="1" />
+      <input type="hidden" name="anticsrf" value="true" />
+
+      <button type="submit" className="w-full rounded-md bg-black px-4 py-2 text-white text-sm font-medium">
+        Subscribe
+      </button>
+
+      {/* Small note about new tab behavior */}
+      <p className="text-xs text-muted-foreground">
+        You’ll be redirected to a MailerLite confirmation page in a new tab.
+      </p>
+    </form>
   );
 }
