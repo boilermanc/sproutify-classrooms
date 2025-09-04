@@ -242,7 +242,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Expandable panels */}
+        {/* Teacher Login */}
         {openLogin === "teacher" && (
           <div className="border-t">
             <div className="container mx-auto px-6 py-4">
@@ -288,6 +288,7 @@ const Index = () => {
           </div>
         )}
 
+        {/* Student Login */}
         {openLogin === "student" && (
           <div className="border-t">
             <div className="container mx-auto px-6 py-4">
@@ -366,45 +367,90 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Registration + Info tabs (logins moved to top bar) */}
+        {/* Registration + Info Tabs */}
         <section className="mb-20">
           <Tabs defaultValue="register" className="max-w-4xl mx-auto">
             <TabsList className="flex w-full flex-wrap gap-2 sm:grid sm:grid-cols-2">
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="register">Start Free Trial</TabsTrigger>
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="info">Get Info</TabsTrigger>
+              <TabsTrigger className="flex-1 min-w-[42%]" value="register">Start Free Trial</TabsTrigger>
+              <TabsTrigger className="flex-1 min-w-[42%]" value="info">Get Info</TabsTrigger>
             </TabsList>
 
             {/* Registration Tab */}
             <TabsContent value="register" className="mt-8">
-              {/* … unchanged registration and plan selection … */}
-            </TabsContent>
-
-            {/* Info Tab (MailerLite Inline) */}
-            <TabsContent value="info" className="mt-8">
-              <Card className="max-w-md mx-auto">
-                <CardHeader>
-                  <CardTitle>Get Updates & Resources</CardTitle>
-                  <p className="text-muted-foreground">
-                    Stay informed about Sproutify School and receive educational resources
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <MailerLiteInline
-                    accountId={import.meta.env.VITE_MAILERLITE_ACCOUNT!}
-                    formId="C39UIG"
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </section>
-
-        {/* Promo banners, features, etc. remain unchanged */}
-      </main>
-
-      <Footer />
-    </div>
-  );
-};
-
-export default Index;
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Registration Form */}
+                <Card className="order-2 lg:order-1">
+                  <CardHeader>
+                    <CardTitle>Create Your Teacher Account</CardTitle>
+                    <p className="text-muted-foreground">
+                      Start your free trial with the {plans.find((p) => p.id === selectedPlan)?.name} plan
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleRegistration} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">First name</Label>
+                          <Input
+                            id="firstName"
+                            required
+                            value={regForm.firstName}
+                            onChange={(e) => setRegForm((p) => ({ ...p, firstName: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">Last name</Label>
+                          <Input
+                            id="lastName"
+                            required
+                            value={regForm.lastName}
+                            onChange={(e) => setRegForm((p) => ({ ...p, lastName: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          required
+                          value={regForm.email}
+                          onChange={(e) => setRegForm((p) => ({ ...p, email: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="schoolName">School name</Label>
+                        <Input
+                          id="schoolName"
+                          required
+                          value={regForm.schoolName}
+                          onChange={(e) => setRegForm((p) => ({ ...p, schoolName: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          required
+                          value={regForm.password}
+                          onChange={(e) => setRegForm((p) => ({ ...p, password: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          required
+                          value={regForm.confirmPassword}
+                          onChange={(e) => setRegForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={regForm.loading}>
+                        {regForm.loading
+                          ? "Creating Account..."
+                          : `Start 7-Day Free Trial - ${plans.find((p) => p.id === selectedPlan)?.name}`}
+                      </Button>
+                      <p className="text-center text-sm text-muted-foreground mt-2">
+                        Then
