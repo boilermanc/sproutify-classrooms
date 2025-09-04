@@ -1,36 +1,27 @@
-// src/components/MailerLiteInline.tsx
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 type Props = {
-  /** Your MailerLite token, e.g. "pk_xxxxxxxx..." (a.k.a. accountId) */
-  accountId: string | undefined;
-  /** The EMBED form id from MailerLite (new ML looks like a random string) */
+  /** Either your numeric account id "829365" OR a token like "pk_xxx" */
+  accountId?: string;
+  /** Your form id, e.g. "C39UIG" */
   formId: string;
-  /** Optional className for outer container */
   className?: string;
 };
 
-/**
- * Safe, idempotent MailerLite embed for React/Vite.
- * - Injects the universal script once
- * - Handles SSR/strict mode double-mount
- * - Shows clear fallback when env var is missing
- */
 export default function MailerLiteInline({ accountId, formId, className }: Props) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-
+  const uniqueId = useId();
   const scriptId = useMemo(() => "ml-universal", []);
-  const uniqueId = useId(); // ensures unique wrapper id in case of multiple forms
 
   useEffect(() => {
     if (!accountId) {
-      setError("Missing MailerLite account token (VITE_MAILERLITE_ACCOUNT).");
+      setError("Missing MailerLite account id (use your numeric id like 829365 or a pk_ token).");
       return;
     }
 
-    // 1) Create global ml() queue if needed
+    // create global queue once
     const w = window as any;
     if (!w.ml) {
       const ml = function (...args: any[]) {
@@ -40,17 +31,65 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
       (w as any).ml = ml;
     }
 
-    // 2) Add universal script once
-    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!existing) {
-      const s = document.createElement("script");
-      s.id = scriptId;
-      s.src = "https://assets.mailerlite.com/js/universal.js";
-      s.async = true;
-      s.defer = true;
-      s.setAttribute("data-token", accountId);
-      s.onload = () => setReady(true);
-      s.onerror = () => setError("Failed to load MailerLite script.");
-      document.head.appendChild(s);
+    // inject script once
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://assets.mailerlite.com/js/universal.js";
+      script.async = true;
+      script.defer = true;
+
+      // If it's a token (starts with pk_), MailerLite wants data-token
+      if (accountId.startsWith("pk_")) {
+        script.setAttribute("data-token", accountId);
+      }
+
+      script.onload = () => {
+        // If it's a numeric account id, initialize via ml('account', '123456')
+        if (!accountId.startsWith("pk_")) {
+          (window as any).ml?.("account", accountId);
+        }
+        setReady(true);
+      };
+      script.onerror = () => setError("Failed to load MailerLite script.");
+      document.head.appendChild(script);
     } else {
-      // If already present but not yet “ready”, we can still proceed —
+      // If script already there and we’re using numeric id, ensure account is set
+      if (!accountId.startsWith("pk_")) {
+        (window as any).ml?.("account", accountId);
+      }
+      setReady(true);
+    }
+  }, [accountId, scriptId]);
+
+  // request (re)hydration once script is ready
+  useEffect(() => {
+    if (!ready || !accountId || !containerRef.current) return;
+    const target = containerRef.current.querySelector(".ml-embedded") as HTMLElement | null;
+    if (!target) return;
+    target.setAttribute("data-form", formId);
+
+    try {
+      (window as any).ml?.("refresh");
+    } catch {
+      /* no-op */
+    }
+  }, [ready, accountId, formId]);
+
+  if (error) {
+    return (
+      <div className={`rounded-md border p-4 text-sm ${className ?? ""}`}>
+        <div className="font-medium mb-1">MailerLite not configured</div>
+        <div className="text-muted-foreground">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className={className}>
+      {/* What the script hydrates */}
+      <div id={`ml-wrapper-${uniqueId}`} className="ml-embedded" data-form={formId} />
+    </div>
+  );
+}
