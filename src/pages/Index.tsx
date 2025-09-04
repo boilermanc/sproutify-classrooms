@@ -22,6 +22,10 @@ const isBackToSchoolActive = () => {
 
 type LoginPanel = "teacher" | "student" | null;
 
+// Prefer env, but fall back to your numeric account id so it "just works"
+const MAILERLITE_ACCOUNT: string =
+  (import.meta.env.VITE_MAILERLITE_ACCOUNT as string | undefined)?.toString() || "829365";
+
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -521,10 +525,7 @@ const Index = () => {
                   <CardTitle>Get Updates & Resources</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MailerLiteInline
-                    accountId={import.meta.env.VITE_MAILERLITE_ACCOUNT!}
-                    formId="C39UIG"
-                  />
+                  <MailerLiteInline accountId={MAILERLITE_ACCOUNT} formId="C39UIG" />
                 </CardContent>
               </Card>
             </TabsContent>
