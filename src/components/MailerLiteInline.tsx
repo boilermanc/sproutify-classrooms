@@ -1,9 +1,10 @@
+// src/components/MailerLiteInline.tsx
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 type Props = {
-  /** Either your numeric account id "829365" OR a token like "pk_xxx" */
+  /** Either your numeric account id "829365" OR a token like "pk_..." */
   accountId?: string;
-  /** Your form id, e.g. "C39UIG" */
+  /** The embedded form id, e.g. "C39UIG" */
   formId: string;
   className?: string;
 };
@@ -17,11 +18,11 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
 
   useEffect(() => {
     if (!accountId) {
-      setError("Missing MailerLite account id (use your numeric id like 829365 or a pk_ token).");
+      setError("Missing MailerLite account id (numeric like 829365 or a pk_ token).");
       return;
     }
 
-    // create global queue once
+    // Create global ml() queue once
     const w = window as any;
     if (!w.ml) {
       const ml = function (...args: any[]) {
@@ -31,7 +32,7 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
       (w as any).ml = ml;
     }
 
-    // inject script once
+    // Inject the universal script once
     let script = document.getElementById(scriptId) as HTMLScriptElement | null;
     if (!script) {
       script = document.createElement("script");
@@ -40,7 +41,7 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
       script.async = true;
       script.defer = true;
 
-      // If it's a token (starts with pk_), MailerLite wants data-token
+      // If it's a token (starts with pk_), MailerLite wants data-token attr
       if (accountId.startsWith("pk_")) {
         script.setAttribute("data-token", accountId);
       }
@@ -55,7 +56,7 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
       script.onerror = () => setError("Failed to load MailerLite script.");
       document.head.appendChild(script);
     } else {
-      // If script already there and we’re using numeric id, ensure account is set
+      // Script already present; ensure numeric account is set
       if (!accountId.startsWith("pk_")) {
         (window as any).ml?.("account", accountId);
       }
@@ -63,15 +64,15 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
     }
   }, [accountId, scriptId]);
 
-  // request (re)hydration once script is ready
+  // Ask ML to (re)hydrate this embedded form when ready
   useEffect(() => {
     if (!ready || !accountId || !containerRef.current) return;
     const target = containerRef.current.querySelector(".ml-embedded") as HTMLElement | null;
     if (!target) return;
-    target.setAttribute("data-form", formId);
 
+    target.setAttribute("data-form", formId);
     try {
-      (window as any).ml?.("refresh");
+      (window as any).ml?.("refresh"); // harmless if not supported
     } catch {
       /* no-op */
     }
@@ -88,7 +89,7 @@ export default function MailerLiteInline({ accountId, formId, className }: Props
 
   return (
     <div ref={containerRef} className={className}>
-      {/* What the script hydrates */}
+      {/* This is what the universal script hydrates */}
       <div id={`ml-wrapper-${uniqueId}`} className="ml-embedded" data-form={formId} />
     </div>
   );
