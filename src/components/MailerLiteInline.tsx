@@ -1,93 +1,91 @@
+// src/components/MailerLiteNoScript.tsx
 import React from "react";
 
 /**
- * Zero-JS MailerLite form (direct POST to JSONP endpoint).
- * - Uses your account id: 829365
- * - Uses your form numeric id: 164107087019771240
- * - Opens ML confirmation in a new tab (target="_blank")
- *
- * If you ever change forms in MailerLite, update ACCOUNT_ID / FORM_ID below.
+ * A zero-JavaScript MailerLite form that posts directly to MailerLite.
+ * - No script tags, no env vars required.
+ * - Opens the MailerLite confirmation/thank-you in a new tab.
  */
-const ACCOUNT_ID = "829365";
-const FORM_ID = "164107087019771240";
-
-export default function MailerLiteNoScript({ className = "" }: { className?: string }) {
-  const action = `https://assets.mailerlite.com/jsonp/${ACCOUNT_ID}/forms/${FORM_ID}/subscribe`;
-
+export default function MailerLiteNoScript() {
   return (
     <form
-      action={action}
+      action="https://assets.mailerlite.com/jsonp/829365/forms/164107087019771240/subscribe"
       method="post"
       target="_blank"
-      className={`space-y-4 ${className}`}
-      aria-label="Subscribe to Sproutify School updates"
+      noValidate
+      className="space-y-4"
     >
-      {/* Email */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         <label htmlFor="ml-email" className="text-sm font-medium">
-          Email <span className="text-red-500">*</span>
+          Email
         </label>
         <input
           id="ml-email"
-          name="fields[email]"
           type="email"
-          required
+          name="fields[email]"
+          placeholder="you@example.com"
           autoComplete="email"
-          placeholder="you@school.org"
-          className="w-full rounded-md border px-3 py-2 text-sm"
+          required
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      {/* First name */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         <label htmlFor="ml-name" className="text-sm font-medium">
-          First Name <span className="text-red-500">*</span>
+          First Name
         </label>
         <input
           id="ml-name"
-          name="fields[name]"
           type="text"
-          required
+          name="fields[name]"
+          placeholder="First name"
           autoComplete="given-name"
-          placeholder="Alex"
-          className="w-full rounded-md border px-3 py-2 text-sm"
+          required
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      {/* School name */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         <label htmlFor="ml-school" className="text-sm font-medium">
-          School Name <span className="text-red-500">*</span>
+          School Name
         </label>
         <input
           id="ml-school"
-          name="fields[school_name]"
           type="text"
+          name="fields[school_name]"
+          placeholder="Your school"
           required
-          placeholder="Riverdale High"
-          className="w-full rounded-md border px-3 py-2 text-sm"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      {/* Optional consent (not required by endpoint unless the form enforces it) */}
       <div className="flex items-start gap-2">
-        <input id="ml-consent" type="checkbox" defaultChecked className="mt-1" />
-        <label htmlFor="ml-consent" className="text-sm text-muted-foreground">
-          I’d like updates about educational resources and early access opportunities.
+        <input
+          id="ml-optin"
+          type="checkbox"
+          // MailerLite’s no-script markup didn’t include a name for this box,
+          // so it’s informational only. Keep it required for UX.
+          required
+          className="mt-1 h-4 w-4"
+        />
+        <label htmlFor="ml-optin" className="text-sm text-muted-foreground">
+          I’m interested in receiving updates about educational resources and early access opportunities.
         </label>
       </div>
 
-      {/* Hidden inputs ML expects */}
+      {/* Required hidden inputs for the MailerLite endpoint */}
       <input type="hidden" name="ml-submit" value="1" />
       <input type="hidden" name="anticsrf" value="true" />
 
-      <button type="submit" className="w-full rounded-md bg-black px-4 py-2 text-white text-sm font-medium">
+      <button
+        type="submit"
+        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+      >
         Subscribe
       </button>
 
-      {/* Small note about new tab behavior */}
       <p className="text-xs text-muted-foreground">
-        You’ll be redirected to a MailerLite confirmation page in a new tab.
+        We’ll keep you updated on Sproutify School and notify you when our educational platform is ready for classrooms.
       </p>
     </form>
   );
