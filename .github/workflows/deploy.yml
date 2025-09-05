@@ -2,7 +2,8 @@ name: Build and Deploy Sproutify Classrooms
 
 on:
   push:
-    branches: [main]
+    branches: [main]         # prod only
+  workflow_dispatch: {}       # allow manual runs
 
 jobs:
   build-and-deploy:
@@ -11,7 +12,7 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      VITE_ENABLE_GARDEN_NETWORK: ${{ secrets.VITE_ENABLE_GARDEN_NETWORK }}  # <-- add this line
+      # (Feature flags: set defaults in code; avoid referencing missing vars/secrets here.)
 
     steps:
       - name: Checkout
@@ -71,16 +72,16 @@ jobs:
 
       - name: Deploy via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.0.0
-        env:
+        with:
           SSH_PRIVATE_KEY: ${{ secrets.IONOS_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.IONOS_HOST }}
           REMOTE_USER: ${{ secrets.IONOS_USERNAME }}
           TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
-          SOURCE: "dist/"
+          SOURCE: dist/
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
           SCRIPT_AFTER: |
             set -e
-            cd "${TARGET}"
+            cd "${{ secrets.IONOS_SCHOOL_PATH }}"
             echo "PWD: $(pwd)"
             ls -la | sed -n '1,160p'
             echo "---- build-info.txt ----"
