@@ -84,51 +84,28 @@ export function AppSidebar() {
   };
 
   const handleLogout = async () => {
+    console.log('🚪 Starting forced logout...');
+    
+    // Don't wait for Supabase - just clear everything and redirect
     try {
-      console.log('Starting logout...');
-      
-      // First, sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Logout error:', error);
-        toast({ 
-          title: "Logout failed", 
-          description: error.message, 
-          variant: "destructive" 
-        });
-        return;
-      }
-      
-      console.log('Supabase logout successful');
-      
-      // Clear any local storage items that might be cached
-      localStorage.removeItem('sproutify:store');
-      localStorage.removeItem('student_classroom_id');
-      localStorage.removeItem('student_classroom_name');
-      localStorage.removeItem('teacher_id_for_tower');
-      
-      console.log('Local storage cleared');
-      
-      // Small delay to ensure cleanup completes
-      setTimeout(() => {
-        console.log('Redirecting to login...');
-        window.location.href = '/auth/login';
-      }, 100);
-      
+      // Fire and forget - don't wait for the result
+      supabase.auth.signOut().catch(err => console.log('Supabase logout error (ignored):', err));
     } catch (err) {
-      console.error('Logout failed:', err);
-      toast({ 
-        title: "Logout failed", 
-        description: "An unexpected error occurred", 
-        variant: "destructive" 
-      });
-      
-      // Fallback: force redirect even if logout fails
-      setTimeout(() => {
-        window.location.href = '/auth/login';
-      }, 1000);
+      console.log('Supabase logout failed (ignored):', err);
     }
+    
+    // Clear all local storage immediately
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    console.log('🧹 Storage cleared');
+    
+    // Show immediate feedback
+    toast({ title: "Signing out..." });
+    
+    // Force immediate redirect
+    console.log('🔄 Forcing redirect...');
+    window.location.replace('/auth/login');
   };
 
   // Group items for better organization when Garden Network is enabled
