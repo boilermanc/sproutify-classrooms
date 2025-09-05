@@ -25,7 +25,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 // DEBUG: Check environment variables
 console.log('🌱 GARDEN_NETWORK feature flag:', process.env.VITE_ENABLE_GARDEN_NETWORK);
@@ -84,9 +84,35 @@ export function AppSidebar() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({ title: "Signed out" });
-    navigate("/auth/login");
+    try {
+      console.log('Starting logout...');
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        toast({ 
+          title: "Logout failed", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      console.log('Logout successful');
+      toast({ title: "Signed out successfully" });
+      
+      // Force navigation and clear any cached data
+      window.location.href = '/auth/login';
+      
+    } catch (err) {
+      console.error('Logout failed:', err);
+      toast({ 
+        title: "Logout failed", 
+        description: "An unexpected error occurred", 
+        variant: "destructive" 
+      });
+    }
   };
 
   // Group items for better organization when Garden Network is enabled
