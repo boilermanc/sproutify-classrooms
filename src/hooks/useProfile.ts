@@ -103,7 +103,7 @@ export function useProfile() {
     } else {
       timeGreeting = "Good evening";
     }
-    return ${timeGreeting}, ;
+    return \`${timeGreeting}, ${firstName}\`;
   };
   return {
     profile,
