@@ -14,6 +14,7 @@ export default function NewTower() {
   const navigate = useNavigate();
   const { dispatch } = useAppStore();
   const [portsStr, setPortsStr] = useState("20");
+  const [location, setLocation] = useState("indoor"); // Add location state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,13 +41,14 @@ export default function NewTower() {
         throw new Error("You must be logged in to create a tower");
       }
 
-      // Insert tower into Supabase
+      // Insert tower into Supabase with location
       const { data: tower, error: insertError } = await supabase
         .from('towers')
         .insert({
           name: name,
           ports: ports,
           teacher_id: user.id,
+          location: location, // Add location to the insert
         })
         .select()
         .single();
@@ -61,7 +63,8 @@ export default function NewTower() {
         payload: { 
           id: tower.id, // Use the ID from the database
           name: tower.name, 
-          ports: tower.ports 
+          ports: tower.ports,
+          location: tower.location // Include location in state if needed
         } 
       });
 
@@ -94,6 +97,7 @@ export default function NewTower() {
                 disabled={isSubmitting}
               />
             </div>
+            
             <div className="space-y-2">
               <Label>Port configuration</Label>
               <Select value={portsStr} onValueChange={setPortsStr} disabled={isSubmitting}>
@@ -104,6 +108,45 @@ export default function NewTower() {
                   <SelectItem value="20">20 ports</SelectItem>
                   <SelectItem value="28">28 ports</SelectItem>
                   <SelectItem value="32">32 ports</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Add Location Selection */}
+            <div className="space-y-2">
+              <Label>Tower location</Label>
+              <Select value={location} onValueChange={setLocation} disabled={isSubmitting}>
+                <SelectTrigger id="location">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="indoor">
+                    <div className="flex items-center gap-2">
+                      <span>🏠</span>
+                      <div>
+                        <div>Indoor</div>
+                        <div className="text-xs text-muted-foreground">Inside classroom or building</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="greenhouse">
+                    <div className="flex items-center gap-2">
+                      <span>🏡</span>
+                      <div>
+                        <div>Greenhouse</div>
+                        <div className="text-xs text-muted-foreground">Controlled environment structure</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="outdoor">
+                    <div className="flex items-center gap-2">
+                      <span>🌳</span>
+                      <div>
+                        <div>Outdoor</div>
+                        <div className="text-xs text-muted-foreground">Outside garden or patio</div>
+                      </div>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
