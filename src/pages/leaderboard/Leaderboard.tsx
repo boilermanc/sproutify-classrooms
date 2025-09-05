@@ -1,35 +1,110 @@
-// src/pages/leaderboard/Leaderboard.tsx (Fully Updated)
+// src/pages/leaderboard/Leaderboard.tsx (Fixed to use database data)
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAppStore } from "@/context/AppStore";
+import { supabase } from "@/integrations/supabase/client";
+
+interface LeaderboardStats {
+  totalWeight: number;
+  totalPlants: number;
+  towerCount: number;
+}
 
 export default function Leaderboard() {
-  const { state } = useAppStore();
+  const [stats, setStats] = useState<LeaderboardStats>({
+    totalWeight: 0,
+    totalPlants: 0,
+    towerCount: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Data for the Harvest Weight Leaderboard
+  useEffect(() => {
+    loadLeaderboardData();
+  }, []);
+
+  const loadLeaderboardData = async () => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get harvest totals from database
+      const { data: harvestData, error: harvestError } = await supabase
+        .from('harvests')
+        .select('weight_grams, plant_quantity')
+        .eq('teacher_id', user.id);
+
+      if (harvestError) {
+        console.error('Error loading harvest data:', harvestError);
+        return;
+      }
+
+      // Get tower count from database
+      const { data: towerData, error: towerError } = await supabase
+        .from('towers')
+        .select('id')
+        .eq('teacher_id', user.id);
+
+      if (towerError) {
+        console.error('Error loading tower data:', towerError);
+        return;
+      }
+
+      // Calculate totals from actual database data
+      const totalWeight = harvestData?.reduce((sum, h) => sum + (h.weight_grams || 0), 0) || 0;
+      const totalPlants = harvestData?.reduce((sum, h) => sum + (h.plant_quantity || 0), 0) || 0;
+      const towerCount = towerData?.length || 0;
+
+      setStats({
+        totalWeight,
+        totalPlants,
+        towerCount
+      });
+
+    } catch (error) {
+      console.error('Error loading leaderboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Data for the Harvest Weight Leaderboard (using real database data)
   const harvestClasses = [
-    { name: "Your Class", grams: totalWeight(state), towers: state.towers.length },
-    { name: "District Average", grams: Math.round(totalWeight(state) * 1.2), towers: 7 },
-    { name: "State Leader", grams: Math.round(totalWeight(state) * 1.8), towers: 18 },
+    { name: "Your Class", grams: stats.totalWeight, towers: stats.towerCount },
+    { name: "District Average", grams: Math.round(stats.totalWeight * 1.2), towers: 7 },
+    { name: "State Leader", grams: Math.round(stats.totalWeight * 1.8), towers: 18 },
   ];
 
-  // Data for the Number of Plants Leaderboard
+  // Data for the Number of Plants Leaderboard (using real database data)
   const plantClasses = [
-    { name: "Your Class", plants: totalPlants(state), towers: state.towers.length },
-    { name: "District Average", plants: Math.round(totalPlants(state) * 1.3), towers: 7 },
-    { name: "State Leader", plants: Math.round(totalPlants(state) * 1.9), towers: 18 },
+    { name: "Your Class", plants: stats.totalPlants, towers: stats.towerCount },
+    { name: "District Average", plants: Math.round(stats.totalPlants * 1.3), towers: 7 },
+    { name: "State Leader", plants: Math.round(stats.totalPlants * 1.9), towers: 18 },
   ];
 
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Leaderboard</h1>
+        <div className="text-center py-8">Loading leaderboard data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Leaderboard</h1>
 
+      {/* Debug info - remove this after testing */}
+      <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+        Debug: {stats.totalWeight}g total, {stats.totalPlants} plants, {stats.towerCount} towers
+      </div>
+
       {/* Card 1: Harvest Weight */}
       <Card>
         <CardHeader><CardTitle>Total Harvest (Weight)</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
-          {harvestClasses.map((c)=> (
+          {harvestClasses.map((c) => (
             <div key={c.name} className="p-4 rounded-lg border">
               <div className="text-sm text-muted-foreground">{c.name}</div>
               <div className="text-3xl font-bold">{c.grams.toLocaleString()} g</div>
@@ -43,7 +118,7 @@ export default function Leaderboard() {
       <Card>
         <CardHeader><CardTitle>Total Harvest (Plants)</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
-          {plantClasses.map((c)=> (
+          {plantClasses.map((c) => (
             <div key={c.name} className="p-4 rounded-lg border">
               <div className="text-sm text-muted-foreground">{c.name}</div>
               <div className="text-3xl font-bold">{c.plants.toLocaleString()}</div>
@@ -54,16 +129,4 @@ export default function Leaderboard() {
       </Card>
     </div>
   );
-}
-
-// This function calculates the total weight from all harvests
-function totalWeight(state: ReturnType<typeof useAppStore>["state"]) {
-  // Assuming 'weightGrams' exists on your harvest objects in the store
-  return state.towers.reduce((sum, t) => sum + t.harvests.reduce((s,h)=> s + (h.weight_grams || 0), 0), 0);
-}
-
-// This NEW function calculates the total number of plants from all harvests
-function totalPlants(state: ReturnType<typeof useAppStore>["state"]) {
-  // Assuming 'plant_quantity' exists on your harvest objects in the store
-  return state.towers.reduce((sum, t) => sum + t.harvests.reduce((s,h)=> s + (h.plant_quantity || 0), 0), 0);
 }
