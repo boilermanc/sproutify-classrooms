@@ -1,6 +1,7 @@
 // src/hooks/useProfile.ts
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
 export type UserProfile = {
   id: string;
   full_name: string | null;
@@ -12,21 +13,27 @@ export type UserProfile = {
   timezone: string | null;
   school_image_url: string | null;
 };
+
 export function useProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
+
     const fetchProfile = async () => {
       try {
         setLoading(true);
         setError(null);
+
         // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
         if (userError) {
           throw userError;
         }
+
         if (!user) {
           // No user logged in
           if (mounted) {
@@ -35,16 +42,19 @@ export function useProfile() {
           }
           return;
         }
+
         // Fetch profile data
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("id, full_name, school_name, avatar_url, district, bio, phone, timezone, school_image_url")
           .eq("id", user.id)
           .single();
+
         if (profileError && profileError.code !== 'PGRST116') {
           // PGRST116 means "no rows found", which is not an error
           throw profileError;
         }
+
         if (mounted) {
           setProfile(profileData || {
             id: user.id,
@@ -58,6 +68,7 @@ export function useProfile() {
             school_image_url: null,
           });
         }
+
       } catch (err) {
         console.error('Error fetching profile:', err);
         if (mounted) {
@@ -70,6 +81,7 @@ export function useProfile() {
         }
       }
     };
+
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -78,24 +90,30 @@ export function useProfile() {
         }
       }
     );
+
     // Initial fetch
     fetchProfile();
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
   }, []);
+
   // Helper function to get first name
   const getFirstName = () => {
     if (!profile?.full_name) return null;
     return profile.full_name.split(' ')[0];
   };
+
   // Helper function to get greeting
   const getGreeting = () => {
     const firstName = getFirstName();
     if (!firstName) return "Welcome";
+    
     const hour = new Date().getHours();
     let timeGreeting;
+    
     if (hour < 12) {
       timeGreeting = "Good morning";
     } else if (hour < 18) {
@@ -103,8 +121,10 @@ export function useProfile() {
     } else {
       timeGreeting = "Good evening";
     }
-    return \`${timeGreeting}, ${firstName}\`;
+    
+    return `${timeGreeting}, ${firstName}`;
   };
+
   return {
     profile,
     loading,
