@@ -23,7 +23,7 @@ export default function HelpCenter() {
       <header className="mb-6">
         <h1 className="text-3xl font-bold">Help Center</h1>
         <p className="text-muted-foreground mt-2">
-          Everything you need to know about managing your classroom hydroponic garden
+          Everything you need to know about managing your classroom aeroponic garden
         </p>
       </header>
 
@@ -185,7 +185,7 @@ export default function HelpCenter() {
                 <div>
                   <h4 className="font-semibold mb-2">Setting Up Towers</h4>
                   <ul className="list-disc pl-6 space-y-1">
-                    <li>Create towers for each hydroponic system in your classroom</li>
+                    <li>Create towers for each aeroponic system in your classroom</li>
                     <li>Use descriptive names (e.g., "Window Tower", "Corner System")</li>
                     <li>Set the correct number of ports for accurate tracking</li>
                     <li>Take photos to help students identify different towers</li>

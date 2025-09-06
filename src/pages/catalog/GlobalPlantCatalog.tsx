@@ -63,7 +63,7 @@ const GlobalPlantCatalog = () => {
     <>
       <SEO 
         title="Global Plant Catalog | Sproutify School"
-        description="Browse and add plants from the global catalog to your classroom. Discover new varieties for your hydroponic towers."
+        description="Browse and add plants from the global catalog to your classroom. Discover new varieties for your aeroponic towers."
         canonical="/app/catalog/global"
       />
 

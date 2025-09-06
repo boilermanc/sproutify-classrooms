@@ -9,10 +9,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useAppStore, TowerPortConfig } from "@/context/AppStore";
 import { supabase } from "@/integrations/supabase/client";
+import { useSubscriptionLimits } from "@/hooks/useSubscriptionLimits";
 
 export default function NewTower() {
   const navigate = useNavigate();
   const { dispatch } = useAppStore();
+  const { checkTowerLimit, refreshLimits } = useSubscriptionLimits();
   const [portsStr, setPortsStr] = useState("20");
   const [location, setLocation] = useState("indoor"); // Add location state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,6 +27,13 @@ export default function NewTower() {
     const ports = Number(portsStr) as TowerPortConfig;
     
     if (!name || !ports) return;
+
+    // Check subscription limits first
+    const canCreate = await checkTowerLimit();
+    if (!canCreate) {
+      // User will see toast message about upgrade from the hook
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -67,6 +76,9 @@ export default function NewTower() {
           location: tower.location // Include location in state if needed
         } 
       });
+
+      // Refresh subscription limits to update usage tracking
+      refreshLimits();
 
       // Navigate to towers list
       navigate("/app/towers");

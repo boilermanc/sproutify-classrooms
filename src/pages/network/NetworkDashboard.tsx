@@ -222,7 +222,7 @@ export default function NetworkDashboard() {
             </div>
             <CardTitle>Join the Garden Network</CardTitle>
             <CardDescription>
-              Connect your classroom to a global community of hydroponic educators and students
+              Connect your classroom to a global community of aeroponic educators and students
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">

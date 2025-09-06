@@ -19,7 +19,7 @@ interface ColorNumberInputProps extends Omit<InputProps, 'onChange' | 'value'> {
 const PH_COLORS = [
   { color: "#ef4444", bgColor: "bg-red-500", name: "Red", value: 4.5, range: "Very Acidic (4.0-5.0)", description: "Too acidic for most plants" },
   { color: "#f97316", bgColor: "bg-orange-500", name: "Orange", value: 5.2, range: "Acidic (5.0-5.5)", description: "Getting close to ideal" },
-  { color: "#eab308", bgColor: "bg-yellow-500", name: "Yellow-Green", value: 5.5, range: "Ideal (5.2-5.8)", description: "Perfect for hydroponic plants!" },
+  { color: "#eab308", bgColor: "bg-yellow-500", name: "Yellow-Green", value: 5.5, range: "Ideal (5.2-5.8)", description: "Perfect for aeroponic plants!" },
   { color: "#22c55e", bgColor: "bg-green-500", name: "Green", value: 6.0, range: "Slightly Basic (5.8-6.5)", description: "Still acceptable" },
   { color: "#3b82f6", bgColor: "bg-blue-500", name: "Blue", value: 6.8, range: "Basic (6.5-7.0)", description: "Too basic for most plants" },
   { color: "#8b5cf6", bgColor: "bg-purple-500", name: "Purple", value: 7.2, range: "Very Basic (7.0+)", description: "Much too high" }

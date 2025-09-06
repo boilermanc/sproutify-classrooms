@@ -187,6 +187,20 @@ const Index = () => {
     loading: false,
   });
 
+  // Helper function to get plan limits
+  const getPlanLimits = (planId: string) => {
+    switch (planId) {
+      case "basic":
+        return { max_towers: 3, max_students: 50 };
+      case "professional":
+        return { max_towers: 10, max_students: 200 };
+      case "school":
+        return { max_towers: 999999, max_students: 999999 }; // "Unlimited"
+      default:
+        return { max_towers: 3, max_students: 50 };
+    }
+  };
+
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (regForm.password !== regForm.confirmPassword) {
@@ -225,19 +239,36 @@ const Index = () => {
         schoolId = newSchool.id;
       }
 
-      // 3) Profile
+      // 3) Get plan limits
+      const planLimits = getPlanLimits(selectedPlan);
+      
+      // Calculate trial end date (7 days from now)
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+      // 4) Profile with subscription setup
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: userId,
           first_name: regForm.firstName,
           last_name: regForm.lastName,
           school_id: schoolId,
+          // Subscription fields
+          subscription_status: 'trial',
+          subscription_plan: selectedPlan,
+          trial_ends_at: trialEndsAt.toISOString(),
+          max_towers: planLimits.max_towers,
+          max_students: planLimits.max_students,
+          // Initialize Stripe fields as null (will be set when they actually subscribe)
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          subscription_ends_at: null,
         },
         { onConflict: "id" }
       );
       if (profileError) throw new Error(profileError.message);
 
-      // 4) Role
+      // 5) Role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: userId,
         role: "teacher",
@@ -248,7 +279,7 @@ const Index = () => {
         title: "Account created!",
         description: `Welcome to Sproutify School ${
           selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)
-        } plan. Check your email to confirm your account.`,
+        } plan. Your 7-day free trial has started!`,
       });
       navigate("/app");
     } catch (err: any) {

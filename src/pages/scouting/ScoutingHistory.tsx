@@ -354,7 +354,7 @@ export default function ScoutingHistory() {
     <>
       <SEO 
         title="Scouting History | Sproutify School"
-        description="View and manage all scouting observations across your hydroponic towers"
+        description="View and manage all scouting observations across your aeroponic towers"
       />
       
       <div className="container py-8 space-y-6">

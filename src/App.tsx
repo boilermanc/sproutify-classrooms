@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 
 import Index from "./pages/Index";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
@@ -38,6 +39,13 @@ import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
+
+// Subscription components
+import SubscriptionSuccess from "@/pages/subscription/SubscriptionSuccess";
+import SubscriptionManagement from "@/pages/subscription/SubscriptionManagement";
+
+// Subscription Guard
+import { SubscriptionGuard } from "@/components/SubscriptionGuard";
 
 // Guides
 import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
@@ -74,10 +82,17 @@ const App = () => (
         <Routes>
           {/* Public */}
           <Route path="/" element={<Index />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="/accessibility" element={<Accessibility />} />
+
+          {/* Subscription routes (public access) */}
+          <Route path="/subscription">
+            <Route path="success" element={<SubscriptionSuccess />} />
+            <Route path="manage" element={<SubscriptionManagement />} />
+          </Route>
 
           {/* Auth */}
           <Route path="/auth">
@@ -100,8 +115,16 @@ const App = () => (
             <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
           </Route>
 
-          {/* Teacher app (protected) */}
-          <Route path="/app" element={<AppStoreProviderWrapper />}>
+          {/* Teacher app (protected with subscription guard) */}
+          <Route path="/app" element={
+            <SubscriptionGuard>
+              <AppStoreProviderWrapper>
+                <AppLayout>
+                  <Outlet />
+                </AppLayout>
+              </AppStoreProviderWrapper>
+            </SubscriptionGuard>
+          }>
             <Route index element={<DashboardHome />} />
 
             <Route path="towers">
