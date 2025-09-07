@@ -160,7 +160,8 @@ if ($effective -eq 'test' -and $target.ComposeDir -and $target.Service) {
   $restart = ("cd {0} && (docker compose restart {1} || docker-compose restart {1})" -f $target.ComposeDir, $target.Service)
   Invoke-SSH $HostAlias $restart 'restart test container'
 } elseif ($effective -eq 'prod') {
-  $stamp = (Get-Date -AsUTC -Format s)
+  # *** THIS IS THE UPDATED LINE ***
+  $stamp = ([DateTime]::UtcNow).ToString("s")
   Invoke-SSH $HostAlias ("printf '%s`n' '$stamp' > '{0}/.deployed_utc'" -f $RemotePath) 'write stamp'
 }
 
