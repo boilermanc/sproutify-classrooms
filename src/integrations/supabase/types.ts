@@ -450,42 +450,75 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           district: string | null
+          email: string | null
+          first_name: string | null
           full_name: string | null
           id: string
+          last_name: string | null
+          max_students: number | null
+          max_towers: number | null
           phone: string | null
           school_id: string | null
           school_image_url: string | null
           school_name: string | null
           settings: Json
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_ends_at: string | null
+          subscription_plan: string | null
+          subscription_status: string | null
           timezone: string | null
+          trial_ends_at: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           district?: string | null
+          email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id: string
+          last_name?: string | null
+          max_students?: number | null
+          max_towers?: number | null
           phone?: string | null
           school_id?: string | null
           school_image_url?: string | null
           school_name?: string | null
           settings?: Json
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
           timezone?: string | null
+          trial_ends_at?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           district?: string | null
+          email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          last_name?: string | null
+          max_students?: number | null
+          max_towers?: number | null
           phone?: string | null
           school_id?: string | null
           school_image_url?: string | null
           school_name?: string | null
           settings?: Json
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
           timezone?: string | null
+          trial_ends_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
