@@ -160,6 +160,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   const [selectedPlan, setSelectedPlan] = useState("professional");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual"); // Default to annual
   const [openLogin, setOpenLogin] = useState<LoginPanel>(null);
 
   // Registration form state
@@ -246,7 +247,7 @@ const Index = () => {
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-      // 4) Profile with subscription setup
+      // 4) Profile with subscription setup including billing period
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: userId,
@@ -256,6 +257,7 @@ const Index = () => {
           // Subscription fields
           subscription_status: 'trial',
           subscription_plan: selectedPlan,
+          billing_period: billingPeriod, // Add billing period
           trial_ends_at: trialEndsAt.toISOString(),
           max_towers: planLimits.max_towers,
           max_students: planLimits.max_students,
@@ -275,11 +277,12 @@ const Index = () => {
       });
       if (roleError) throw new Error(roleError.message);
 
+      const planName = plans.find((p) => p.id === selectedPlan)?.name;
+      const period = billingPeriod === "annual" ? "Annual" : "Monthly";
+      
       toast({
         title: "Account created!",
-        description: `Welcome to Sproutify School ${
-          selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)
-        } plan. Your 7-day free trial has started!`,
+        description: `Welcome to Sproutify School ${planName} ${period} plan. Your 7-day free trial has started!`,
       });
       navigate("/app");
     } catch (err: any) {
@@ -339,16 +342,20 @@ const Index = () => {
     {
       id: "basic",
       name: "Basic",
-      originalPrice: "$19.99",
-      promoPrice: "$9.99",
+      monthlyPrice: "$9.99",
+      annualPrice: "$107.88",
+      originalMonthlyPrice: "$19.99",
+      originalAnnualPrice: "$119.88",
       description: "Perfect for small classrooms and getting started with aeroponic education.",
       features: ["Up to 3 towers", "50 student accounts", "Basic curriculum modules", "Student progress tracking", "Email support"],
     },
     {
       id: "professional",
       name: "Professional",
-      originalPrice: "$39.99",
-      promoPrice: "$19.99",
+      monthlyPrice: "$19.99",
+      annualPrice: "$215.88",
+      originalMonthlyPrice: "$39.99",
+      originalAnnualPrice: "$239.88",
       description: "Ideal for larger classrooms and comprehensive agricultural education programs.",
       popular: true,
       features: [
@@ -363,8 +370,10 @@ const Index = () => {
     {
       id: "school",
       name: "School",
-      originalPrice: "$79.99",
-      promoPrice: "$39.99",
+      monthlyPrice: "$39.99",
+      annualPrice: "$431.88",
+      originalMonthlyPrice: "$79.99",
+      originalAnnualPrice: "$479.88",
       description: "Comprehensive solution for entire schools and district-wide implementations.",
       features: [
         "Unlimited towers",
@@ -376,6 +385,25 @@ const Index = () => {
       ],
     },
   ];
+
+  // Helper function to get the current plan's display pricing
+  const getCurrentPlanPricing = (plan: typeof plans[0]) => {
+    if (billingPeriod === "annual") {
+      return {
+        price: plan.annualPrice,
+        originalPrice: plan.originalAnnualPrice,
+        period: "/year",
+        savings: "10% OFF"
+      };
+    } else {
+      return {
+        price: plan.monthlyPrice,
+        originalPrice: plan.originalMonthlyPrice,
+        period: "/month",
+        savings: "50% OFF"
+      };
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background relative flex flex-col">
@@ -548,6 +576,16 @@ const Index = () => {
                     <p className="text-muted-foreground">
                       Start your free trial with the {plans.find((p) => p.id === selectedPlan)?.name} plan
                     </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        No credit card needed for 7-day trial
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        We accept purchase orders (POs)
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleRegistration} className="space-y-4">
@@ -624,55 +662,89 @@ const Index = () => {
 
                 {/* Plan Selection */}
                 <div className="order-1 lg:order-2">
-                  <h3 className="text-xl font-semibold mb-4">Choose Your Plan</h3>
-                  <div className="space-y-4">
-                    {plans.map((plan) => (
-                      <Card
-                        key={plan.id}
-                        className={`cursor-pointer transition-all ${
-                          selectedPlan === plan.id ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
-                        } ${plan.popular ? "border-secondary" : ""}`}
-                        onClick={() => setSelectedPlan(plan.id)}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold">Choose Your Plan</h3>
+                    
+                    {/* Billing Period Toggle */}
+                    <div className="flex items-center bg-muted rounded-lg p-1">
+                      <Button
+                        variant={billingPeriod === "monthly" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setBillingPeriod("monthly")}
+                        className="text-xs px-3 py-1"
                       >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                {plan.name}
-                                {plan.popular && (
-                                  <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>
+                        Monthly
+                      </Button>
+                      <Button
+                        variant={billingPeriod === "annual" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setBillingPeriod("annual")}
+                        className="text-xs px-3 py-1 relative"
+                      >
+                        Annual
+                        <Badge className="ml-1 bg-green-500 text-white text-[10px] px-1 py-0">
+                          Save 10%
+                        </Badge>
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {plans.map((plan) => {
+                      const pricing = getCurrentPlanPricing(plan);
+                      return (
+                        <Card
+                          key={plan.id}
+                          className={`cursor-pointer transition-all ${
+                            selectedPlan === plan.id ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
+                          } ${plan.popular ? "border-secondary" : ""}`}
+                          onClick={() => setSelectedPlan(plan.id)}
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                  {plan.name}
+                                  {plan.popular && (
+                                    <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>
+                                  )}
+                                </CardTitle>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground line-through">{pricing.originalPrice}</span>
+                                  <p className="text-2xl font-bold text-green-600">
+                                    {pricing.price}
+                                    <span className="text-sm font-normal text-muted-foreground">{pricing.period}</span>
+                                  </p>
+                                  <Badge variant="destructive" className="text-xs">
+                                    {pricing.savings}
+                                  </Badge>
+                                </div>
+                                {billingPeriod === "annual" && (
+                                  <p className="text-xs text-green-600 font-medium">
+                                    Save ${(parseFloat(pricing.originalPrice.replace('$', '')) - parseFloat(pricing.price.replace('$', ''))).toFixed(2)} per year
+                                  </p>
                                 )}
-                              </CardTitle>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground line-through">{plan.originalPrice}</span>
-                                <p className="text-2xl font-bold text-green-600">
-                                  {plan.promoPrice}
-                                  <span className="text-sm font-normal text-muted-foreground">/month</span>
-                                </p>
-                                <Badge variant="destructive" className="text-xs">
-                                  50% OFF
-                                </Badge>
+                                <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
                               </div>
-                              <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
+                              <div
+                                className={`w-4 h-4 rounded-full border-2 ${
+                                  selectedPlan === plan.id ? "bg-primary border-primary" : "border-muted-foreground"
+                                }`}
+                              />
                             </div>
-                            <div
-                              className={`w-4 h-4 rounded-full border-2 ${
-                                selectedPlan === plan.id ? "bg-primary border-primary" : "border-muted-foreground"
-                              }`}
-                            />
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
-                          <ul className="text-xs text-muted-foreground">
-                            {plan.features.slice(0, 3).map((feature, idx) => (
-                              <li key={idx}>• {feature}</li>
-                            ))}
-                            {plan.features.length > 3 && <li>• +{plan.features.length - 3} more features</li>}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
+                            <ul className="text-xs text-muted-foreground">
+                              {plan.features.slice(0, 3).map((feature, idx) => (
+                                <li key={idx}>• {feature}</li>
+                              ))}
+                              {plan.features.length > 3 && <li>• +{plan.features.length - 3} more features</li>}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
