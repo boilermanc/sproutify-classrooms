@@ -1,22 +1,24 @@
 <#  deploy_school.ps1
 Usage:
-  powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy_school.ps1 [auto|test|prod]
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy_school.ps1 [auto|test|prod] [-Force]
 Defaults to 'auto' if no env is provided.
 
-auto mode:
-- If running in GitHub Actions and GITHUB_REF == refs/heads/main -> prod
-- Otherwise -> test
+Behavior:
+- prod : deploy to production target (requires branch: main) + confirmation
+- test : deploy to test target (prefers branch: dev; warns if not)
+- auto : CI-friendly; main->prod, else->test
+- -Force : bypass confirmation & branch guards (use sparingly)
 #>
 
 param(
   [ValidateSet('auto','test','prod')]
-  [string]$env = 'auto'
+  [string]$env = 'auto',
+  [switch]$Force
 )
 
-# ---------- TARGETS (edit prod if needed) ----------
+# ---------- TARGETS ----------
 $Targets = @{
   test = @{
-    # explicit user@ip to avoid alias issues
     HostAlias  = 'sproutifyin@100.96.83.5'
     RemotePath = '/srv/www/school/dist'
     Url        = 'http://100.96.83.5:8081/'
@@ -24,21 +26,22 @@ $Targets = @{
     Service    = 'school'
   }
   prod = @{
-    # you can keep your SSH alias, or use explicit user@ip:
-    HostAlias  = 'sweetwaterurbanfarms_u85wi2p2s0m@82.165.209.228'
+    # Correct IONOS IP (.226)
+    HostAlias  = 'sweetwaterurbanfarms_u85wi2p2s0m@82.165.209.226'
     RemotePath = '/var/www/vhosts/sweetwaterurbanfarms.com/school.sproutify.app/httpdocs'
     Url        = 'https://school.sproutify.app/'
   }
 }
-# ---------------------------------------------------
+# --------------------------------
 
 $ErrorActionPreference = 'Stop'
-$VerbosePreference = 'SilentlyContinue'  # set to Continue for more logs
+$VerbosePreference = 'SilentlyContinue'  # set to 'Continue' for more logs
 
 # Resolve executables explicitly to avoid PS function/alias collisions
 $SSH   = (Get-Command ssh.exe  -ErrorAction Stop).Source
 $SCP   = (Get-Command scp.exe  -ErrorAction Stop).Source
 $RSYNC = (Get-Command rsync.exe -ErrorAction SilentlyContinue).Source  # may be $null on Windows
+$GIT   = (Get-Command git.exe  -ErrorAction Stop).Source
 
 # SSH options as separate args (PowerShell quirk)
 $SshOptArgs = @(
@@ -47,16 +50,9 @@ $SshOptArgs = @(
   '-o','StrictHostKeyChecking=accept-new'
 )
 
-function Assert-Exit([string]$label) {
-  if ($LASTEXITCODE -ne 0) { throw "$label failed with exit code $LASTEXITCODE" }
-}
-
+function Assert-Exit([string]$label) { if ($LASTEXITCODE -ne 0) { throw "$label failed with exit code $LASTEXITCODE" } }
 function Local-HasRsync { [bool]$RSYNC }
-
-function Remote-HasRsync([string]$HostAlias) {
-  & $SSH @SshOptArgs $HostAlias "command -v rsync >/dev/null"
-  return ($LASTEXITCODE -eq 0)
-}
+function Remote-HasRsync([string]$HostAlias) { & $SSH @SshOptArgs $HostAlias "command -v rsync >/dev/null"; return ($LASTEXITCODE -eq 0) }
 
 function Invoke-SSH([string]$HostAlias, [string]$Command, [string]$label) {
   & $SSH @SshOptArgs $HostAlias $Command
@@ -64,36 +60,45 @@ function Invoke-SSH([string]$HostAlias, [string]$Command, [string]$label) {
 }
 
 function Copy-Dir-SCP([string]$LocalDir, [string]$HostAlias, [string]$RemoteDir, [string]$label) {
-  # copy the whole tree; '/.' preserves subfolders like assets/
   & $SCP @SshOptArgs -r "$LocalDir/." ("{0}:{1}/" -f $HostAlias, $RemoteDir)
   Assert-Exit $label
 }
 
 function Push-Dist([string]$HostAlias, [string]$RemotePath) {
   Write-Host ("Uploading dist/ -> {0}:{1}..." -f $HostAlias, $RemotePath)
-
-  # ensure target dir exists (umask 022 => group/other can read/execute dirs)
   Invoke-SSH $HostAlias ("umask 022 && mkdir -p '{0}'" -f $RemotePath) 'mkdir -p remote'
 
   $canUseRsync = (Local-HasRsync) -and (Remote-HasRsync $HostAlias)
-
   if ($canUseRsync) {
     Write-Host "Using rsync (--delete, chmod)…"
-    # trailing slash on source means "copy contents of dist/ into target"
     & $RSYNC -azv --delete `
       --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r `
       ./dist/ ("{0}:{1}/" -f $HostAlias, $RemotePath)
     Assert-Exit 'rsync'
   } else {
     Write-Host "rsync not available; using scp + server-side cleanup…"
-    # remove existing contents (not the directory itself)
     Invoke-SSH $HostAlias ("find '{0}' -mindepth 1 -maxdepth 1 -exec rm -rf {{}} +" -f $RemotePath) 'remote clean'
     Copy-Dir-SCP "./dist" $HostAlias "$RemotePath" 'scp copy'
-    # ensure readable by nginx: dirs 755, files 644
     $chmodDirs  = "find '$RemotePath' -type d -exec chmod 755 {} \;"
     $chmodFiles = "find '$RemotePath' -type f -exec chmod 644 {} \;"
     Invoke-SSH $HostAlias "$chmodDirs && $chmodFiles" 'remote chmod'
   }
+}
+
+function Get-CurrentBranch {
+  $branch = (& $GIT rev-parse --abbrev-ref HEAD).Trim()
+  if (-not $branch) { throw "Could not determine current git branch." }
+  return $branch
+}
+
+function Confirm-Prod {
+  param([string]$HostAlias, [string]$RemotePath)
+  Write-Warning "You are about to DEPLOY TO PRODUCTION"
+  Write-Host   "Host    : $HostAlias"
+  Write-Host   "Path    : $RemotePath"
+  Write-Host   "Branch  : $(Get-CurrentBranch)"
+  $ans = Read-Host "Type 'YES' to continue"
+  if ($ans -ne 'YES') { throw "Aborted by user." }
 }
 
 # -------- Build locally (always) --------
@@ -102,16 +107,17 @@ npm ci
 npm run build
 Assert-Exit 'build'
 
-if (-not (Test-Path -LiteralPath './dist/index.html')) {
-  throw "dist/ missing or incomplete. Did the build succeed?"
-}
+if (-not (Test-Path -LiteralPath './dist/index.html')) { throw "dist/ missing or incomplete. Did the build succeed?" }
 
-# -------- Resolve env (auto) --------
+# -------- Resolve env (auto/test/prod) --------
 $effective = switch ($env) {
-  'test' { 'test' }
   'prod' { 'prod' }
+  'test' { 'test' }
   default {
-    if ($env:GITHUB_REF -and $env:GITHUB_REF -eq 'refs/heads/main') { 'prod' } else { 'test' }
+    if ($env:GITHUB_REF) {
+      if ($env:GITHUB_REF -eq 'refs/heads/main') { 'prod' }
+      else { 'test' }
+    } else { 'test' }
   }
 }
 
@@ -120,11 +126,26 @@ $HostAlias  = $target.HostAlias
 $RemotePath = $target.RemotePath
 $Url        = $target.Url
 
+# -------- Branch guardrails --------
+$currentBranch = Get-CurrentBranch
+if (-not $Force) {
+  if ($effective -eq 'prod' -and $currentBranch -ne 'main') {
+    throw "Prod deploys must run from 'main' (current: '$currentBranch'). Use -Force to override."
+  }
+  if ($effective -eq 'test' -and $currentBranch -ne 'dev') {
+    Write-Warning "Test deploys typically run from 'dev'. Current branch: '$currentBranch'. Proceeding…"
+  }
+}
+
 Write-Host "Starting deploy"
 Write-Host ("Requested env        : {0}" -f $env)
 Write-Host ("Effective env        : {0}" -f $effective)
 Write-Host ("Host                 : {0}" -f $HostAlias)
 Write-Host ("RemotePath           : {0}" -f $RemotePath)
+Write-Host ("Local branch         : {0}" -f $currentBranch)
+
+# Final confirmation for prod
+if ($effective -eq 'prod' -and -not $Force) { Confirm-Prod -HostAlias $HostAlias -RemotePath $RemotePath }
 
 # identity check (ensures we're hitting the right box)
 Invoke-SSH $HostAlias "echo connected: \$(hostname) as \$(whoami)" 'ssh identity check'
@@ -138,7 +159,7 @@ if ($effective -eq 'test' -and $target.ComposeDir -and $target.Service) {
   Invoke-SSH $HostAlias $restart 'restart test container'
 } elseif ($effective -eq 'prod') {
   $stamp = (Get-Date -AsUTC -Format s)
-  Invoke-SSH $HostAlias ("printf '%s\n' '$stamp' > '{0}/.deployed_utc'" -f $RemotePath) 'write stamp'
+  Invoke-SSH $HostAlias ("printf '%s`n' '$stamp' > '{0}/.deployed_utc'" -f $RemotePath) 'write stamp'
 }
 
 # verify on the server
@@ -151,7 +172,7 @@ $verifyCmds = @(
 ) -join " && "
 Invoke-SSH $HostAlias $verifyCmds 'remote verify'
 
-# optional HTTP HEAD check (uses Invoke-WebRequest, not curl alias)
+# optional HTTP HEAD check
 if ($Url) {
   try {
     $resp = Invoke-WebRequest -Method Head -Uri $Url -UseBasicParsing
