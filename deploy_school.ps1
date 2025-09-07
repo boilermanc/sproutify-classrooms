@@ -4,7 +4,7 @@ Usage:
 Defaults to 'auto' if no env is provided.
 
 Behavior:
-- prod : deploy to production target (requires branch: main) + confirmation
+- prod : deploy to production target (prefers branch: main). If not on main, asks for OVERRIDE. Always asks for YES before proceeding.
 - test : deploy to test target (prefers branch: dev; warns if not)
 - auto : CI-friendly; main->prod, else->test
 - -Force : bypass confirmation & branch guards (use sparingly)
@@ -130,7 +130,9 @@ $Url        = $target.Url
 $currentBranch = Get-CurrentBranch
 if (-not $Force) {
   if ($effective -eq 'prod' -and $currentBranch -ne 'main') {
-    throw "Prod deploys must run from 'main' (current: '$currentBranch'). Use -Force to override."
+    Write-Warning "You're attempting to DEPLOY TO PROD from branch '$currentBranch' (not 'main')."
+    $ans = Read-Host "Type 'OVERRIDE' to continue, or anything else to cancel"
+    if ($ans -ne 'OVERRIDE') { throw "Aborted by user." }
   }
   if ($effective -eq 'test' -and $currentBranch -ne 'dev') {
     Write-Warning "Test deploys typically run from 'dev'. Current branch: '$currentBranch'. Proceeding…"
@@ -144,7 +146,7 @@ Write-Host ("Host                 : {0}" -f $HostAlias)
 Write-Host ("RemotePath           : {0}" -f $RemotePath)
 Write-Host ("Local branch         : {0}" -f $currentBranch)
 
-# Final confirmation for prod
+# Final confirmation for prod (always ask unless -Force)
 if ($effective -eq 'prod' -and -not $Force) { Confirm-Prod -HostAlias $HostAlias -RemotePath $RemotePath }
 
 # identity check (ensures we're hitting the right box)
@@ -175,9 +177,9 @@ Invoke-SSH $HostAlias $verifyCmds 'remote verify'
 # fast, non-blocking connectivity probe for confirmation
 if ($Url) {
   try {
-    $uri = [System.Uri]$Url
+    $uri  = [System.Uri]$Url
     $port = if ($uri.Port -ne -1) { $uri.Port } elseif ($uri.Scheme -eq 'https') { 443 } else { 80 }
-    $ok = Test-NetConnection $uri.DnsSafeHost -Port $port -InformationLevel Quiet
+    $ok   = Test-NetConnection $uri.DnsSafeHost -Port $port -InformationLevel Quiet
     if ($ok) {
       Write-Host ("CONFIRM: {0} is reachable on port {1}" -f $Url, $port)
     } else {

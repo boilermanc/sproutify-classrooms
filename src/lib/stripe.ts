@@ -15,16 +15,19 @@ export const stripe = typeof window === 'undefined' ? new Stripe(
 // Your actual Stripe Price IDs - UPDATED WITH TEST MODE IDs
 export const STRIPE_PRICE_IDS = {
   basic: {
-    regular: 'price_1S45NJKHJbtiKAzVnJdU93Cr',     // TEST MODE Basic primary ($19.99)
+    monthly: 'price_1S45NJKHJbtiKAzVnJdU93Cr',     // TEST MODE Basic monthly ($19.99)
+    annual: 'price_1S4mblKHJbtiKAzVzxDjpLKw',      // TEST MODE Basic annual
     promotional: 'price_1S45O4KHJbtiKAzVzKjIh4q0'  // TEST MODE Basic promotional ($9.99)
   },
   professional: {
-    regular: 'price_1S41c2KHJbtiKAzV8crsVNX1',     // $39.99 Professional (get test mode ID later)
-    promotional: 'price_1S41eGKHJbtiKAzV2c95F8ge'  // $19.99 Professional (get test mode ID later)
+    monthly: 'price_1S41c2KHJbtiKAzV8crsVNX1',     // $39.99 Professional monthly
+    annual: '', // TODO: Add annual price ID when available
+    promotional: 'price_1S41eGKHJbtiKAzV2c95F8ge'  // $19.99 Professional promotional
   },
   school: {
-    regular: 'price_1S41gQKHJbtiKAzV6qJdJIjN',     // $79.99 School (get test mode ID later)
-    promotional: 'price_1S41hDKHJbtiKAzVW0n8QUPU'  // $39.99 School (get test mode ID later)
+    monthly: 'price_1S41gQKHJbtiKAzV6qJdJIjN',     // $79.99 School monthly
+    annual: '', // TODO: Add annual price ID when available
+    promotional: 'price_1S41hDKHJbtiKAzVW0n8QUPU'  // $39.99 School promotional
   }
 } as const;
 
@@ -33,39 +36,45 @@ export const SUBSCRIPTION_PLANS = {
   basic: {
     name: 'Basic',
     monthlyPrice: 1999, // $19.99 in cents
+    annualPrice: 21588, // $215.88 in cents (10% off from $239.88)
     promotionalPrice: 999, // $9.99 in cents (50% off)
     features: {
       towers: 3,
       students: 50
     },
     stripePriceId: {
-      monthly: STRIPE_PRICE_IDS.basic.regular,
+      monthly: STRIPE_PRICE_IDS.basic.monthly,
+      annual: STRIPE_PRICE_IDS.basic.annual,
       promotional: STRIPE_PRICE_IDS.basic.promotional
     }
   },
   professional: {
     name: 'Professional', 
     monthlyPrice: 3999, // $39.99 in cents
+    annualPrice: 0, // TODO: Set actual annual price when known
     promotionalPrice: 1999, // $19.99 in cents
     features: {
       towers: 10,
       students: 200
     },
     stripePriceId: {
-      monthly: STRIPE_PRICE_IDS.professional.regular,
+      monthly: STRIPE_PRICE_IDS.professional.monthly,
+      annual: STRIPE_PRICE_IDS.professional.annual,
       promotional: STRIPE_PRICE_IDS.professional.promotional
     }
   },
   school: {
     name: 'School District',
     monthlyPrice: 7999, // $79.99 in cents
+    annualPrice: 0, // TODO: Set actual annual price when known
     promotionalPrice: 3999, // $39.99 in cents
     features: {
       towers: -1, // unlimited
       students: -1 // unlimited
     },
     stripePriceId: {
-      monthly: STRIPE_PRICE_IDS.school.regular,
+      monthly: STRIPE_PRICE_IDS.school.monthly,
+      annual: STRIPE_PRICE_IDS.school.annual,
       promotional: STRIPE_PRICE_IDS.school.promotional
     }
   }
@@ -74,10 +83,16 @@ export const SUBSCRIPTION_PLANS = {
 export type PlanType = keyof typeof SUBSCRIPTION_PLANS;
 
 // Utility function to get the appropriate price ID
-export const getPriceId = (plan: PlanType, isPromotional: boolean = true) => {
-  return isPromotional 
-    ? SUBSCRIPTION_PLANS[plan].stripePriceId.promotional
-    : SUBSCRIPTION_PLANS[plan].stripePriceId.monthly;
+export const getPriceId = (plan: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly', isPromotional: boolean = false) => {
+  const planConfig = SUBSCRIPTION_PLANS[plan];
+  
+  if (isPromotional) {
+    return planConfig.stripePriceId.promotional;
+  }
+  
+  return billingPeriod === 'annual' 
+    ? planConfig.stripePriceId.annual 
+    : planConfig.stripePriceId.monthly;
 };
 
 // Function to create checkout session with promo code support - UPDATED FOR SUPABASE

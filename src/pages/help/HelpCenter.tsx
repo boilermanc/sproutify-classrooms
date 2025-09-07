@@ -6,7 +6,7 @@ import { Users, Monitor, Network, Sprout, HelpCircle } from "lucide-react";
 
 // Feature flag check
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true',
+  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_FEATURE_GARDEN_NETWORK === 'true' || true, // Default to true
 };
 
 export default function HelpCenter() {

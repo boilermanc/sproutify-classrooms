@@ -8,11 +8,11 @@ import { SEO } from "@/components/SEO";
 import { SUBSCRIPTION_PLANS, getPriceId } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { formatPlanName } from "@/lib/utils";
 
 interface UserSubscription {
   subscription_status: string | null;
   subscription_plan: string | null;
-  billing_period?: string | null;
   trial_ends_at: string | null;
 }
 
@@ -50,7 +50,7 @@ const Pricing = () => {
           // Fetch user's current subscription status
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select('subscription_status, subscription_plan, billing_period, trial_ends_at')
+            .select('subscription_status, subscription_plan, trial_ends_at')
             .eq('id', session.user.id)
             .single();
 
@@ -58,10 +58,6 @@ const Pricing = () => {
             console.error('Error fetching user subscription:', error);
           } else {
             setUserSubscription(profile);
-            // Set billing period to user's current preference if they have one
-            if (profile.billing_period) {
-              setBillingPeriod(profile.billing_period as "monthly" | "annual");
-            }
           }
         } else {
           setIsLoggedIn(false);
@@ -162,27 +158,30 @@ const Pricing = () => {
            userSubscription?.subscription_status === 'active';
   };
 
-  // Updated function to use Supabase Edge Function with billing period
-  const createCheckoutSession = async (priceId: string, userId: string, promoCode?: string | null) => {
+  // Simplified function to use Supabase Edge Function
+  const createCheckoutSession = async (priceId: string, userEmail?: string, userId?: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      console.log('Creating checkout session with:', { priceId, userEmail, userId, billingPeriod });
+      
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           priceId,
-          billingPeriod,
-          successUrl: `${window.location.origin}/subscription/success`,
-          cancelUrl: `${window.location.origin}/pricing`,
-          promoCode: promoCode || undefined
-        }
+          customer_email: userEmail || undefined,
+          userId: userId || undefined,
+          billingPeriod: billingPeriod,
+        },
       });
 
       if (error) {
-        throw error;
+        console.error("Checkout create failed:", error);
+        throw new Error(`Checkout failed: ${error.message || 'Unknown error'}`);
       }
 
       if (!data?.url) {
         throw new Error('No checkout URL returned');
       }
 
+      console.log('Checkout URL received:', data.url);
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
@@ -216,8 +215,8 @@ const Pricing = () => {
       }
 
       // User is logged in - create checkout session for upgrade/subscription
-      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, billingPeriod === 'annual');
-      await createCheckoutSession(priceId, session.user.id, appliedCode);
+      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, billingPeriod, false);
+      await createCheckoutSession(priceId, session.user.email, session.user.id);
       
     } catch (error: any) {
       console.error('Error processing plan action:', error);
@@ -391,8 +390,7 @@ const Pricing = () => {
                     Your free trial ends on {new Date(userSubscription.trial_ends_at).toLocaleDateString()}
                   </p>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
-                    Current plan: {userSubscription.subscription_plan?.charAt(0).toUpperCase() + (userSubscription.subscription_plan?.slice(1) || '')} 
-                    {userSubscription.billing_period && ` (${userSubscription.billing_period})`}
+                    Current plan: {formatPlanName(userSubscription.subscription_plan)}
                   </p>
                 </CardContent>
               </Card>

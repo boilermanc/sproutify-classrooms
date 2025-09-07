@@ -256,7 +256,7 @@ const Index = () => {
           school_id: schoolId,
           // Subscription fields
           subscription_status: 'trial',
-          subscription_plan: selectedPlan,
+          subscription_plan: `${selectedPlan}_${billingPeriod}`,
           billing_period: billingPeriod, // Add billing period
           trial_ends_at: trialEndsAt.toISOString(),
           max_towers: planLimits.max_towers,

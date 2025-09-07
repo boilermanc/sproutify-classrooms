@@ -77,12 +77,13 @@ export default function PricingPage() {
       }
 
       // Call the Edge Function to create checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           priceId,
-          successUrl: `${window.location.origin}/subscription/success`,
-          cancelUrl: `${window.location.origin}/pricing`
-        }
+          customer_email: session.user.email || undefined,
+          userId: session.user.id,
+          billingPeriod: "monthly", // Default to monthly for this page
+        },
       });
 
       if (error) {

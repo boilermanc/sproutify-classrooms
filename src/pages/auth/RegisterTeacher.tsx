@@ -17,8 +17,9 @@ export default function RegisterTeacher() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  // Get plan and promo code from URL
+  // Get plan, billing period, and promo code from URL
   const selectedPlan = searchParams.get('plan');
+  const billingPeriod = searchParams.get('billing') as 'monthly' | 'annual' || 'monthly';
   const promoCode = searchParams.get('code');
 
   const [firstName, setFirstName] = useState("");
@@ -35,6 +36,19 @@ export default function RegisterTeacher() {
       case 'professional': return 'Professional';
       case 'school': return 'School';
       default: return planId.charAt(0).toUpperCase() + planId.slice(1);
+    }
+  };
+
+  const getPlanLimits = (planId: string) => {
+    switch (planId) {
+      case "basic":
+        return { max_towers: 3, max_students: 50 };
+      case "professional":
+        return { max_towers: 10, max_students: 200 };
+      case "school":
+        return { max_towers: 999999, max_students: 999999 }; // "Unlimited"
+      default:
+        return { max_towers: 1, max_students: 10 }; // Free plan defaults
     }
   };
 
@@ -79,22 +93,36 @@ export default function RegisterTeacher() {
         schoolId = newSchool.id;
       }
 
-      // 3) Profile - Use UPSERT to handle existing records
+      // 3) Get plan limits
+      const planLimits = getPlanLimits(selectedPlan || 'free');
+      
+      // 4) Profile - Use UPSERT to handle existing records
+      console.log('Registration plan values:', { selectedPlan, billingPeriod, combinedPlan: selectedPlan ? `${selectedPlan}_${billingPeriod}` : 'free' });
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim(),
         school_id: schoolId,
-        // Set initial subscription status
-        subscription_status: 'free',
-        subscription_plan: 'free'
+        // Set initial subscription status based on selected plan
+        subscription_status: selectedPlan ? 'trial' : 'free',
+        subscription_plan: selectedPlan ? `${selectedPlan}_${billingPeriod}` : 'free',
+        billing_period: selectedPlan ? billingPeriod : null,
+        // Set trial end date if they selected a plan
+        trial_ends_at: selectedPlan ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+        // Set plan limits
+        max_towers: planLimits.max_towers,
+        max_students: planLimits.max_students,
+        // Initialize Stripe fields as null
+        stripe_customer_id: null,
+        stripe_subscription_id: null,
+        subscription_ends_at: null
       }, {
         onConflict: 'id'
       });
       if (profileError) throw new Error(profileError.message);
 
-      // 4) Role
+      // 5) Role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: userId,
         role: "teacher",
@@ -103,9 +131,11 @@ export default function RegisterTeacher() {
 
       // Success message and navigation logic
       if (selectedPlan) {
+        const planName = getPlanDisplayName(selectedPlan);
+        const period = billingPeriod === "annual" ? "Annual" : "Monthly";
         toast({ 
           title: "Account created!", 
-          description: "Please check your email to confirm your account, then complete your subscription." 
+          description: `Welcome to Sproutify School ${planName} ${period} plan. Please check your email to confirm your account, then complete your subscription.` 
         });
         
         // Wait a moment for the toast to show, then navigate

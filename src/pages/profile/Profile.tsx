@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
+import { formatPlanName, capitalizeSubscriptionStatus } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Profile() {
@@ -33,6 +34,31 @@ export default function Profile() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [maxTowers, setMaxTowers] = useState<number | null>(null);
   const [maxStudents, setMaxStudents] = useState<number | null>(null);
+
+  // Track original values to detect changes
+  const [originalValues, setOriginalValues] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    bio: "",
+    phone: "",
+    timezone: "",
+    district: "",
+    avatarUrl: null as string | null,
+    schoolImageUrl: null as string | null,
+  });
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = 
+    email !== originalValues.email ||
+    firstName !== originalValues.firstName ||
+    lastName !== originalValues.lastName ||
+    bio !== originalValues.bio ||
+    phone !== originalValues.phone ||
+    timezone !== originalValues.timezone ||
+    district !== originalValues.district ||
+    avatarUrl !== originalValues.avatarUrl ||
+    schoolImageUrl !== originalValues.schoolImageUrl;
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -83,6 +109,7 @@ export default function Profile() {
         console.error("Error loading profile:", error);
         toast({ title: "Error", description: "Could not load your profile.", variant: "destructive" });
       } else if (prof) {
+        console.log("Profile data loaded:", prof);
         // Populate form with database data
         setEmail(prof.email ?? "");
         setFirstName(prof.first_name ?? "");
@@ -99,11 +126,33 @@ export default function Profile() {
         setSchoolName(prof.schools?.name ?? "");
         
         // Set subscription info (read-only)
+        console.log("Subscription data:", {
+          status: prof.subscription_status,
+          plan: prof.subscription_plan,
+          trialEndsAt: prof.trial_ends_at,
+          maxTowers: prof.max_towers,
+          maxStudents: prof.max_students
+        });
         setSubscriptionStatus(prof.subscription_status ?? "");
         setSubscriptionPlan(prof.subscription_plan ?? "");
         setTrialEndsAt(prof.trial_ends_at ?? null);
         setMaxTowers(prof.max_towers ?? null);
         setMaxStudents(prof.max_students ?? null);
+
+        // Set original values for change detection
+        setOriginalValues({
+          email: prof.email ?? "",
+          firstName: prof.first_name ?? "",
+          lastName: prof.last_name ?? "",
+          bio: prof.bio ?? "",
+          phone: prof.phone ?? "",
+          timezone: prof.timezone ?? "",
+          district: prof.district ?? "",
+          avatarUrl: prof.avatar_url ?? null,
+          schoolImageUrl: prof.school_image_url ?? null,
+        });
+      } else {
+        console.log("No profile data found for user:", userId);
       }
       setLoading(false);
     };
@@ -143,6 +192,20 @@ export default function Profile() {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Profile updated" });
+      
+      // Update original values to reflect saved state
+      setOriginalValues({
+        email,
+        firstName,
+        lastName,
+        bio,
+        phone,
+        timezone,
+        district,
+        avatarUrl,
+        schoolImageUrl,
+      });
+      
       // Reload to get the updated full_name
       window.location.reload();
     }
@@ -185,9 +248,11 @@ export default function Profile() {
       
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Profile</h1>
-        <Button onClick={save} disabled={saving || loading || !userId}>
-          {saving ? "Saving..." : "Save"}
-        </Button>
+        {hasUnsavedChanges && (
+          <Button onClick={save} disabled={saving || loading || !userId}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        )}
       </div>
 
       {/* Account Status Card */}
@@ -196,11 +261,11 @@ export default function Profile() {
         <CardContent className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Subscription Status</Label>
-            <Input value={subscriptionStatus} disabled className="bg-gray-50" />
+            <Input value={capitalizeSubscriptionStatus(subscriptionStatus)} disabled className="bg-gray-50" />
           </div>
           <div className="space-y-2">
             <Label>Plan</Label>
-            <Input value={subscriptionPlan} disabled className="bg-gray-50" />
+            <Input value={formatPlanName(subscriptionPlan)} disabled className="bg-gray-50" />
           </div>
           {trialEndsAt && (
             <div className="space-y-2">
@@ -253,7 +318,11 @@ export default function Profile() {
           </div>
           <div className="space-y-2">
             <Label>District</Label>
-            <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Springfield Public Schools" />
+            <Input 
+              value={district || "e.g.... Forsyth County Schools"} 
+              onChange={(e) => setDistrict(e.target.value)} 
+              placeholder="Springfield Public Schools" 
+            />
           </div>
         </CardContent>
       </Card>

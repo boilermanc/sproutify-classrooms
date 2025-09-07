@@ -27,17 +27,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// DEBUG: Check environment variables
-console.log('🌱 GARDEN_NETWORK feature flag:', process.env.VITE_ENABLE_GARDEN_NETWORK);
-console.log('🌱 NODE_ENV:', process.env.NODE_ENV);
-console.log('🌱 Feature flag result:', process.env.NODE_ENV === 'development' || process.env.VITE_ENABLE_GARDEN_NETWORK === 'true');
-
-// Feature flag for Garden Network - HARDCODED TO TRUE
+// Feature flag for Garden Network - defaults to true
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: true, // Hardcoded to always enable Garden Network
+  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_FEATURE_GARDEN_NETWORK === 'true' || true, // Default to true
 };
-
-console.log('🌱 FEATURE_FLAGS.GARDEN_NETWORK:', FEATURE_FLAGS.GARDEN_NETWORK);
 
 const coreItems = [
   { title: "Dashboard", url: "/app", icon: Gauge },
