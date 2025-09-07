@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Zap, Loader2, ArrowLeft } from "lucide-react";
+import { CheckCircle, Zap, Loader2, ArrowLeft, CreditCard, FileText } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { SEO } from "@/components/SEO";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 interface UserSubscription {
   subscription_status: string | null;
   subscription_plan: string | null;
+  billing_period?: string | null;
   trial_ends_at: string | null;
 }
 
@@ -23,6 +24,7 @@ const Pricing = () => {
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual"); // Default to annual
   
   // Promo code state
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -48,7 +50,7 @@ const Pricing = () => {
           // Fetch user's current subscription status
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select('subscription_status, subscription_plan, trial_ends_at')
+            .select('subscription_status, subscription_plan, billing_period, trial_ends_at')
             .eq('id', session.user.id)
             .single();
 
@@ -56,6 +58,10 @@ const Pricing = () => {
             console.error('Error fetching user subscription:', error);
           } else {
             setUserSubscription(profile);
+            // Set billing period to user's current preference if they have one
+            if (profile.billing_period) {
+              setBillingPeriod(profile.billing_period as "monthly" | "annual");
+            }
           }
         } else {
           setIsLoggedIn(false);
@@ -70,10 +76,49 @@ const Pricing = () => {
     checkUserStatus();
   }, []);
 
-  const plans = Object.entries(SUBSCRIPTION_PLANS).map(([key, plan]) => ({
-    id: key,
-    ...plan
-  }));
+  // Updated plans with both monthly and annual pricing
+  const plans = [
+    {
+      id: "basic",
+      name: "Basic",
+      monthlyPrice: 999, // $9.99 in cents
+      annualPrice: 10788, // $107.88 in cents (10% off from $119.88)
+      originalMonthlyPrice: 1999, // $19.99 original
+      originalAnnualPrice: 11988, // $119.88 original
+      description: "Perfect for small classrooms and getting started with aeroponic education.",
+      features: {
+        towers: 3,
+        students: 50
+      }
+    },
+    {
+      id: "professional", 
+      name: "Professional",
+      monthlyPrice: 1999, // $19.99 in cents
+      annualPrice: 21588, // $215.88 in cents (10% off from $239.88)
+      originalMonthlyPrice: 3999, // $39.99 original
+      originalAnnualPrice: 23988, // $239.88 original
+      description: "Ideal for larger classrooms and comprehensive agricultural education programs.",
+      popular: true,
+      features: {
+        towers: 10,
+        students: 200
+      }
+    },
+    {
+      id: "school",
+      name: "School", 
+      monthlyPrice: 3999, // $39.99 in cents
+      annualPrice: 43188, // $431.88 in cents (10% off from $479.88)
+      originalMonthlyPrice: 7999, // $79.99 original
+      originalAnnualPrice: 47988, // $479.88 original
+      description: "Comprehensive solution for entire schools and district-wide implementations.",
+      features: {
+        towers: -1, // unlimited
+        students: -1 // unlimited
+      }
+    }
+  ];
 
   const handleCodeApplied = (code: string, discount: string) => {
     setAppliedCode(code);
@@ -117,12 +162,13 @@ const Pricing = () => {
            userSubscription?.subscription_status === 'active';
   };
 
-  // Updated function to use Supabase Edge Function
+  // Updated function to use Supabase Edge Function with billing period
   const createCheckoutSession = async (priceId: string, userId: string, promoCode?: string | null) => {
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           priceId,
+          billingPeriod,
           successUrl: `${window.location.origin}/subscription/success`,
           cancelUrl: `${window.location.origin}/pricing`,
           promoCode: promoCode || undefined
@@ -158,7 +204,10 @@ const Pricing = () => {
       
       if (!session?.user) {
         // Not logged in - redirect to registration
-        const params = new URLSearchParams({ plan: planId });
+        const params = new URLSearchParams({ 
+          plan: planId,
+          billing: billingPeriod
+        });
         if (appliedCode) {
           params.append('code', appliedCode);
         }
@@ -167,7 +216,7 @@ const Pricing = () => {
       }
 
       // User is logged in - create checkout session for upgrade/subscription
-      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, true);
+      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, billingPeriod === 'annual');
       await createCheckoutSession(priceId, session.user.id, appliedCode);
       
     } catch (error: any) {
@@ -196,6 +245,22 @@ const Pricing = () => {
     } else {
       return Math.max(0, originalPrice - discount.value);
     }
+  };
+
+  // Helper function to get current pricing for a plan
+  const getCurrentPlanPricing = (plan: typeof plans[0]) => {
+    const basePrice = billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice;
+    const originalPrice = billingPeriod === "annual" ? plan.originalAnnualPrice : plan.originalMonthlyPrice;
+    const period = billingPeriod === "annual" ? "/year" : "/month";
+    const savings = billingPeriod === "annual" ? "Save 10%" : "50% OFF";
+    
+    return {
+      price: basePrice,
+      originalPrice,
+      period,
+      savings,
+      annualSavings: billingPeriod === "annual" ? (originalPrice - basePrice) / 100 : null
+    };
   };
 
   if (checkingAuth) {
@@ -273,10 +338,48 @@ const Pricing = () => {
                 : 'Manage your classroom aeroponic towers with confidence. All plans include a 7-day free trial.'
               }
             </p>
+            
+            {/* Key benefits */}
+            <div className="flex flex-wrap justify-center gap-4 mb-6">
+              <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                <CreditCard className="w-4 h-4" />
+                No credit card needed for trial
+              </div>
+              <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                <FileText className="w-4 h-4" />
+                We accept purchase orders (POs)
+              </div>
+            </div>
+            
             <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
               <Zap className="h-4 w-4 mr-1" />
               50% OFF Your First 3 Months
             </Badge>
+          </div>
+
+          {/* Billing Period Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center bg-muted rounded-lg p-1">
+              <Button
+                variant={billingPeriod === "monthly" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setBillingPeriod("monthly")}
+                className="px-6 py-2"
+              >
+                Monthly
+              </Button>
+              <Button
+                variant={billingPeriod === "annual" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setBillingPeriod("annual")}
+                className="px-6 py-2 relative"
+              >
+                Annual
+                <Badge className="ml-2 bg-green-500 text-white text-xs px-2 py-0">
+                  Save 10%
+                </Badge>
+              </Button>
+            </div>
           </div>
 
           {/* Trial Status for logged in users */}
@@ -288,7 +391,8 @@ const Pricing = () => {
                     Your free trial ends on {new Date(userSubscription.trial_ends_at).toLocaleDateString()}
                   </p>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
-                    Current plan: {userSubscription.subscription_plan?.charAt(0).toUpperCase() + (userSubscription.subscription_plan?.slice(1) || '')}
+                    Current plan: {userSubscription.subscription_plan?.charAt(0).toUpperCase() + (userSubscription.subscription_plan?.slice(1) || '')} 
+                    {userSubscription.billing_period && ` (${userSubscription.billing_period})`}
                   </p>
                 </CardContent>
               </Card>
@@ -348,7 +452,8 @@ const Pricing = () => {
               const isLoading = loading === plan.id;
               const isCurrent = isCurrentPlan(plan.id);
               
-              const basePrice = plan.promotionalPrice;
+              const pricing = getCurrentPlanPricing(plan);
+              const basePrice = pricing.price;
               const discountedPrice = appliedCode ? 
                 calculateDiscountedPrice(basePrice, appliedCode) : basePrice;
               const isFree = discountedPrice === 0;
@@ -379,43 +484,47 @@ const Pricing = () => {
                   <CardHeader className="text-center">
                     <CardTitle className="text-2xl">{plan.name}</CardTitle>
                     <CardDescription>
-                      {plan.id === 'basic' && 'Perfect for individual teachers'}
-                      {plan.id === 'professional' && 'Ideal for multiple classrooms'}
-                      {plan.id === 'school' && 'Best for whole school districts'}
+                      {plan.description}
                     </CardDescription>
                     
                     <div className="pt-4">
                       {isFree ? (
                         <div className="text-4xl font-bold text-green-600">
                           FREE
-                          <span className="text-lg font-normal text-muted-foreground">/month</span>
+                          <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
                         </div>
                       ) : (
-                        <div className="text-4xl font-bold">
-                          ${(discountedPrice / 100).toFixed(2)}
-                          <span className="text-lg font-normal text-muted-foreground">/month</span>
+                        <div>
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <span className="text-sm text-muted-foreground line-through">
+                              ${(pricing.originalPrice / 100).toFixed(2)}
+                            </span>
+                            <Badge variant="destructive" className="text-xs">
+                              {pricing.savings}
+                            </Badge>
+                          </div>
+                          <div className="text-4xl font-bold text-green-600">
+                            ${(discountedPrice / 100).toFixed(2)}
+                            <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
+                          </div>
+                          {billingPeriod === "annual" && pricing.annualSavings && (
+                            <p className="text-sm text-green-600 font-medium mt-1">
+                              Save ${pricing.annualSavings.toFixed(2)} per year
+                            </p>
+                          )}
                         </div>
                       )}
                       
                       {appliedCode && !isFree && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="line-through">${(basePrice / 100).toFixed(2)}/month</span>
+                        <div className="text-sm text-muted-foreground mt-2">
+                          <span className="line-through">${(basePrice / 100).toFixed(2)}{pricing.period}</span>
                           <span className="text-green-600 font-medium ml-2">with {appliedCode}</span>
                         </div>
                       )}
                       
-                      {!appliedCode && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="line-through">${(plan.monthlyPrice / 100).toFixed(2)}/month</span>
-                          <span className="text-green-600 font-medium ml-2">for first 3 months</span>
-                        </div>
-                      )}
-                      
-                      {!isFree && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Then ${(plan.monthlyPrice / 100).toFixed(2)}/month
-                        </div>
-                      )}
+                      <div className="text-xs text-green-600 font-medium mt-2">
+                        7-day FREE trial
+                      </div>
                     </div>
                   </CardHeader>
                   

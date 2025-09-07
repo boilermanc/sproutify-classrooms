@@ -172,13 +172,19 @@ $verifyCmds = @(
 ) -join " && "
 Invoke-SSH $HostAlias $verifyCmds 'remote verify'
 
-# optional HTTP HEAD check
+# fast, non-blocking connectivity probe for confirmation
 if ($Url) {
   try {
-    $resp = Invoke-WebRequest -Method Head -Uri $Url -UseBasicParsing
-    Write-Host ("HTTP check: {0} -> {1}" -f $Url, $resp.StatusCode)
+    $uri = [System.Uri]$Url
+    $port = if ($uri.Port -ne -1) { $uri.Port } elseif ($uri.Scheme -eq 'https') { 443 } else { 80 }
+    $ok = Test-NetConnection $uri.DnsSafeHost -Port $port -InformationLevel Quiet
+    if ($ok) {
+      Write-Host ("CONFIRM: {0} is reachable on port {1}" -f $Url, $port)
+    } else {
+      Write-Warning ("CONFIRM: {0} NOT reachable on port {1}" -f $Url, $port)
+    }
   } catch {
-    Write-Warning ("HTTP check failed: {0}" -f $_.Exception.Message)
+    Write-Warning ("Port check failed: {0}" -f $_.Exception.Message)
   }
 }
 
