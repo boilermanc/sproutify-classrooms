@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGINS") || "http://localhost:5173",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-debug-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -13,7 +13,23 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: CORS });
   }
   
-  // Skip authorization for debugging
+  // Require debug token for authentication
+  const debugToken = req.headers.get("x-debug-token");
+  const expectedToken = Deno.env.get("DEBUG_TOKEN");
+  
+  if (!expectedToken) {
+    return new Response(
+      JSON.stringify({ error: "Debug endpoint not configured" }),
+      { status: 500, headers: CORS }
+    );
+  }
+  
+  if (!debugToken || debugToken !== expectedToken) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: CORS }
+    );
+  }
 
   try {
     const body = await req.json().catch(() => ({}));

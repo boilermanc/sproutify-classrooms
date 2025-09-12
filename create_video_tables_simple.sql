@@ -78,12 +78,26 @@ FOR SELECT
 TO anon, authenticated
 USING (true);
 
-CREATE POLICY "Authenticated users can manage content sections"
+CREATE POLICY "Team members can manage content sections"
 ON public.content_section
 FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (
+    EXISTS (
+        SELECT 1 FROM public.team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.active = true
+        AND tm.role IN ('super_admin', 'staff')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.active = true
+        AND tm.role IN ('super_admin', 'staff')
+    )
+);
 
 -- 9. Create simple RLS policies for media_assets
 DROP POLICY IF EXISTS "Anyone can view published media assets" ON public.media_assets;
@@ -95,12 +109,26 @@ FOR SELECT
 TO anon, authenticated
 USING (is_published = true);
 
-CREATE POLICY "Authenticated users can manage media assets"
+CREATE POLICY "Team members can manage media assets"
 ON public.media_assets
 FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (
+    EXISTS (
+        SELECT 1 FROM public.team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.active = true
+        AND tm.role IN ('super_admin', 'staff')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.active = true
+        AND tm.role IN ('super_admin', 'staff')
+    )
+);
 
 -- 10. Create storage buckets if they don't exist (this should work)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

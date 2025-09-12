@@ -26,6 +26,7 @@ import {
   Mail
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
   id: string;
@@ -49,6 +50,7 @@ interface DistrictAdminWelcomeModalProps {
 
 const DistrictAdminWelcomeModal: React.FC<DistrictAdminWelcomeModalProps> = ({ isOpen, onClose, userProfile }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -105,10 +107,28 @@ const DistrictAdminWelcomeModal: React.FC<DistrictAdminWelcomeModalProps> = ({ i
     }
   };
 
-  const copyJoinCode = () => {
-    if (userProfile.districts?.join_code) {
-      navigator.clipboard.writeText(userProfile.districts.join_code);
-      // You could add a toast notification here
+  const copyJoinCode = async () => {
+    if (!userProfile.districts?.join_code) {
+      toast({
+        title: "Error",
+        description: "No join code available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(userProfile.districts.join_code);
+      toast({
+        title: "Success",
+        description: "Join code copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy join code",
+        variant: "destructive",
+      });
     }
   };
 

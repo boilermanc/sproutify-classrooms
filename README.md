@@ -221,6 +221,8 @@ To get a local copy up and running, follow these simple steps.
    VITE_FEATURE_GARDEN_NETWORK="true"
    ```
 
+   **⚠️ Security Warning:** Never commit real API keys to version control. Store secrets in a `.env` file excluded by `.gitignore`, use a `.env.example` with placeholders in the repo, and use environment/CI secret management for production keys. If you accidentally commit real keys, rotate them immediately.
+
 4. **Start the development server:**
    ```bash
    npm run dev
@@ -261,7 +263,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 auto
 
 ### Deployment Targets
 
-- **Test Environment:** `http://100.96.83.5:8081/`
+- **Test Environment:** `http://<test-environment-url>/` (set `TEST_ENV_URL` environment variable)
 - **Production Environment:** `https://school.sproutify.app/`
 
 ### GitHub Actions

@@ -8,17 +8,17 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy:auto": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 auto",
-    "deploy:test": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 test",
-    "deploy:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 prod",
-    "deploy:prod:force": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 prod -Force",
+    "deploy:auto": "node scripts/deploy.js auto",
+    "deploy:test": "node scripts/deploy.js test",
+    "deploy:prod": "node scripts/deploy.js prod",
+    "deploy:prod:force": "node scripts/deploy.js prod --force",
     "db:backup": "node scripts/db-safety.js backup",
     "db:migrate": "node scripts/db-safety.js migrate",
     "db:reset": "node scripts/db-safety.js reset",
     "db:list-backups": "node scripts/db-safety.js list-backups",
     "db:safe": "node scripts/supabase-safe.js",
-    "db:emergency": "bash scripts/emergency-recovery.sh recover",
-    "db:check": "bash scripts/emergency-recovery.sh check-integrity"
+    "db:emergency": "node scripts/emergency-recovery.js recover",
+    "db:check": "node scripts/emergency-recovery.js check-integrity"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

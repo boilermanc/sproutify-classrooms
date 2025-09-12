@@ -146,10 +146,14 @@ const App = () => (
             <Route path="student-login" element={<StudentLoginPage />} />
           </Route>
 
-          {/* Admin Test Page (for development) */}
-          <Route path="/admin-test" element={<AdminTestPage />} />
-          <Route path="/auth-test" element={<AuthTestPage />} />
-          <Route path="/admin-setup" element={<AdminSetup />} />
+          {/* Admin Test Page (for development only) */}
+          {process.env.NODE_ENV !== 'production' && (
+            <>
+              <Route path="/admin-test" element={<AdminTestPage />} />
+              <Route path="/auth-test" element={<AuthTestPage />} />
+              <Route path="/admin-setup" element={<AdminSetup />} />
+            </>
+          )}
 
           {/* Admin routes (super_admin and staff only) */}
           <Route path="/admin" element={

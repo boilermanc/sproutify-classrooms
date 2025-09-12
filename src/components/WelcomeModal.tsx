@@ -23,6 +23,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
   id: string;
@@ -44,12 +45,12 @@ interface WelcomeModalProps {
 
 const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, userProfile }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateOnboardingStatus = async () => {
     if (dontShowAgain) {
-      console.log('Updating onboarding status for user:', userProfile.id);
       setIsUpdating(true);
       try {
         // Update the user's profile to mark onboarding as completed
@@ -59,17 +60,26 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, userProfil
           .eq('id', userProfile.id);
 
         if (error) {
-          console.error('Error updating onboarding status:', error);
+          toast({
+            title: "Error",
+            description: "Failed to update onboarding status. Please try again.",
+            variant: "destructive",
+          });
         } else {
-          console.log('Onboarding status updated successfully');
+          toast({
+            title: "Success",
+            description: "Onboarding preferences saved",
+          });
         }
       } catch (error) {
-        console.error('Error updating onboarding status:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsUpdating(false);
       }
-    } else {
-      console.log('Don\'t show again not checked, skipping database update');
     }
   };
 
@@ -270,7 +280,6 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, userProfil
                 id="dont-show-again"
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => {
-                  console.log('Checkbox changed to:', checked);
                   setDontShowAgain(checked);
                 }}
               />

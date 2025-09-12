@@ -34,7 +34,7 @@ interface UserProfile {
   onboarding_completed?: boolean;
   schools: {
     name: string;
-  };
+  } | null;
 }
 
 interface SchoolAdminWelcomeModalProps {
@@ -168,7 +168,7 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
             Welcome to Sproutify School Admin!
           </DialogTitle>
           <DialogDescription className="text-lg text-center">
-            Hi {userProfile.first_name}! You're now the School Administrator for {userProfile.schools.name}.
+            Hi {userProfile.first_name}! You're now the School Administrator for {userProfile.schools?.name || 'your school'}.
           </DialogDescription>
           
           {/* Plan Status */}

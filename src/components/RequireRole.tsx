@@ -8,8 +8,11 @@ export function RequireRole({ allow, children }: { allow: Allowed; children?: Re
   const [status, setStatus] = useState<"loading"|"allowed"|"denied">("loading");
 
   useEffect(() => {
+    let isMounted = true;
+    
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!isMounted) return;
       if (!user) return setStatus("denied");
       
       // Check team_members table for super_admin and staff roles
@@ -20,6 +23,8 @@ export function RequireRole({ allow, children }: { allow: Allowed; children?: Re
           .eq("user_id", user.id)
           .eq("active", true)
           .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
+        
+        if (!isMounted) return;
         
         // If no error and we have a team member with the right role, allow access
         if (!teamMemberError && teamMember && allow.includes(teamMember.role)) {
@@ -37,6 +42,8 @@ export function RequireRole({ allow, children }: { allow: Allowed; children?: Re
           .select("role")
           .eq("user_id", user.id);
         
+        if (!isMounted) return;
+        
         const roles = userRoles?.map(r => r.role) || [];
         const hasValidRole = roles.some(role => allow.includes(role));
         
@@ -47,6 +54,10 @@ export function RequireRole({ allow, children }: { allow: Allowed; children?: Re
       
       setStatus("denied");
     })();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [allow]);
 
   if (status === "loading") return null;

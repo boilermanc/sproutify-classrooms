@@ -13,10 +13,7 @@ export default function RoleBasedRedirect({ children }: RoleBasedRedirectProps) 
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
-    checkUserRole();
-  }, []);
-
-  const checkUserRole = async () => {
+    const checkUserRole = async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
@@ -74,7 +71,10 @@ export default function RoleBasedRedirect({ children }: RoleBasedRedirectProps) 
     } finally {
       setIsLoading(false);
     }
-  };
+    };
+    
+    checkUserRole();
+  }, []);
 
   if (isLoading) {
     return (

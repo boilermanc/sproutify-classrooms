@@ -24,6 +24,17 @@ ORDER BY kiosk_pin, created_at;
 
 -- Step 3: Generate unique PINs for classrooms with duplicates
 -- (Run this after reviewing the duplicates above)
+BEGIN;
+LOCK TABLE public.classrooms IN SHARE ROW EXCLUSIVE MODE;
+
+-- Create a sequence for generating unique PINs if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'classroom_pin_sequence') THEN
+        CREATE SEQUENCE classroom_pin_sequence START WITH GREATEST(1001, (SELECT COALESCE(MAX(kiosk_pin::int) + 1, 1001) FROM public.classrooms WHERE kiosk_pin ~ '^[0-9]{4}$'));
+    END IF;
+END $$;
+
 WITH duplicate_pins AS (
     SELECT kiosk_pin
     FROM public.classrooms 
@@ -44,7 +55,7 @@ new_pins AS (
         id,
         name,
         kiosk_pin,
-        LPAD((1000 + ROW_NUMBER() OVER (ORDER BY id))::text, 4, '0') as new_pin
+        LPAD(nextval('classroom_pin_sequence')::text, 4, '0') as new_pin
     FROM classrooms_to_fix
     WHERE rn > 1  -- Keep the first classroom with each PIN, update the rest
 )
@@ -52,6 +63,8 @@ UPDATE public.classrooms
 SET kiosk_pin = np.new_pin
 FROM new_pins np
 WHERE classrooms.id = np.id;
+
+COMMIT;
 
 -- Step 4: Verify no more duplicates exist
 SELECT 

@@ -50,9 +50,18 @@ export default function SalesDashboard() {
         if (active?.length) {
           const planIds = [...new Set(active.map(p => p.plan_id).filter(Boolean))] as string[];
           if (planIds.length) {
-            const { data: plans } = await supabase.from("plans").select("id, unit_amount").in("id", planIds);
-            const map = new Map(plans?.map(p => [p.id, p.unit_amount ?? 0]));
-            total = active.reduce((sum, p) => sum + (map.get(p.plan_id as string) || 0), 0);
+            const { data: plans, error: plansError } = await supabase.from("plans").select("id, unit_amount").in("id", planIds);
+            
+            if (plansError) {
+              console.error("Error fetching plans:", plansError);
+            } else if (plans && Array.isArray(plans)) {
+              const map = new Map(plans.map(p => [p.id, Number(p.unit_amount) || 0]));
+              total = active.reduce((sum, p) => {
+                const planId = p.plan_id as string;
+                const unitAmount = map.get(planId) || 0;
+                return sum + unitAmount;
+              }, 0);
+            }
           }
         }
         setMrr(total);
@@ -379,7 +388,6 @@ function MiniBar({ title, data }:{ title:string; data:{x:string,y:number}[] }) {
                 className="animate-bar-grow"
                 style={{
                   animationDelay: `${i * 0.1}s`,
-                  animation: 'barGrow 0.8s ease-out forwards',
                   transformOrigin: 'bottom',
                   transform: 'scaleY(0)'
                 }}
@@ -387,16 +395,6 @@ function MiniBar({ title, data }:{ title:string; data:{x:string,y:number}[] }) {
             );
           })}
         </svg>
-        <style jsx>{`
-          @keyframes barGrow {
-            from {
-              transform: scaleY(0);
-            }
-            to {
-              transform: scaleY(1);
-            }
-          }
-        `}</style>
       </div></CardContent>
     </Card>
   );

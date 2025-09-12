@@ -25,6 +25,9 @@ ORDER BY kiosk_pin, created_at;
 
 -- Step 3: Fix existing duplicates by assigning unique PINs
 -- This keeps the oldest classroom with each PIN and gives new PINs to newer ones
+BEGIN;
+LOCK TABLE public.classrooms IN SHARE ROW EXCLUSIVE MODE;
+
 WITH duplicate_pins AS (
     SELECT kiosk_pin
     FROM public.classrooms 
@@ -41,21 +44,34 @@ classrooms_to_fix AS (
     FROM public.classrooms c
     INNER JOIN duplicate_pins dp ON c.kiosk_pin = dp.kiosk_pin
 ),
--- Generate new unique PINs starting from 1000
+-- Generate all possible 4-digit PINs (0000-9999)
+all_pins AS (
+    SELECT LPAD(generate_series(0, 9999)::text, 4, '0') as pin_value
+),
+-- Filter out PINs that are already in use
+available_pins AS (
+    SELECT ap.pin_value, ROW_NUMBER() OVER (ORDER BY ap.pin_value) as pin_rank
+    FROM all_pins ap
+    WHERE ap.pin_value NOT IN (SELECT kiosk_pin FROM public.classrooms)
+),
+-- Assign available PINs to classrooms that need new ones
 new_pins AS (
     SELECT 
-        id,
-        name,
-        kiosk_pin,
-        teacher_id,
-        LPAD((1000 + ROW_NUMBER() OVER (ORDER BY id))::text, 4, '0') as new_pin
-    FROM classrooms_to_fix
-    WHERE rn > 1  -- Keep the first classroom with each PIN, update the rest
+        ctf.id,
+        ctf.name,
+        ctf.kiosk_pin,
+        ctf.teacher_id,
+        ap.pin_value as new_pin
+    FROM classrooms_to_fix ctf
+    JOIN available_pins ap ON ap.pin_rank = ctf.rn - 1
+    WHERE ctf.rn > 1  -- Keep the first classroom with each PIN, update the rest
 )
 UPDATE public.classrooms 
 SET kiosk_pin = np.new_pin
 FROM new_pins np
 WHERE classrooms.id = np.id;
+
+COMMIT;
 
 -- Step 4: Add unique constraint to prevent future duplicates
 -- First, check if constraint already exists

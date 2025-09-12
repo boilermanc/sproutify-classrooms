@@ -64,27 +64,42 @@ export function DistrictSidebar() {
   const { toast } = useToast();
 
   const handleSignOut = async () => {
-    console.log('🚪 Starting forced logout...');
+    console.log('🚪 Starting logout...');
     
-    // Don't wait for Supabase - just clear everything and redirect
     try {
-      // Fire and forget - don't wait for the result
-      supabase.auth.signOut().catch(err => console.log('Supabase logout error (ignored):', err));
-    } catch (err) {
-      console.log('Supabase logout failed (ignored):', err);
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Logout timeout')), 5000);
+      });
+      
+      // Race between signOut and timeout
+      await Promise.race([
+        supabase.auth.signOut(),
+        timeoutPromise
+      ]);
+      
+      console.log('✅ Supabase logout successful');
+    } catch (error) {
+      console.log('⚠️ Supabase logout failed or timed out:', error);
     }
     
-    // Clear all local storage immediately
-    localStorage.clear();
-    sessionStorage.clear();
+    // Clear all local storage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('🧹 Storage cleared');
+    } catch (error) {
+      console.log('⚠️ Failed to clear storage:', error);
+    }
     
-    console.log('🧹 Storage cleared');
+    // Show feedback
+    toast({ 
+      title: "Signed out successfully",
+      description: "You have been logged out"
+    });
     
-    // Show immediate feedback
-    toast({ title: "Signing out..." });
-    
-    // Force immediate redirect
-    console.log('🔄 Forcing redirect...');
+    // Always redirect, even if signOut failed
+    console.log('🔄 Redirecting to login...');
     window.location.replace('/auth/login');
   };
 

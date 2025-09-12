@@ -1,18 +1,18 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 
-// Promotional pricing configuration
+// Promotional pricing configuration from environment variables
 const PROMOTIONAL_PRICING_CONFIG = {
-  enabled: true,
+  enabled: Deno.env.get("PROMOTIONAL_PRICING_ENABLED") === "true",
   schedule: {
-    startDate: '2025-01-01T00:00:00Z',
-    endDate: '2025-09-30T23:59:59Z', // End of September 2025
+    startDate: Deno.env.get("PROMOTIONAL_PRICING_START") || '2025-01-01T00:00:00Z',
+    endDate: Deno.env.get("PROMOTIONAL_PRICING_END") || '2025-09-30T23:59:59Z',
   },
-  eligiblePlans: ['basic', 'professional', 'school', 'district'],
+  eligiblePlans: (Deno.env.get("PROMOTIONAL_ELIGIBLE_PLANS") || 'basic,professional,school,district').split(',').map(p => p.trim()),
   rules: {
-    autoApply: true,
-    showOnPricingPage: true,
-    allowManualOverride: true
+    autoApply: Deno.env.get("PROMOTIONAL_RULES_AUTO_APPLY") !== "false",
+    showOnPricingPage: Deno.env.get("PROMOTIONAL_RULES_SHOW_ON_PRICING") !== "false",
+    allowManualOverride: Deno.env.get("PROMOTIONAL_RULES_ALLOW_OVERRIDE") !== "false"
   }
 };
 
@@ -99,32 +99,43 @@ serve(async (req) => {
       finalIsPromotional: isPromotional
     });
 
-    // Direct price ID mapping - no complex string manipulation
+    // Price ID mapping from environment variables
     const PLAN_PRICE_MAP: Record<string, string> = {
       // Basic Plan
-      basic_monthly:     'price_1S41WnKHJbtiKAzVkLuDmvEu',
-      basic_monthly_promo: 'price_1S3NYCKHJbtiKAzVJBUoKWXX',
-      basic_annual:      'price_1S5Yz6KHJbtiKAzVQ9wFOeCK',
+      basic_monthly: Deno.env.get("PRICE_BASIC_MONTHLY") || '',
+      basic_monthly_promo: Deno.env.get("PRICE_BASIC_MONTHLY_PROMO") || '',
+      basic_annual: Deno.env.get("PRICE_BASIC_ANNUAL") || '',
       
       // Professional Plan
-      professional_monthly:     'price_1S41c2KHJbtiKAzV8crsVNX1',
-      professional_monthly_promo: 'price_1S41eGKHJbtiKAzV2c95F8ge',
-      professional_annual:      'price_1S5Z3jKHJbtiKAzV5WdGZMMA',
+      professional_monthly: Deno.env.get("PRICE_PROFESSIONAL_MONTHLY") || '',
+      professional_monthly_promo: Deno.env.get("PRICE_PROFESSIONAL_MONTHLY_PROMO") || '',
+      professional_annual: Deno.env.get("PRICE_PROFESSIONAL_ANNUAL") || '',
       
       // School Plan
-      school_monthly:     'price_1S41gQKHJbtiKAzV6qJdJIjN',
-      school_monthly_promo: 'price_1S41hDKHJbtiKAzVW0n8QUPU',
-      school_annual:      'price_1S5YwKKHJbtiKAzVFDODzk5a',
+      school_monthly: Deno.env.get("PRICE_SCHOOL_MONTHLY") || '',
+      school_monthly_promo: Deno.env.get("PRICE_SCHOOL_MONTHLY_PROMO") || '',
+      school_annual: Deno.env.get("PRICE_SCHOOL_ANNUAL") || '',
       
       // District Plan
-      district_monthly:     'price_1S5YfqKHJbtiKAzV847eglJR',
-      district_monthly_promo: 'price_1S5YhOKHJbtiKAzVh21kiE2m',
-      district_annual:      'price_1S5YhyKHJbtiKAzV2pATTPJp',
+      district_monthly: Deno.env.get("PRICE_DISTRICT_MONTHLY") || '',
+      district_monthly_promo: Deno.env.get("PRICE_DISTRICT_MONTHLY_PROMO") || '',
+      district_annual: Deno.env.get("PRICE_DISTRICT_ANNUAL") || '',
       
       // Simple names (default to basic)
-      monthly:           'price_1S41WnKHJbtiKAzVkLuDmvEu',
-      annual:            'price_1S5Yz6KHJbtiKAzVQ9wFOeCK',
+      monthly: Deno.env.get("PRICE_BASIC_MONTHLY") || '',
+      annual: Deno.env.get("PRICE_BASIC_ANNUAL") || '',
     };
+
+    // Validate that required price IDs are configured
+    const requiredPrices = ['PRICE_BASIC_MONTHLY', 'PRICE_BASIC_ANNUAL'];
+    const missingPrices = requiredPrices.filter(price => !Deno.env.get(price));
+    if (missingPrices.length > 0) {
+      console.error('Missing required price IDs:', missingPrices);
+      return new Response(
+        JSON.stringify({ error: "Price configuration incomplete" }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
 
     // Simple price resolution: use explicit priceId or map from plan
     let finalPriceId = priceId || PLAN_PRICE_MAP[plan];
@@ -158,7 +169,6 @@ serve(async (req) => {
     }
 
     // --- Origin-aware redirect base URL ---
-    const origin = req.headers.get("origin") || "";
     const configuredSiteUrl = Deno.env.get("SITE_URL") || ""; // e.g. http://100.96.83.5:8081 (test) or https://school.sproutify.app (prod)
     const allowedOrigins = new Set([
       configuredSiteUrl,

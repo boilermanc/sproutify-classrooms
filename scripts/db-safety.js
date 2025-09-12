@@ -4,9 +4,11 @@
  * Provides programmatic safety checks for database operations
  */
 
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
+const { promisify } = require('util');
 
 class DatabaseSafetyGuard {
     constructor(options = {}) {
@@ -84,20 +86,50 @@ class DatabaseSafetyGuard {
      * Create database backup
      */
     async createBackup(description = '') {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        // Create safe filename-safe timestamp
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        const minute = String(now.getMinutes()).padStart(2, '0');
+        const second = String(now.getSeconds()).padStart(2, '0');
+        const timestamp = `${year}${month}${day}_${hour}${minute}${second}`;
+        
         const backupName = `db_backup_${timestamp}${description ? '_' + description : ''}`;
         const backupFile = path.join(this.config.backupDir, `${backupName}.sql`);
         
+        // Validate backup filename for security
+        const safeBackupName = backupName.replace(/[^A-Za-z0-9_-]/g, '');
+        if (safeBackupName !== backupName) {
+            throw new Error('Invalid characters in backup description');
+        }
+        
         // Ensure backup directory exists
-        if (!fs.existsSync(this.config.backupDir)) {
-            fs.mkdirSync(this.config.backupDir, { recursive: true });
+        try {
+            await fs.access(this.config.backupDir);
+        } catch {
+            await fs.mkdir(this.config.backupDir, { recursive: true });
         }
 
         console.log(`Creating backup: ${backupFile}`);
         
         try {
-            // Create backup using supabase CLI
-            execSync(`supabase db dump --file "${backupFile}" --data-only`, { stdio: 'inherit' });
+            // Create backup using supabase CLI with safe arguments
+            const child = spawn('supabase', ['db', 'dump', '--file', backupFile, '--data-only'], {
+                stdio: 'inherit'
+            });
+            
+            await new Promise((resolve, reject) => {
+                child.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Backup command failed with exit code ${code}`));
+                    }
+                });
+                child.on('error', reject);
+            });
             
             // Create metadata file
             const metadata = {
@@ -112,7 +144,7 @@ class DatabaseSafetyGuard {
                 environment: this.getEnvironment()
             };
             
-            fs.writeFileSync(
+            await fs.writeFile(
                 `${backupFile}.meta.json`, 
                 JSON.stringify(metadata, null, 2)
             );
@@ -219,7 +251,19 @@ class DatabaseSafetyGuard {
 
         // Run migrations
         try {
-            execSync('supabase db push', { stdio: 'inherit' });
+            const child = spawn('supabase', ['db', 'push'], { stdio: 'inherit' });
+            
+            await new Promise((resolve, reject) => {
+                child.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Migration command failed with exit code ${code}`));
+                    }
+                });
+                child.on('error', reject);
+            });
+            
             console.log('✅ Migrations applied successfully');
         } catch (error) {
             console.error('❌ Migration failed:', error.message);
@@ -266,7 +310,19 @@ class DatabaseSafetyGuard {
 
         // Perform reset
         try {
-            execSync('supabase db reset', { stdio: 'inherit' });
+            const child = spawn('supabase', ['db', 'reset'], { stdio: 'inherit' });
+            
+            await new Promise((resolve, reject) => {
+                child.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Reset command failed with exit code ${code}`));
+                    }
+                });
+                child.on('error', reject);
+            });
+            
             console.log('✅ Database reset completed successfully');
         } catch (error) {
             console.error('❌ Database reset failed:', error.message);
@@ -304,8 +360,66 @@ if (require.main === module) {
     const command = process.argv[2];
     const args = process.argv.slice(3);
 
+    // Input validation
+    function validateInput() {
+        const allowedCommands = ['backup', 'list-backups', 'migrate', 'reset', 'validate'];
+        
+        if (!command || !allowedCommands.includes(command)) {
+            console.error('Error: Invalid or missing command');
+            console.error('Valid commands:', allowedCommands.join(', '));
+            process.exit(1);
+        }
+        
+        // Validate command-specific arguments
+        switch (command) {
+            case 'migrate':
+            case 'reset':
+                if (!args[0] || !args[0].trim()) {
+                    console.error(`Error: ${command} requires an environment argument`);
+                    console.error('Valid environments: development, staging, production');
+                    process.exit(1);
+                }
+                const validEnvs = ['development', 'staging', 'production', 'dev', 'stage', 'prod'];
+                if (!validEnvs.includes(args[0].toLowerCase())) {
+                    console.error(`Error: Invalid environment "${args[0]}"`);
+                    console.error('Valid environments:', validEnvs.join(', '));
+                    process.exit(1);
+                }
+                break;
+                
+            case 'validate':
+                if (!args[0] || !args[0].trim()) {
+                    console.error('Error: validate requires an operation name');
+                    process.exit(1);
+                }
+                break;
+                
+            case 'list-backups':
+                if (args[0] && (isNaN(parseInt(args[0])) || parseInt(args[0]) < 1)) {
+                    console.error('Error: list-backups limit must be a positive number');
+                    process.exit(1);
+                }
+                break;
+                
+            case 'backup':
+                if (args[0] && typeof args[0] !== 'string') {
+                    console.error('Error: backup description must be a string');
+                    process.exit(1);
+                }
+                break;
+        }
+        
+        // Validate --force flag
+        if (args.includes('--force') && command !== 'reset') {
+            console.error('Error: --force flag is only valid for reset command');
+            process.exit(1);
+        }
+    }
+
     async function main() {
         try {
+            validateInput();
+            
             switch (command) {
                 case 'backup':
                     await guard.createBackup(args[0] || '');

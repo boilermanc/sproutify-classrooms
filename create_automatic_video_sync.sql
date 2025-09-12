@@ -7,13 +7,31 @@ RETURNS TRIGGER AS $$
 DECLARE
     video_url text;
     pest_name text;
+    rows_updated integer;
 BEGIN
     -- Only process video uploads
     IF NEW.type = 'video' AND NEW.is_published = true THEN
+        -- Validate required fields
+        IF NEW.section_id IS NULL OR NEW.bucket IS NULL OR NEW.object_path IS NULL OR NEW.object_path = '' THEN
+            RAISE WARNING 'Video sync skipped: missing required fields (section_id, bucket, or object_path)';
+            RETURN NEW;
+        END IF;
+        
         -- Get the content section slug to determine the pest name
-        SELECT cs.slug INTO pest_name
-        FROM public.content_section cs
-        WHERE cs.id = NEW.section_id;
+        BEGIN
+            SELECT cs.slug INTO pest_name
+            FROM public.content_section cs
+            WHERE cs.id = NEW.section_id;
+            
+            IF NOT FOUND THEN
+                RAISE WARNING 'Video sync skipped: content section not found for section_id %', NEW.section_id;
+                RETURN NEW;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE WARNING 'Video sync failed: error retrieving content section - %', SQLERRM;
+                RETURN NEW;
+        END;
         
         -- Construct the video URL
         video_url := CONCAT(
@@ -24,22 +42,33 @@ BEGIN
         );
         
         -- Update the pest_catalog entry if it exists
-        -- Try different name variations to match
-        UPDATE public.pest_catalog 
-        SET video_url = video_url,
-            updated_at = now()
-        WHERE (
-            name ILIKE '%' || pest_name || '%' OR
-            name ILIKE '%' || REPLACE(pest_name, '-', ' ') || '%' OR
-            name ILIKE '%' || REPLACE(pest_name, '-', '') || '%' OR
-            -- Handle specific mappings
-            (pest_name = 'whiteflies' AND name ILIKE '%white%') OR
-            (pest_name = 'spider-mites' AND name ILIKE '%spider%') OR
-            (pest_name = 'aphids' AND name ILIKE '%aphid%')
-        );
-        
-        -- Log the sync attempt
-        RAISE NOTICE 'Synced video % to pest_catalog for section %', NEW.title, pest_name;
+        BEGIN
+            UPDATE public.pest_catalog 
+            SET video_url = video_url,
+                updated_at = now()
+            WHERE (
+                name ILIKE '%' || pest_name || '%' OR
+                name ILIKE '%' || REPLACE(pest_name, '-', ' ') || '%' OR
+                name ILIKE '%' || REPLACE(pest_name, '-', '') || '%' OR
+                -- Handle specific mappings
+                (pest_name = 'whiteflies' AND name ILIKE '%white%') OR
+                (pest_name = 'spider-mites' AND name ILIKE '%spider%') OR
+                (pest_name = 'aphids' AND name ILIKE '%aphid%')
+            );
+            
+            GET DIAGNOSTICS rows_updated = ROW_COUNT;
+            
+            IF rows_updated = 0 THEN
+                RAISE NOTICE 'Video sync completed but no pest catalog entries were updated for section %', pest_name;
+            ELSE
+                RAISE NOTICE 'Video sync successful: updated % pest catalog entries for section %', rows_updated, pest_name;
+            END IF;
+            
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE WARNING 'Video sync failed during pest catalog update - %', SQLERRM;
+                RETURN NEW;
+        END;
     END IF;
     
     RETURN NEW;
@@ -151,22 +180,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. Test the sync system
-SELECT 'Testing sync system - Current video mappings:' as test_type;
-SELECT * FROM sync_all_videos_to_pest_catalog();
-
--- 6. Sync your existing whiteflies video
-SELECT 'Syncing whiteflies video:' as test_type;
-SELECT * FROM sync_specific_video_to_pest_catalog('d6dce031-1159-430f-afc1-33b76f98775e');
-
--- 7. Verify the sync worked
-SELECT 'Verifying sync - Updated pest_catalog entries:' as test_type;
-SELECT id, name, video_url, updated_at
-FROM public.pest_catalog 
-WHERE video_url IS NOT NULL
-ORDER BY updated_at DESC;
-
--- 8. Create a helper function for the frontend to trigger sync
+-- 5. Create a helper function for the frontend to trigger sync
 CREATE OR REPLACE FUNCTION trigger_video_sync()
 RETURNS text AS $$
 BEGIN
@@ -175,8 +189,3 @@ BEGIN
     RETURN 'Video sync triggered successfully';
 END;
 $$ LANGUAGE plpgsql;
-
-SELECT 'Automatic sync system created successfully!' as test_type;
-SELECT 'New videos will now automatically sync to pest_catalog when uploaded.' as instruction;
-SELECT 'Use sync_all_videos_to_pest_catalog() to see all current mappings.' as instruction;
-SELECT 'Use sync_specific_video_to_pest_catalog(video_id) to sync a specific video.' as instruction;

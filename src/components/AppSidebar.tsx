@@ -33,7 +33,7 @@ import { useState, useEffect } from "react";
 
 // Feature flag for Garden Network
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_FEATURE_GARDEN_NETWORK === 'true',
+  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || import.meta.env.VITE_FEATURE_GARDEN_NETWORK === 'true',
 };
 
 const coreItems = [

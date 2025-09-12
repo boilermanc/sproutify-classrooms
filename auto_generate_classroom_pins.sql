@@ -52,6 +52,7 @@ CREATE TRIGGER trigger_auto_generate_classroom_pin
     EXECUTE FUNCTION auto_generate_classroom_pin();
 
 -- Step 3: Fix existing duplicates by regenerating PINs
+BEGIN;
 WITH duplicate_pins AS (
     SELECT kiosk_pin
     FROM public.classrooms 
@@ -71,16 +72,23 @@ UPDATE public.classrooms
 SET kiosk_pin = generate_unique_classroom_pin()
 FROM classrooms_to_fix ctf
 WHERE classrooms.id = ctf.id AND ctf.rn > 1;
+COMMIT;
 
--- Step 4: Add unique constraint to prevent future duplicates
-ALTER TABLE public.classrooms 
-ADD CONSTRAINT classrooms_kiosk_pin_unique 
-UNIQUE (kiosk_pin);
+-- Step 4: Add format validation (4 digits) first
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classrooms_kiosk_pin_format_check') THEN 
+        ALTER TABLE public.classrooms ADD CONSTRAINT classrooms_kiosk_pin_format_check CHECK (kiosk_pin ~ '^[0-9]{4}$'); 
+    END IF; 
+END $$;
 
--- Step 5: Add format validation (4 digits)
-ALTER TABLE public.classrooms 
-ADD CONSTRAINT classrooms_kiosk_pin_format_check 
-CHECK (kiosk_pin ~ '^[0-9]{4}$');
+-- Step 5: Add unique constraint to prevent future duplicates
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classrooms_kiosk_pin_unique') THEN 
+        ALTER TABLE public.classrooms ADD CONSTRAINT classrooms_kiosk_pin_unique UNIQUE (kiosk_pin); 
+    END IF; 
+END $$;
 
 -- Step 6: Verify results
 SELECT 

@@ -103,10 +103,10 @@ export const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }
         return;
       }
 
-      // Use a default price ID for upgrade (you can customize this)
+      // Use plan identifier instead of hardcoded price ID
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
-          priceId: "price_1S4mblKHJbtiKAzVzxDjpLKw", // Basic annual plan
+          plan: "basic", // Plan identifier instead of price ID
           customer_email: user.email || undefined,
           userId: user.id,
           billingPeriod: "annual",
