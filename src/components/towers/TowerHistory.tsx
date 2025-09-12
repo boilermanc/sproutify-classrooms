@@ -31,8 +31,8 @@ export function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryPro
         // 3. USE the teacherId prop in all queries
         const [vitals, harvests, waste, pests] = await Promise.all([
           supabase.from('tower_vitals').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('recorded_at', { ascending: false }).limit(50),
-          supabase.from('harvests').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('harvested_at', { ascending: false }).limit(50),
-          supabase.from('waste_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('logged_at', { ascending: false }).limit(50),
+          supabase.from('harvests').select('id, plant_name, harvested_at, plant_quantity, weight_grams, destination, tower_id').eq('tower_id', towerId).eq('teacher_id', teacherId).order('harvested_at', { ascending: false }).limit(50),
+          supabase.from('waste_logs').select('id, plant_name, logged_at, grams, notes, tower_id').eq('tower_id', towerId).eq('teacher_id', teacherId).order('logged_at', { ascending: false }).limit(50),
           supabase.from('pest_logs').select('*').eq('tower_id', towerId).eq('teacher_id', teacherId).order('observed_at', { ascending: false }).limit(50),
         ]);
         
@@ -87,6 +87,27 @@ export function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryPro
         </CardContent>
       </Card>
 
+      {/* Pest Logs History */}
+      <Card>
+        <CardHeader><CardTitle>Pest Log History</CardTitle></CardHeader>
+        <CardContent>
+          {pestsData.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No pest observations recorded yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {pestsData.map((pest) => (
+                <div key={pest.id} className="p-3 border rounded-md">
+                  <div className="text-xs text-muted-foreground mb-1"> {new Date(pest.observed_at).toLocaleDateString()} </div>
+                  <div className="font-medium">{pest.pest}</div>
+                  {pest.notes && <div className="text-sm text-muted-foreground">{pest.notes}</div>}
+                  {pest.action && <div className="text-sm">Action: {pest.action}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Harvests History */}
       <Card>
         <CardHeader><CardTitle>Harvest History</CardTitle></CardHeader>
@@ -122,27 +143,6 @@ export function TowerHistory({ towerId, teacherId, refreshKey }: TowerHistoryPro
                   <div> <div className="text-xs text-muted-foreground">Plant</div> <div>{waste.plant_name || "-"}</div> </div>
                   <div> <div className="text-xs text-muted-foreground">Weight</div> <div>{waste.grams} g</div> </div>
                   <div> <div className="text-xs text-muted-foreground">Notes</div> <div>{waste.notes || "-"}</div> </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pest Logs History */}
-      <Card>
-        <CardHeader><CardTitle>Pest Log History</CardTitle></CardHeader>
-        <CardContent>
-          {pestsData.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No pest observations recorded yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {pestsData.map((pest) => (
-                <div key={pest.id} className="p-3 border rounded-md">
-                  <div className="text-xs text-muted-foreground mb-1"> {new Date(pest.observed_at).toLocaleDateString()} </div>
-                  <div className="font-medium">{pest.pest}</div>
-                  {pest.notes && <div className="text-sm text-muted-foreground">{pest.notes}</div>}
-                  {pest.action && <div className="text-sm">Action: {pest.action}</div>}
                 </div>
               ))}
             </div>

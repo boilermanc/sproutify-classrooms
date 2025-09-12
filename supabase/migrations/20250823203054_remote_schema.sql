@@ -194,6 +194,8 @@ alter table "public"."towers" enable row level security;
       );
 
 
+alter table "public"."user_roles" enable row level security;
+
 
   create table "public"."waste_logs" (
     "id" uuid not null default gen_random_uuid(),

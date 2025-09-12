@@ -13,6 +13,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    storageKey: 'sb-main-auth-token' // Use a specific storage key
   },
   db: {
     schema: DEFAULT_SCHEMA,

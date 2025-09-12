@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/AppSidebar";
 import { useProfile } from "@/hooks/useProfile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 export default function AppLayout({ children }: PropsWithChildren) {
   const { profile, loading, getGreeting } = useProfile();
   const renderHeaderContent = () => {
@@ -39,9 +40,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <SidebarInset>
-          <header className="h-14 flex items-center gap-3 border-b px-4">
-            <SidebarTrigger />
-            {renderHeaderContent()}
+          <header className="h-14 flex items-center justify-between border-b px-4">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              {renderHeaderContent()}
+            </div>
+            <ThemeToggle />
           </header>
           <div className="p-4 container">{children}</div>
         </SidebarInset>

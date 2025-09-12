@@ -63,7 +63,7 @@ export function ScoutingWidget() {
           follow_up_date,
           observed_at,
           notes,
-          towers!inner(name, location)
+          towers(name, location)
         `)
         .eq('teacher_id', user.id)
         .eq('resolved', false)
@@ -75,8 +75,8 @@ export function ScoutingWidget() {
       // Transform the data
       const transformedData = data?.map(entry => ({
         ...entry,
-        tower_name: entry.towers.name,
-        tower_location: entry.towers.location
+        tower_name: entry.towers?.name || 'Unknown Tower',
+        tower_location: entry.towers?.location || 'Unknown Location'
       })) || [];
 
       // Separate active and overdue issues

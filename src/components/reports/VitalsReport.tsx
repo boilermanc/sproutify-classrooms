@@ -56,7 +56,7 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
         .select("recorded_at, ph, ec")
         .eq("tower_id", towerId)
         .eq("teacher_id", teacherId)
-        .or('ph.is.not.null,ec.is.not.null')
+        .or("ph.not.is.null,ec.not.is.null")
         .order("recorded_at", { ascending: true })
         .limit(30);
 

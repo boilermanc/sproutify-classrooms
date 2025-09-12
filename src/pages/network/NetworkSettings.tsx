@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -20,10 +20,6 @@ import { toast } from 'sonner';
 const NONE = 'none';
 
 export default function NetworkSettingsPage() {
-  // visibility marker so we can confirm the new chunk is live
-  // eslint-disable-next-line no-console
-  console.info('🔧 NetworkSettings v3');
-
   const { state } = useAppStore();
   const navigate = useNavigate();
 
@@ -105,12 +101,27 @@ export default function NetworkSettingsPage() {
 
   if (!state.selectedClassroom) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-          <div>
-            <h2 className="text-xl font-semibold">Select a Classroom</h2>
-            <p className="text-muted-foreground">Please select a classroom to configure network settings.</p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Garden Network Settings</h1>
+          <p className="text-muted-foreground">Configure your classroom's network participation and privacy settings.</p>
+        </div>
+
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+            <div>
+              <h2 className="text-xl font-semibold">Select a Classroom</h2>
+              <p className="text-muted-foreground">Please select a classroom to configure network settings.</p>
+            </div>
+            <div className="flex gap-3">
+              <Button asChild>
+                <Link to="/app/classrooms">Go to Classrooms</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/app/network">Back to Network</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

@@ -319,7 +319,7 @@ export default function TowerDetail() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [teacherId, setTeacherId] = useState<string | null>(null);
-  const initialTab = searchParams.get("tab") || "vitals";
+  const initialTab = searchParams.get("tab") || "history";
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -405,21 +405,21 @@ export default function TowerDetail() {
         </div>
         <Tabs defaultValue={initialTab}>
           <TabsList>
+            <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="vitals">Vitals</TabsTrigger>
             <TabsTrigger value="plants">Plants</TabsTrigger>
             <TabsTrigger value="scouting">Scouting</TabsTrigger>
             <TabsTrigger value="harvests">Harvests</TabsTrigger>
             <TabsTrigger value="waste">Waste</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
+          <TabsContent value="history" className="mt-4"><TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
           <TabsContent value="vitals" className="mt-4"><TowerVitalsForm towerId={tower.id} teacherId={teacherId} onVitalsSaved={refreshData} /></TabsContent>
           <TabsContent value="plants" className="mt-4"><PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
           <TabsContent value="scouting" className="mt-4"><ScoutingTab towerId={tower.id} teacherId={teacherId} towerLocation={tower.location || 'indoor'} onScoutingSaved={refreshData} /></TabsContent>
           <TabsContent value="harvests" className="mt-4"><TowerHarvestForm towerId={tower.id} teacherId={teacherId} onHarvested={refreshData} /></TabsContent>
           <TabsContent value="waste" className="mt-4"><TowerWasteForm towerId={tower.id} teacherId={teacherId} onWasteLogged={refreshData} /></TabsContent>
           <TabsContent value="photos" className="mt-4"><TowerPhotosTab towerId={tower.id} /></TabsContent>
-          <TabsContent value="history" className="mt-4"><TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
         </Tabs>
       </div>
     </>
@@ -555,6 +555,17 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
   const [plantedAt, setPlantedAt] = useState("");
   const [harvestDate, setHarvestDate] = useState("");
   const [portNumber, setPortNumber] = useState<number | undefined>();
+  
+  // Edit state management
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    quantity: 1,
+    seeded_at: "",
+    planted_at: "",
+    expected_harvest_date: "",
+    port_number: ""
+  });
 
   useEffect(() => {
     const fetchPlantings = async () => {
@@ -580,6 +591,78 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
       toast({ title: "Plant added successfully" });
     } catch (error) { toast({ title: "Error adding plant", variant: "destructive" }); }
     finally { setSubmitting(false); }
+  };
+
+  const handleEdit = (plant: PlantingWithCatalog) => {
+    setEditingId(plant.id);
+    setEditForm({
+      name: plant.name,
+      quantity: plant.quantity,
+      seeded_at: plant.seeded_at ? new Date(plant.seeded_at).toISOString().split('T')[0] : "",
+      planted_at: plant.planted_at ? new Date(plant.planted_at).toISOString().split('T')[0] : "",
+      expected_harvest_date: plant.expected_harvest_date ? new Date(plant.expected_harvest_date).toISOString().split('T')[0] : "",
+      port_number: plant.port_number?.toString() || ""
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name.trim()) return;
+    try {
+      setSubmitting(true);
+      const { error } = await supabase
+        .from('plantings')
+        .update({
+          name: editForm.name.trim(),
+          quantity: editForm.quantity,
+          seeded_at: editForm.seeded_at || null,
+          planted_at: editForm.planted_at || null,
+          expected_harvest_date: editForm.expected_harvest_date || null,
+          port_number: editForm.port_number ? parseInt(editForm.port_number) : null
+        })
+        .eq('id', editingId)
+        .eq('teacher_id', teacherId);
+
+      if (error) throw error;
+      
+      // Refresh the plantings list
+      const { data, error: fetchError } = await supabase
+        .from('plantings')
+        .select(`*, plant_catalog (*)`)
+        .eq('tower_id', towerId)
+        .eq('teacher_id', teacherId)
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      setPlantings(data || []);
+      
+      setEditingId(null);
+      toast({ title: "Plant updated successfully" });
+    } catch (error) {
+      toast({ title: "Error updating plant", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (plantId: string) => {
+    if (!confirm("Are you sure you want to delete this plant?")) return;
+    try {
+      setSubmitting(true);
+      const { error } = await supabase
+        .from('plantings')
+        .delete()
+        .eq('id', plantId)
+        .eq('teacher_id', teacherId);
+
+      if (error) throw error;
+      
+      setPlantings(prev => prev.filter(p => p.id !== plantId));
+      toast({ title: "Plant deleted successfully" });
+    } catch (error) {
+      toast({ title: "Error deleting plant", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getHarvestStatus = (expectedDate?: string) => {
@@ -617,7 +700,138 @@ function PlantsTab({ towerId, teacherId, refreshKey }: PlantsTabProps) {
           {plantings.length === 0 ? <div className="text-center py-8"><Leaf className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground mb-4">No plants added yet.</p><Button asChild><Link to={`/app/catalog?addTo=${towerId}`}><Plus className="h-4 w-4 mr-2" />Add First Plant</Link></Button></div>
             : <div className="space-y-4">{plantings.map((plant) => {
               const harvest = getHarvestStatus(plant.expected_harvest_date);
-              return (<Card key={plant.id} className="p-4"><div className="flex items-start justify-between"><div className="space-y-3 flex-1"><div className="flex items-center gap-2"><h4 className="font-medium text-lg">{plant.name}</h4>{plant.plant_catalog && <Badge variant="outline">{plant.plant_catalog.category}</Badge>}</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span>Port: {plant.port_number || "N/A"}</span></div><div>Qty: {plant.quantity}</div>{plant.seeded_at && <div>Seeded: {new Date(plant.seeded_at).toLocaleDateString()}</div>}{plant.planted_at && <div>Planted: {new Date(plant.planted_at).toLocaleDateString()}</div>}</div>{plant.expected_harvest_date && <Badge variant={harvest.status === 'overdue' ? 'destructive' : 'secondary'}>{harvest.status === 'today' ? 'Ready Today!' : `${harvest.days} days ${harvest.status === 'overdue' ? 'overdue' : 'left'}`}</Badge>}</div><div className="flex gap-2 ml-4"><Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>);})}</div>}
+              return (
+                <Card key={plant.id} className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-lg">{plant.name}</h4>
+                        {plant.plant_catalog && <Badge variant="outline">{plant.plant_catalog.category}</Badge>}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span>Port: {plant.port_number || "N/A"}</span>
+                        </div>
+                        <div>Qty: {plant.quantity}</div>
+                        {plant.seeded_at && <div>Seeded: {new Date(plant.seeded_at).toLocaleDateString()}</div>}
+                        {plant.planted_at && <div>Planted: {new Date(plant.planted_at).toLocaleDateString()}</div>}
+                      </div>
+                      {plant.expected_harvest_date && (
+                        <Badge variant={harvest.status === 'overdue' ? 'destructive' : 'secondary'}>
+                          {harvest.status === 'today' ? 'Ready Today!' : `${harvest.days} days ${harvest.status === 'overdue' ? 'overdue' : 'left'}`}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEdit(plant)}
+                        disabled={submitting}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-destructive"
+                        onClick={() => handleDelete(plant.id)}
+                        disabled={submitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Edit Form */}
+                  {editingId === plant.id && (
+                    <div className="border-t pt-4 mt-4 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>Plant Name</Label>
+                          <Input
+                            value={editForm.name}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g., Lettuce"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Port #</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="32"
+                            value={editForm.port_number}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, port_number: e.target.value }))}
+                            placeholder="1-32"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Quantity</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={editForm.quantity}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, quantity: Math.max(1, Number(e.target.value)) }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Seeded Date</Label>
+                          <Input
+                            type="date"
+                            value={editForm.seeded_at}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, seeded_at: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Planted Date</Label>
+                          <Input
+                            type="date"
+                            value={editForm.planted_at}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, planted_at: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Expected Harvest</Label>
+                          <Input
+                            type="date"
+                            value={editForm.expected_harvest_date}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, expected_harvest_date: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleSaveEdit}
+                          disabled={submitting || !editForm.name.trim()}
+                          size="sm"
+                        >
+                          {submitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Save Changes
+                            </>
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setEditingId(null)}
+                          size="sm"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}</div>}
         </CardContent>
       </Card>
     </div>

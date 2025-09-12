@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 
@@ -13,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
 import RegisterTeacher from "@/pages/auth/RegisterTeacher";
+import AcceptInvite from "@/pages/auth/AcceptInvite";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import DashboardHome from "@/pages/dashboard/Home";
 import TowersList from "@/pages/towers/TowersList";
@@ -50,6 +52,8 @@ import { SubscriptionGuard } from "@/components/SubscriptionGuard";
 // Guides
 import TeacherPestDiseaseGuide from "@/pages/guides/TeacherPestDiseaseGuide";
 import StudentPestDiseaseGuide from "@/pages/guides/StudentPestDiseaseGuide";
+import DistrictGuide from "@/pages/guides/DistrictGuide";
+import SchoolGuide from "@/pages/guides/SchoolGuide";
 
 // Catalog
 import ManageClassroomCatalog from "@/pages/catalog/ManageClassroomCatalog";
@@ -58,12 +62,45 @@ import GlobalPlantCatalog from "@/pages/catalog/GlobalPlantCatalog";
 // Auth
 import StudentLoginPage from "@/pages/auth/StudentLoginPage";
 
+// Admin layouts and pages
+import SchoolAdminLayout from "@/components/layout/SchoolAdminLayout";
+import DistrictAdminLayout from "@/components/layout/DistrictAdminLayout";
+import AdminLayout from "@/components/layout/AdminLayout";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
+import UserManagement from "@/pages/admin/UserManagement";
+import DistrictManagement from "@/pages/admin/DistrictManagement";
+import SchoolManagement from "@/pages/admin/SchoolManagement";
+import VideoManagement from "@/pages/admin/VideoManagement";
+import StyleGuide from "@/pages/admin/StyleGuide";
+import { RequireRole } from "@/components/RequireRole";
+import SchoolDashboard from "@/pages/school/SchoolDashboard";
+import SchoolTowers from "@/pages/school/SchoolTowers";
+import SchoolTeachers from "@/pages/school/SchoolTeachers";
+import SchoolClassrooms from "@/pages/school/SchoolClassrooms";
+import SchoolReports from "@/pages/school/SchoolReports";
+import SchoolJoinCodes from "@/pages/school/SchoolJoinCodes";
+import DistrictDashboard from "@/pages/district/DistrictDashboard";
+import DistrictSchools from "@/pages/district/DistrictSchools";
+import DistrictTeachers from "@/pages/district/DistrictTeachers";
+import DistrictTowers from "@/pages/district/DistrictTowers";
+import DistrictReports from "@/pages/district/DistrictReports";
+import DistrictJoinCodes from "@/pages/district/DistrictJoinCodes";
+import DistrictSettings from "@/pages/district/DistrictSettings";
+import AdminTestPage from "@/pages/AdminTestPage";
+import AuthTestPage from "@/pages/AuthTestPage";
+import AdminSetup from "@/pages/AdminSetup";
+import RoleBasedRedirect from "@/components/RoleBasedRedirect";
+
 // Garden Network (lazy-loaded but ALWAYS routed)
 const NetworkDashboard = React.lazy(() => import("@/pages/network/NetworkDashboard"));
 const NetworkSettings  = React.lazy(() => import("@/pages/network/NetworkSettings"));
 const ClassroomDiscovery = React.lazy(() => import("@/pages/network/ClassroomDiscovery"));
 const MyConnections   = React.lazy(() => import("@/pages/network/MyConnections"));
 const ChallengeCenter = React.lazy(() => import("@/pages/network/ChallengeCenter"));
+
+// Seeding (lazy-loaded)
+const SeedingPage = React.lazy(() => import("@/pages/seeding/SeedingPage"));
 
 const queryClient = new QueryClient();
 
@@ -75,10 +112,16 @@ const PageLoader = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <Routes>
           {/* Public */}
           <Route path="/" element={<Index />} />
@@ -98,8 +141,39 @@ const App = () => (
           <Route path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<RegisterTeacher />} />
+            <Route path="accept-invite" element={<AcceptInvite />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="student-login" element={<StudentLoginPage />} />
+          </Route>
+
+          {/* Admin Test Page (for development) */}
+          <Route path="/admin-test" element={<AdminTestPage />} />
+          <Route path="/auth-test" element={<AuthTestPage />} />
+          <Route path="/admin-setup" element={<AdminSetup />} />
+
+          {/* Admin routes (super_admin and staff only) */}
+          <Route path="/admin" element={
+            <RequireRole allow={["super_admin", "staff"]}>
+              <AdminLayout>
+                <Outlet />
+              </AdminLayout>
+            </RequireRole>
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="super" element={<SuperAdminDashboard />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="videos" element={<VideoManagement />} />
+            <Route path="districts" element={<DistrictManagement />} />
+            <Route path="schools" element={<SchoolManagement />} />
+            <Route path="subscriptions" element={<div className="p-6">Subscription management coming soon.</div>} />
+            <Route path="analytics" element={<div className="p-6">Analytics coming soon.</div>} />
+            <Route path="system" element={<div className="p-6">System monitoring coming soon.</div>} />
+            <Route path="activity" element={<div className="p-6">Activity logs coming soon.</div>} />
+            <Route path="reports" element={<div className="p-6">Reports coming soon.</div>} />
+            <Route path="settings" element={<div className="p-6">Admin settings coming soon.</div>} />
+            <Route path="style-guide" element={<StyleGuide />} />
+            <Route path="help" element={<div className="p-6">Admin help coming soon.</div>} />
           </Route>
 
           {/* Student (protected) */}
@@ -118,11 +192,13 @@ const App = () => (
           {/* Teacher app (protected with subscription guard) */}
           <Route path="/app" element={
             <SubscriptionGuard>
-              <AppStoreProviderWrapper>
-                <AppLayout>
-                  <Outlet />
-                </AppLayout>
-              </AppStoreProviderWrapper>
+              <RoleBasedRedirect>
+                <AppStoreProviderWrapper>
+                  <AppLayout>
+                    <Outlet />
+                  </AppLayout>
+                </AppStoreProviderWrapper>
+              </RoleBasedRedirect>
             </SubscriptionGuard>
           }>
             <Route index element={<DashboardHome />} />
@@ -184,12 +260,61 @@ const App = () => (
             </Route>
 
             <Route path="pest-disease-guide" element={<TeacherPestDiseaseGuide />} />
+            <Route path="district-guide" element={<DistrictGuide />} />
+            <Route path="school-guide" element={<SchoolGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<AccountSettings />} />
+            
+            {/* Seeding routes */}
+            <Route path="seeding" element={
+              <Suspense fallback={<PageLoader />}>
+                <SeedingPage />
+              </Suspense>
+            } />
+          </Route>
+
+          {/* School Admin routes (protected with subscription guard) */}
+          <Route path="/school" element={
+            <SubscriptionGuard>
+              <RoleBasedRedirect>
+                <SchoolAdminLayout>
+                  <Outlet />
+                </SchoolAdminLayout>
+              </RoleBasedRedirect>
+            </SubscriptionGuard>
+          }>
+            <Route index element={<SchoolDashboard />} />
+            <Route path="dashboard" element={<SchoolDashboard />} />
+            <Route path="towers" element={<SchoolTowers />} />
+            <Route path="classrooms" element={<SchoolClassrooms />} />
+            <Route path="teachers" element={<SchoolTeachers />} />
+            <Route path="reports" element={<SchoolReports />} />
+            <Route path="join-codes" element={<SchoolJoinCodes />} />
+            <Route path="settings" element={<div className="p-6">School settings coming soon.</div>} />
+          </Route>
+
+          {/* District Admin routes (protected with subscription guard) */}
+          <Route path="/district" element={
+            <SubscriptionGuard>
+              <RoleBasedRedirect>
+                <DistrictAdminLayout>
+                  <Outlet />
+                </DistrictAdminLayout>
+              </RoleBasedRedirect>
+            </SubscriptionGuard>
+          }>
+            <Route index element={<DistrictDashboard />} />
+            <Route path="dashboard" element={<DistrictDashboard />} />
+            <Route path="schools" element={<DistrictSchools />} />
+            <Route path="teachers" element={<DistrictTeachers />} />
+            <Route path="towers" element={<DistrictTowers />} />
+            <Route path="reports" element={<DistrictReports />} />
+            <Route path="join-codes" element={<DistrictJoinCodes />} />
+            <Route path="settings" element={<DistrictSettings />} />
           </Route>
 
           {/* 404 */}
@@ -197,6 +322,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

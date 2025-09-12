@@ -9,35 +9,40 @@ export const getStripe = async () => {
 // Server-side Stripe client (for API routes)
 export const stripe = typeof window === 'undefined' ? new Stripe(
   process.env.STRIPE_SECRET_KEY || '', 
-  { apiVersion: '2024-06-20' }
+  { apiVersion: '2025-08-27.basil' }
 ) : null;
 
-// Your actual Stripe Price IDs - UPDATED WITH TEST MODE IDs
+// Your actual Stripe Price IDs - PRODUCTION IDs
 export const STRIPE_PRICE_IDS = {
   basic: {
-    monthly: 'price_1S45NJKHJbtiKAzVnJdU93Cr',     // TEST MODE Basic monthly ($19.99)
-    annual: 'price_1S4mblKHJbtiKAzVzxDjpLKw',      // TEST MODE Basic annual
-    promotional: 'price_1S45O4KHJbtiKAzVzKjIh4q0'  // TEST MODE Basic promotional ($9.99)
+    monthly: 'price_1S41WnKHJbtiKAzVkLuDmvEu',     // Basic Monthly Regular
+    annual: 'price_1S5Yz6KHJbtiKAzVQ9wFOeCK',      // Basic Annual
+    promotional: 'price_1S3NYCKHJbtiKAzVJBUoKWXX'  // Basic Monthly Promo
   },
   professional: {
-    monthly: 'price_1S41c2KHJbtiKAzV8crsVNX1',     // $39.99 Professional monthly
-    annual: '', // TODO: Add annual price ID when available
-    promotional: 'price_1S41eGKHJbtiKAzV2c95F8ge'  // $19.99 Professional promotional
+    monthly: 'price_1S41c2KHJbtiKAzV8crsVNX1',     // Professional Monthly Regular
+    annual: 'price_1S5Z3jKHJbtiKAzV5WdGZMMA',      // Professional Annual
+    promotional: 'price_1S41eGKHJbtiKAzV2c95F8ge'  // Professional Monthly Promo
   },
   school: {
-    monthly: 'price_1S41gQKHJbtiKAzV6qJdJIjN',     // $79.99 School monthly
-    annual: '', // TODO: Add annual price ID when available
-    promotional: 'price_1S41hDKHJbtiKAzVW0n8QUPU'  // $39.99 School promotional
+    monthly: 'price_1S41gQKHJbtiKAzV6qJdJIjN',     // School Monthly Regular
+    annual: 'price_1S5YwKKHJbtiKAzVFDODzk5a',      // School Annual
+    promotional: 'price_1S41hDKHJbtiKAzVW0n8QUPU'  // School Monthly Promo
+  },
+  district: {
+    monthly: 'price_1S5YfqKHJbtiKAzV847eglJR',     // District Monthly Regular
+    annual: 'price_1S5YhyKHJbtiKAzV2pATTPJp',      // District Annual
+    promotional: 'price_1S5YhOKHJbtiKAzVh21kiE2m'  // District Monthly Promo
   }
 } as const;
 
-// Plan configurations
+// Plan configurations - CORRECTED PRICING
 export const SUBSCRIPTION_PLANS = {
   basic: {
     name: 'Basic',
     monthlyPrice: 1999, // $19.99 in cents
-    annualPrice: 21588, // $215.88 in cents (10% off from $239.88)
-    promotionalPrice: 999, // $9.99 in cents (50% off)
+    annualPrice: 10788, // $107.88 in cents ($8.99/month)
+    promotionalPrice: 999, // $9.99 in cents (promotional price)
     features: {
       towers: 3,
       students: 50
@@ -51,8 +56,8 @@ export const SUBSCRIPTION_PLANS = {
   professional: {
     name: 'Professional', 
     monthlyPrice: 3999, // $39.99 in cents
-    annualPrice: 0, // TODO: Set actual annual price when known
-    promotionalPrice: 1999, // $19.99 in cents
+    annualPrice: 21588, // $215.88 in cents ($17.99/month)
+    promotionalPrice: 1999, // $19.99 in cents (promotional price)
     features: {
       towers: 10,
       students: 200
@@ -64,35 +69,94 @@ export const SUBSCRIPTION_PLANS = {
     }
   },
   school: {
-    name: 'School District',
-    monthlyPrice: 7999, // $79.99 in cents
-    annualPrice: 0, // TODO: Set actual annual price when known
-    promotionalPrice: 3999, // $39.99 in cents
+    name: 'School',
+    monthlyPrice: 9999, // $99.99 in cents
+    annualPrice: 108000, // $1,080 in cents ($90/month)
+    promotionalPrice: 4999, // $49.99 in cents (promotional price)
     features: {
-      towers: -1, // unlimited
-      students: -1 // unlimited
+      towers: 25,
+      students: 500
     },
     stripePriceId: {
       monthly: STRIPE_PRICE_IDS.school.monthly,
       annual: STRIPE_PRICE_IDS.school.annual,
       promotional: STRIPE_PRICE_IDS.school.promotional
     }
+  },
+  district: {
+    name: 'District',
+    monthlyPrice: 29999, // $299.99 in cents
+    annualPrice: 324000, // $3,240 in cents ($270/month)
+    promotionalPrice: 14999, // $149.99 in cents (promotional price)
+    features: {
+      towers: -1, // unlimited
+      students: -1 // unlimited
+    },
+    stripePriceId: {
+      monthly: STRIPE_PRICE_IDS.district.monthly,
+      annual: STRIPE_PRICE_IDS.district.annual,
+      promotional: STRIPE_PRICE_IDS.district.promotional
+    }
   }
 } as const;
 
 export type PlanType = keyof typeof SUBSCRIPTION_PLANS;
 
-// Utility function to get the appropriate price ID
-export const getPriceId = (plan: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly', isPromotional: boolean = false) => {
+// Utility function to get the appropriate price ID with automatic promotional detection
+export const getPriceId = (plan: PlanType, billingPeriod: 'monthly' | 'annual' = 'monthly', isPromotional?: boolean) => {
   const planConfig = SUBSCRIPTION_PLANS[plan];
   
-  if (isPromotional) {
+  // Check if promotional pricing should be automatically applied
+  const shouldUsePromotional = isPromotional || isPromotionalPricingActive();
+  
+  if (shouldUsePromotional && billingPeriod === 'monthly') {
     return planConfig.stripePriceId.promotional;
   }
   
   return billingPeriod === 'annual' 
     ? planConfig.stripePriceId.annual 
     : planConfig.stripePriceId.monthly;
+};
+
+// Promotional pricing configuration
+export const PROMOTIONAL_PRICING_CONFIG = {
+  enabled: true,
+  schedule: {
+    startDate: '2025-01-01T00:00:00Z',
+    endDate: '2025-09-30T23:59:59Z', // End of September 2025
+  },
+  eligiblePlans: ['basic', 'professional', 'school', 'district'],
+  rules: {
+    autoApply: true,
+    showOnPricingPage: true,
+    allowManualOverride: true
+  }
+};
+
+// Function to check if promotional pricing should be active
+export const isPromotionalPricingActive = (): boolean => {
+  if (!PROMOTIONAL_PRICING_CONFIG.enabled) {
+    return false;
+  }
+  
+  const now = new Date();
+  const startDate = new Date(PROMOTIONAL_PRICING_CONFIG.schedule.startDate);
+  const endDate = new Date(PROMOTIONAL_PRICING_CONFIG.schedule.endDate);
+  
+  return now >= startDate && now <= endDate;
+};
+
+// Function to get promotional pricing info
+export const getPromotionalPricingInfo = () => {
+  const isActive = isPromotionalPricingActive();
+  const endDate = new Date(PROMOTIONAL_PRICING_CONFIG.schedule.endDate);
+  
+  return {
+    isActive,
+    endDate: endDate.toISOString(),
+    daysRemaining: isActive ? Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+    message: isActive ? `Promotional pricing ends in ${Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days` : 'Promotional pricing has ended'
+  };
 };
 
 // Function to create checkout session with promo code support - UPDATED FOR SUPABASE

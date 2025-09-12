@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Bug, Search, AlertTriangle, Camera, HelpCircle } from "lucide-react";
 import TreatmentRecommendations from "./TreatmentRecommendations";
 
@@ -540,6 +540,9 @@ export function EnhancedScoutingForm({
                 <Bug className="h-5 w-5" />
                 Pest Identification
               </DialogTitle>
+              <DialogDescription>
+                Select a common pest from the list below or enter a custom pest name. This will help track pest issues in your tower.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">

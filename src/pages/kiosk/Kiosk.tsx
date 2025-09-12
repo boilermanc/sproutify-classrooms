@@ -7,10 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { findClassroomByPin } from "@/utils/kiosk-login";
-const sb = supabase as any;
 import { Link } from "react-router-dom";
 
 export default function Kiosk() {
@@ -68,19 +66,28 @@ export default function Kiosk() {
       }
 
       // Step 2: Check if student exists in this classroom with matching PIN
-      const { data: student, error: studentErr } = await sb
+      const { data: student, error: studentErr } = await anonymousSupabase
         .from("students")
-        .select("id, display_name, has_logged_in")
+        .select("id, display_name, has_logged_in, student_pin")
         .eq("classroom_id", classroom.id)
         .eq("display_name", name)
-        .eq("student_pin", pin)
         .single();
 
       if (studentErr || !student) {
         console.error("Student lookup failed:", studentErr);
         toast({ 
           title: "Student not found", 
-          description: `We couldn't find a student named "${name}" with that PIN in ${classroom.name}. Please check your name spelling and PIN, or ask your teacher for help.` 
+          description: `We couldn't find a student named "${name}" in ${classroom.name}. Please check your name spelling, or ask your teacher for help.` 
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      // Verify the student PIN matches
+      if (student.student_pin !== pin) {
+        toast({ 
+          title: "Invalid PIN", 
+          description: `The PIN you entered doesn't match the PIN for "${name}". Please check with your teacher.` 
         });
         setSubmitting(false);
         return;
@@ -90,7 +97,7 @@ export default function Kiosk() {
       const isFirstLogin = !student.has_logged_in;
       const now = new Date().toISOString();
       
-      const { error: updateErr } = await sb
+      const { error: updateErr } = await anonymousSupabase
         .from("students")
         .update({
           has_logged_in: true,

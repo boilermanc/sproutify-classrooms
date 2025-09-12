@@ -49,7 +49,7 @@ export default function PlantCatalog() {
 
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [openFor, setOpenFor] = useState<string | null>(null);
-  const [selectedTower, setSelectedTower] = useState<string | undefined>(addToTowerId);
+  const [selectedTower, setSelectedTower] = useState<string>(addToTowerId || "");
   const [seededAt, setSeededAt] = useState<string>("");
   const [plantedAt, setPlantedAt] = useState<string>("");
   const [expectedHarvestDate, setExpectedHarvestDate] = useState<string>("");
@@ -122,7 +122,7 @@ export default function PlantCatalog() {
 
   // Handle adding plant to tower
   const onConfirm = async (plant: PlantType) => {
-    if (!selectedTower) {
+    if (!selectedTower || selectedTower === "") {
       toast({
         title: "Tower Required",
         description: "Please select a tower first.",
@@ -424,7 +424,7 @@ export default function PlantCatalog() {
                       <div className="space-y-2">
                         <Label htmlFor="tower-select">Select Tower</Label>
                         <Select 
-                          value={selectedTower} 
+                          value={selectedTower || ""} 
                           onValueChange={setSelectedTower}
                         >
                           <SelectTrigger id="tower-select">
@@ -529,7 +529,7 @@ export default function PlantCatalog() {
                       </Button>
                       <Button 
                         onClick={() => onConfirm(plant)} 
-                        disabled={!selectedTower || submitting}
+                        disabled={!selectedTower || selectedTower === "" || submitting}
                       >
                         {submitting ? "Adding..." : "Add to Tower"}
                       </Button>

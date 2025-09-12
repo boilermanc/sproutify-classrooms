@@ -1,54 +1,159 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 
+// Promotional pricing configuration
+const PROMOTIONAL_PRICING_CONFIG = {
+  enabled: true,
+  schedule: {
+    startDate: '2025-01-01T00:00:00Z',
+    endDate: '2025-09-30T23:59:59Z', // End of September 2025
+  },
+  eligiblePlans: ['basic', 'professional', 'school', 'district'],
+  rules: {
+    autoApply: true,
+    showOnPricingPage: true,
+    allowManualOverride: true
+  }
+};
+
+// Function to check if promotional pricing should be active
+const isPromotionalPricingActive = (): boolean => {
+  if (!PROMOTIONAL_PRICING_CONFIG.enabled) {
+    return false;
+  }
+  
+  const now = new Date();
+  const startDate = new Date(PROMOTIONAL_PRICING_CONFIG.schedule.startDate);
+  const endDate = new Date(PROMOTIONAL_PRICING_CONFIG.schedule.endDate);
+  
+  return now >= startDate && now <= endDate;
+};
+
 // --- Stripe setup ---
 const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-if (!stripeSecret) console.error("Missing STRIPE_SECRET_KEY in function secrets");
-const stripe = new Stripe(stripeSecret!, {
-  apiVersion: "2024-06-20",
+if (!stripeSecret) {
+  throw new Error("Missing STRIPE_SECRET_KEY in function secrets");
+}
+const stripe = new Stripe(stripeSecret, {
+  apiVersion: "2025-08-27.basil",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
 // --- CORS ---
-const CORS = {
-  "Access-Control-Allow-Origin": "*", // tighten later to your domain(s)
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+const getAllowedOrigins = (): string[] => {
+  const allowedOriginsEnv = Deno.env.get("ALLOWED_ORIGINS");
+  if (allowedOriginsEnv) {
+    return allowedOriginsEnv.split(',').map(origin => origin.trim()).filter(Boolean);
+  }
+  
+  // Default fallback for development
+  return [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://100.96.83.5:8081",
+    "https://school.sproutify.app"
+  ];
+};
+
+const getCorsHeaders = (origin: string | null): Record<string, string> => {
+  const allowedOrigins = getAllowedOrigins();
+  const isValidOrigin = origin && allowedOrigins.includes(origin);
+  
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+  
+  if (isValidOrigin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  
+  return headers;
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  
   // Preflight
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: CORS });
+    return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: corsHeaders });
   }
 
   try {
     const body = await req.json().catch(() => ({}));
 
-    // --- Price resolution (plan OR explicit priceId) ---
-    const explicitPriceId: string | undefined = body.priceId;
+    // --- Simple Price Resolution ---
+    const priceId: string | undefined = body.priceId;
     const plan = (body.plan ?? body.billingPeriod ?? "").toString().toLowerCase();
+    
+    // Check if promotional pricing should be automatically applied
+    const isPromotionalPeriod = isPromotionalPricingActive();
+    const isPromotional: boolean = body.isPromotional || body.promoCode || isPromotionalPeriod;
+    
+    console.log('Promotional pricing check:', {
+      isPromotionalPeriod,
+      manualPromotional: body.isPromotional || body.promoCode,
+      finalIsPromotional: isPromotional
+    });
 
-    const PLAN_PRICE_MAP: Record<string, string | undefined> = {
-      basic_monthly:     Deno.env.get("STRIPE_BASIC_MONTHLY"),
-      basic_annual:      Deno.env.get("STRIPE_BASIC_ANNUAL"),
-      basic_promotional: Deno.env.get("STRIPE_BASIC_PROMOTIONAL"),
-      // tolerate simple names:
-      monthly:           Deno.env.get("STRIPE_BASIC_MONTHLY"),
-      annual:            Deno.env.get("STRIPE_BASIC_ANNUAL"),
+    // Direct price ID mapping - no complex string manipulation
+    const PLAN_PRICE_MAP: Record<string, string> = {
+      // Basic Plan
+      basic_monthly:     'price_1S41WnKHJbtiKAzVkLuDmvEu',
+      basic_monthly_promo: 'price_1S3NYCKHJbtiKAzVJBUoKWXX',
+      basic_annual:      'price_1S5Yz6KHJbtiKAzVQ9wFOeCK',
+      
+      // Professional Plan
+      professional_monthly:     'price_1S41c2KHJbtiKAzV8crsVNX1',
+      professional_monthly_promo: 'price_1S41eGKHJbtiKAzV2c95F8ge',
+      professional_annual:      'price_1S5Z3jKHJbtiKAzV5WdGZMMA',
+      
+      // School Plan
+      school_monthly:     'price_1S41gQKHJbtiKAzV6qJdJIjN',
+      school_monthly_promo: 'price_1S41hDKHJbtiKAzVW0n8QUPU',
+      school_annual:      'price_1S5YwKKHJbtiKAzVFDODzk5a',
+      
+      // District Plan
+      district_monthly:     'price_1S5YfqKHJbtiKAzV847eglJR',
+      district_monthly_promo: 'price_1S5YhOKHJbtiKAzVh21kiE2m',
+      district_annual:      'price_1S5YhyKHJbtiKAzV2pATTPJp',
+      
+      // Simple names (default to basic)
+      monthly:           'price_1S41WnKHJbtiKAzVkLuDmvEu',
+      annual:            'price_1S5Yz6KHJbtiKAzVQ9wFOeCK',
     };
 
-    const resolvedFromPlan = plan ? PLAN_PRICE_MAP[plan] : undefined;
-    const priceId = explicitPriceId ?? resolvedFromPlan;
+    // Simple price resolution: use explicit priceId or map from plan
+    let finalPriceId = priceId || PLAN_PRICE_MAP[plan];
+    
+    // If promotional and we have a regular price, try to use promotional version
+    if (isPromotional && finalPriceId && !finalPriceId.includes('_promo')) {
+      const promoKey = Object.keys(PLAN_PRICE_MAP).find(key => 
+        key.includes('_promo') && key.replace('_promo', '') === plan
+      );
+      if (promoKey) {
+        finalPriceId = PLAN_PRICE_MAP[promoKey];
+        console.log('Using promotional price:', finalPriceId, 'for plan:', plan);
+      }
+    }
 
-    // Allowlist enforcement: only env-configured prices are valid
-    const allowedPrices = new Set(Object.values(PLAN_PRICE_MAP).filter((v): v is string => !!v));
-    if (!priceId || !allowedPrices.has(priceId)) {
+    // Simple validation: must have a valid price ID
+    if (!finalPriceId) {
       return new Response(
-        JSON.stringify({ error: "Unknown or disallowed priceId/plan" }),
-        { status: 400, headers: CORS }
+        JSON.stringify({ error: "Invalid price ID or plan" }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Validate price ID is in our allowed list
+    const allowedPriceIds = new Set(Object.values(PLAN_PRICE_MAP));
+    if (!allowedPriceIds.has(finalPriceId)) {
+      return new Response(
+        JSON.stringify({ error: "Price ID not allowed" }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -78,10 +183,10 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: finalPriceId, quantity: 1 }],
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
-      locale: "en", // avoids dynamic import of './en' that some blockers break
+      // Removed locale to avoid dynamic import issues
       ...(customer_email ? { customer_email } : {}),
       ...(trial_period_days ? { subscription_data: { trial_period_days } } : {}),
     };
@@ -114,12 +219,12 @@ serve(async (req) => {
     // }
 
     const session = await stripe.checkout.sessions.create(params);
-    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: CORS });
+    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: corsHeaders });
   } catch (err: any) {
     console.error("Checkout error:", err);
     return new Response(JSON.stringify({ error: err?.message || "Checkout create failed" }), {
       status: 500,
-      headers: CORS,
+      headers: corsHeaders,
     });
   }
 });

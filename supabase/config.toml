@@ -51,6 +51,6 @@ entrypoint = "./functions/stripe-webhook/index.ts"
 
 [functions.create-checkout-session]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/create-checkout-session/deno.json"
 entrypoint = "./functions/create-checkout-session/index.ts"

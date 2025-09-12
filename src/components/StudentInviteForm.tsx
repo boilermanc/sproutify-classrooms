@@ -40,8 +40,28 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
       .filter(name => name.length > 0);
   };
 
-  const generateRandomPin = (): string => {
-    // Generate a random 4-digit PIN
+  const generateRandomPin = (existingPins: Set<string> = new Set()): string => {
+    const maxRetries = 100;
+    let attempts = 0;
+    
+    while (attempts < maxRetries) {
+      // Use crypto.getRandomValues for secure random generation
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      
+      // Generate a 4-digit PIN (1000-9999)
+      const pin = (1000 + (array[0] % 9000)).toString();
+      
+      // Check for uniqueness if existing pins provided
+      if (!existingPins.has(pin)) {
+        return pin;
+      }
+      
+      attempts++;
+    }
+    
+    // Fallback if we can't generate a unique PIN
+    console.warn('Could not generate unique PIN after', maxRetries, 'attempts');
     return Math.floor(1000 + Math.random() * 9000).toString();
   };
 
@@ -63,7 +83,15 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
     setError(null);
 
     try {
-      const studentPin = generateRandomPin();
+      // Get existing PINs to avoid duplicates
+      const { data: existingStudents } = await supabase
+        .from('students')
+        .select('student_pin')
+        .eq('classroom_id', classroomId);
+      
+      const existingPins = new Set(existingStudents?.map(s => s.student_pin).filter(Boolean) || []);
+      const studentPin = generateRandomPin(existingPins);
+      
       const { error: insertError } = await supabase
         .from('students')
         .insert({
@@ -118,11 +146,23 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
     setError(null);
 
     try {
-      const studentsToInsert = names.map(name => ({
-        classroom_id: classroomId,
-        display_name: name,
-        student_pin: generateRandomPin(),
-      }));
+      // Get existing PINs to avoid duplicates
+      const { data: existingStudents } = await supabase
+        .from('students')
+        .select('student_pin')
+        .eq('classroom_id', classroomId);
+      
+      const existingPins = new Set(existingStudents?.map(s => s.student_pin).filter(Boolean) || []);
+      
+      const studentsToInsert = names.map(name => {
+        const pin = generateRandomPin(existingPins);
+        existingPins.add(pin); // Add to set to avoid duplicates within this batch
+        return {
+          classroom_id: classroomId,
+          display_name: name,
+          student_pin: pin,
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('students')

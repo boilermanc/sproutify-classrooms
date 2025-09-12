@@ -1,3 +1,20 @@
+-- Ensure the profiles table exists on fresh local resets
+DO $$
+BEGIN
+  IF to_regclass('public.profiles') IS NULL THEN
+    -- Minimal shape so downstream FKs/policies have a target.
+    -- (We add constraints/extra columns later in other migrations.)
+    CREATE TABLE public.profiles (
+      id uuid PRIMARY KEY,
+      email text,
+      full_name text,
+      avatar_url text,
+      created_at timestamptz DEFAULT now()
+    );
+  END IF;
+END
+$$;
+
 -- Add subscription-related fields to profiles table
 ALTER TABLE "public"."profiles" 
 ADD COLUMN IF NOT EXISTS "email" text,

@@ -10,7 +10,9 @@ import {
   LogOut, 
   Settings, 
   Bug,
-  Network
+  Network,
+  Building2,
+  BarChart3
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,16 +28,19 @@ import {
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/useProfile";
+import { useState, useEffect } from "react";
 
-// Feature flag for Garden Network - defaults to true
+// Feature flag for Garden Network
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_FEATURE_GARDEN_NETWORK === 'true' || true, // Default to true
+  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || process.env.VITE_FEATURE_GARDEN_NETWORK === 'true',
 };
 
 const coreItems = [
   { title: "Dashboard", url: "/app", icon: Gauge },
   { title: "My Classrooms", url: "/app/classrooms", icon: Users },
   { title: "Towers", url: "/app/towers", icon: Sprout },
+  { title: "Seeding", url: "/app/seeding", icon: Sprout },
   { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
   { title: "Pest & Disease Guide", url: "/app/pest-disease-guide", icon: Bug },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },
@@ -52,14 +57,20 @@ const settingsItems = [
   { title: "Help", url: "/app/help", icon: HelpCircle },
 ];
 
-// Combine all items based on feature flags
-const items = [
-  ...coreItems,
-  ...(FEATURE_FLAGS.GARDEN_NETWORK ? networkItems : []),
-  ...settingsItems
+// Admin navigation items
+const adminItems = [
+  { title: "District Admin", url: "/district", icon: Building2, role: "district_admin" },
+  { title: "School Admin", url: "/school", icon: BarChart3, role: "school_admin" },
 ];
 
-console.log('🌱 Final items array:', items.map(item => item.title));
+// Combine all items based on feature flags
+const getItems = (hasDistrictAccess: boolean, hasSchoolAccess: boolean) => [
+  ...coreItems,
+  ...(FEATURE_FLAGS.GARDEN_NETWORK ? networkItems : []),
+  ...settingsItems,
+  ...(hasSchoolAccess ? [{ title: "School Guide", url: "/app/school-guide", icon: Building2 }] : []),
+  ...(hasDistrictAccess ? [{ title: "District Guide", url: "/app/district-guide", icon: Building2 }] : [])
+];
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -67,6 +78,44 @@ export function AppSidebar() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useProfile();
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+
+  // Check if user has district access
+  const hasDistrictAccess = profile?.district_id || userRoles.includes('district_admin');
+  
+  // Check if user has school access
+  const hasSchoolAccess = userRoles.includes('school_admin');
+  
+  // Get items based on access
+  const items = getItems(hasDistrictAccess, hasSchoolAccess);
+
+  // Check user roles on mount
+  useEffect(() => {
+    const checkUserRoles = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoadingRoles(false);
+          return;
+        }
+
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        setUserRoles(roles?.map(r => r.role) || []);
+      } catch (error) {
+        console.error("Error fetching user roles:", error);
+      } finally {
+        setIsLoadingRoles(false);
+      }
+    };
+
+    checkUserRoles();
+  }, []);
 
   // Check if current path matches the item URL
   const isActiveItem = (itemUrl: string) => {
@@ -109,7 +158,8 @@ export function AppSidebar() {
   const networkNavItems = FEATURE_FLAGS.GARDEN_NETWORK ? networkItems : [];
   const settingsNavItems = FEATURE_FLAGS.GARDEN_NETWORK ? settingsItems : [];
 
-  console.log('🌱 Rendering sidebar with network items:', networkNavItems.map(item => item.title));
+  // Filter admin items based on user roles
+  const availableAdminItems = adminItems.filter(item => userRoles.includes(item.role));
 
   return (
     <Sidebar collapsible="icon" className={collapsed ? "w-14" : "w-60"}>
@@ -124,7 +174,9 @@ export function AppSidebar() {
             </div>
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="text-sm font-semibold">Sproutify School</span>
+                <span className="text-sm font-semibold">
+                  {profile?.school_name || "Sproutify School"}
+                </span>
                 <span className="text-xs text-muted-foreground">Garden Management</span>
               </div>
             )}
@@ -161,6 +213,31 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {networkNavItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActiveItem(item.url)}
+                      tooltip={collapsed ? item.title : undefined}
+                    >
+                      <NavLink to={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Admin Group (only when user has admin roles) */}
+        {availableAdminItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {availableAdminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       asChild 

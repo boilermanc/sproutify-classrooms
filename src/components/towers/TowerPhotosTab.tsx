@@ -14,10 +14,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { nanoid } from "nanoid";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, X } from "lucide-react";
 
 interface Props {
   towerId: string;
@@ -40,6 +47,8 @@ export function TowerPhotosTab({ towerId }: Props) {
   const [studentName, setStudentName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [showImageLightbox, setShowImageLightbox] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -160,6 +169,11 @@ export function TowerPhotosTab({ towerId }: Props) {
     return data.publicUrl;
   };
 
+  const openImageLightbox = (index: number) => {
+    setCurrentImageIndex(index);
+    setShowImageLightbox(true);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -196,13 +210,14 @@ export function TowerPhotosTab({ towerId }: Props) {
             <div className="text-sm text-muted-foreground">No photos yet.</div>
           )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {photos.map((p) => (
+            {photos.map((p, index) => (
               <figure key={p.id} className="rounded-md border overflow-hidden relative group">
                 <img
                   src={publicUrl(p.file_path)}
                   alt={p.caption || "Tower photo"}
                   loading="lazy"
-                  className="w-full h-48 object-cover"
+                  className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => openImageLightbox(index)}
                 />
                 
                 {/* Delete button - shows on hover */}
@@ -256,6 +271,39 @@ export function TowerPhotosTab({ towerId }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Image Lightbox */}
+      {showImageLightbox && photos.length > 0 && (
+        <Dialog open={showImageLightbox} onOpenChange={setShowImageLightbox}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle>
+                Photo {currentImageIndex + 1} of {photos.length}
+                {photos[currentImageIndex]?.caption && (
+                  <span className="block text-sm font-normal text-muted-foreground mt-1">
+                    {photos[currentImageIndex].caption}
+                  </span>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                View tower photos in full size. Use the navigation arrows to browse through all photos.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="relative p-6 pt-0">
+              <img
+                src={publicUrl(photos[currentImageIndex].file_path)}
+                alt={photos[currentImageIndex].caption || "Tower photo"}
+                className="w-full max-h-[60vh] object-contain rounded-lg"
+              />
+              {photos[currentImageIndex]?.student_name && (
+                <div className="text-sm text-muted-foreground mt-2">
+                  By {photos[currentImageIndex].student_name} • {new Date(photos[currentImageIndex].taken_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -101,6 +101,45 @@ function Confirm-Prod {
   if ($ans -ne 'YES') { throw "Aborted by user." }
 }
 
+# -------- Database Safety Check --------
+function Test-DatabaseSafety {
+    param([string]$Environment)
+    
+    Write-Host "Performing database safety checks..."
+    
+    # Check if we're about to deploy to production
+    if ($Environment -eq 'prod') {
+        Write-Warning "PRODUCTION DEPLOYMENT DETECTED!"
+        
+        # Check git branch
+        $currentBranch = Get-CurrentBranch
+        if ($currentBranch -ne 'main' -and -not $Force) {
+            Write-Error "Production deployments should only run from 'main' branch. Current: '$currentBranch'"
+            throw "Branch safety check failed"
+        }
+        
+        # Check for uncommitted changes
+        $gitStatus = & $GIT status --porcelain
+        if ($gitStatus) {
+            Write-Warning "Uncommitted changes detected:"
+            Write-Host $gitStatus
+            $ans = Read-Host "Continue with uncommitted changes? Type 'YES' to continue"
+            if ($ans -ne 'YES') { throw "Deployment cancelled due to uncommitted changes" }
+        }
+        
+        # Check for database migration files
+        $migrationFiles = Get-ChildItem -Path "supabase/migrations" -Filter "*.sql" | Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-1) }
+        if ($migrationFiles) {
+            Write-Warning "Recent migration files detected:"
+            $migrationFiles | ForEach-Object { Write-Host "  $($_.Name)" }
+            $ans = Read-Host "Recent migrations detected. Type 'MIGRATE-PROD' to confirm production migration"
+            if ($ans -ne 'MIGRATE-PROD') { throw "Production migration cancelled" }
+        }
+        
+        Write-Host "✅ Production safety checks passed"
+    }
+}
+
 # -------- Build locally (always) --------
 Write-Host "Building (npm ci && npm run build)…"
 npm ci
@@ -120,6 +159,9 @@ $effective = switch ($env) {
     } else { 'test' }
   }
 }
+
+# Run safety checks after $effective is computed
+Test-DatabaseSafety -Environment $effective
 
 $target     = $Targets[$effective]
 $HostAlias  = $target.HostAlias

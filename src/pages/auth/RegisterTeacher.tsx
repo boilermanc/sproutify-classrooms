@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SEO } from "@/components/SEO";
 import { supabase } from "@/integrations/supabase/client";
+import { sendRegistrationWebhook } from "@/utils/webhooks";
 import { Loader2, Crown, Gift } from "lucide-react";
+import { getPlanLimits } from "@/config/plans";
 
 export default function RegisterTeacher() {
   const { toast } = useToast();
@@ -28,6 +30,7 @@ export default function RegisterTeacher() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [schoolName, setSchoolName] = useState("");
+  const [districtJoinCode, setDistrictJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   const getPlanDisplayName = (planId: string) => {
@@ -36,19 +39,6 @@ export default function RegisterTeacher() {
       case 'professional': return 'Professional';
       case 'school': return 'School';
       default: return planId.charAt(0).toUpperCase() + planId.slice(1);
-    }
-  };
-
-  const getPlanLimits = (planId: string) => {
-    switch (planId) {
-      case "basic":
-        return { max_towers: 3, max_students: 50 };
-      case "professional":
-        return { max_towers: 10, max_students: 200 };
-      case "school":
-        return { max_towers: 999999, max_students: 999999 }; // "Unlimited"
-      default:
-        return { max_towers: 1, max_students: 10 }; // Free plan defaults
     }
   };
 
@@ -62,20 +52,81 @@ export default function RegisterTeacher() {
       toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
+    
+    // Add email validation
+    if (!email.trim()) {
+      toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
+    
+    // Add name validation
+    if (!firstName.trim() || !lastName.trim()) {
+      toast({ title: "Name required", description: "Please enter your first and last name.", variant: "destructive" });
+      return;
+    }
+    
+    // Add school name validation
+    if (!schoolName.trim()) {
+      toast({ title: "School name required", description: "Please enter your school name.", variant: "destructive" });
+      return;
+    }
 
     setLoading(true);
     try {
       // 1) Create auth user
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError || !signUpData?.user) {
-        throw new Error(signUpError?.message ?? "Sign up failed");
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ 
+        email: email.trim(), 
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/login`
+        }
+      });
+      if (signUpError) {
+        console.error('Supabase signup error:', signUpError);
+        throw new Error(signUpError.message ?? "Sign up failed");
+      }
+      
+      // Check if user needs email confirmation
+      if (signUpData.user && !signUpData.user.email_confirmed_at) {
+        toast({ 
+          title: "Check your email", 
+          description: "We've sent you a confirmation link. Please check your email and click the link to activate your account." 
+        });
+        navigate("/auth/login");
+        return;
+      }
+      
+      if (!signUpData?.user) {
+        throw new Error("Sign up failed - no user created");
       }
       const userId = signUpData.user.id;
 
-      // 2) Upsert/find school
+      // 2) Handle district lookup if join code provided
+      let districtId: string | null = null;
+      if (districtJoinCode.trim()) {
+        const { data: district, error: districtError } = await supabase
+          .from("districts")
+          .select("id")
+          .eq("join_code", districtJoinCode.trim())
+          .single();
+        
+        if (districtError || !district) {
+          console.warn("District lookup failed:", districtError);
+          toast({
+            title: "Invalid district join code",
+            description: "The district join code you entered is invalid. You can continue without it and link your district later.",
+            variant: "destructive"
+          });
+          // Continue without district association
+        } else {
+          districtId = district.id;
+        }
+      }
+
+      // 3) Upsert/find school
       const { data: existingSchools, error: schoolLookupError } = await supabase
         .from("schools")
-        .select("id")
+        .select("id, district_id")
         .eq("name", schoolName.trim())
         .limit(1);
       if (schoolLookupError) throw new Error(schoolLookupError.message);
@@ -83,10 +134,22 @@ export default function RegisterTeacher() {
       let schoolId: string;
       if (existingSchools && existingSchools.length > 0) {
         schoolId = existingSchools[0].id;
+        
+        // If school exists but doesn't have district_id and we have one, update it
+        if (districtId && !existingSchools[0].district_id) {
+          const { error: updateError } = await supabase
+            .from("schools")
+            .update({ district_id: districtId })
+            .eq("id", schoolId);
+          if (updateError) console.warn("Failed to link school to district:", updateError);
+        }
       } else {
         const { data: newSchool, error: schoolInsertError } = await supabase
           .from("schools")
-          .insert({ name: schoolName.trim() })
+          .insert({ 
+            name: schoolName.trim(),
+            district_id: districtId // Link new school to district if provided
+          })
           .select()
           .single();
         if (schoolInsertError || !newSchool) throw new Error(schoolInsertError?.message ?? "School insert failed");
@@ -104,6 +167,7 @@ export default function RegisterTeacher() {
         last_name: lastName.trim(),
         email: email.trim(),
         school_id: schoolId,
+        district_id: districtId, // Include district_id if provided
         // Set initial subscription status based on selected plan
         subscription_status: selectedPlan ? 'trial' : 'free',
         subscription_plan: selectedPlan ? `${selectedPlan}_${billingPeriod}` : 'free',
@@ -116,7 +180,9 @@ export default function RegisterTeacher() {
         // Initialize Stripe fields as null
         stripe_customer_id: null,
         stripe_subscription_id: null,
-        subscription_ends_at: null
+        subscription_ends_at: null,
+        // Set default avatar
+        avatar_url: "https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
       }, {
         onConflict: 'id'
       });
@@ -128,6 +194,23 @@ export default function RegisterTeacher() {
         role: "teacher",
       });
       if (roleError) throw new Error(roleError.message);
+
+      // Send registration webhook to n8n
+      try {
+        const trialEndsAt = selectedPlan ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString();
+        await sendRegistrationWebhook({
+          id: userId,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          schoolName: schoolName,
+          plan: selectedPlan as 'basic' | 'professional' | 'school' | 'district' || 'basic',
+          trialEndsAt: trialEndsAt,
+        });
+      } catch (webhookError) {
+        console.error('Failed to send registration webhook:', webhookError);
+        // Don't fail the registration if webhook fails
+      }
 
       // Success message and navigation logic
       if (selectedPlan) {
@@ -251,6 +334,18 @@ export default function RegisterTeacher() {
                   value={schoolName} 
                   onChange={(e) => setSchoolName(e.target.value)} 
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="district-code">District join code (optional)</Label>
+                <Input 
+                  id="district-code" 
+                  placeholder="Enter district join code if provided" 
+                  value={districtJoinCode} 
+                  onChange={(e) => setDistrictJoinCode(e.target.value)} 
+                />
+                <p className="text-xs text-muted-foreground">
+                  If your school is part of a district, enter the join code provided by your district administrator.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

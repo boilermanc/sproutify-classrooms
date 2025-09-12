@@ -124,15 +124,15 @@ export class NetworkService {
       .select(
         `
         *,
-        classroom:classrooms!inner (
+        classroom:classrooms (
           id,
           name,
           teacher_id,
-          teacher:profiles (
-            full_name,
-            school_name,
-            district
-          )
+        teacher:profiles (
+          full_name,
+          district,
+          schools(name)
+        )
         )
       `
       )
@@ -172,15 +172,15 @@ export class NetworkService {
       .select(
         `
         *,
-        classroom:classrooms!inner (
+        classroom:classrooms (
           id,
           name,
           teacher_id,
-          teacher:profiles (
-            full_name,
-            school_name,
-            district
-          )
+        teacher:profiles (
+          full_name,
+          district,
+          schools(name)
+        )
         )
       `
       )
@@ -224,51 +224,66 @@ export class NetworkService {
   }
 
   static async getMyConnections(classroomId: string): Promise<ConnectionWithDetails[]> {
-    const { data, error, status } = await db
+    // First get the connections
+    const { data: connections, error: connectionsError, status: s1 } = await db
       .from('classroom_connections')
-      .select(
-        `
-        *,
-        requester_classroom:classroom_network_settings!classroom_connections_requester_classroom_id_fkey (
-          classroom_id,
-          display_name,
-          bio,
-          classroom:classrooms (name)
-        ),
-        target_classroom:classroom_network_settings!classroom_connections_target_classroom_id_fkey (
-          classroom_id,
-          display_name,
-          bio,
-          classroom:classrooms (name)
-        )
-      `
-      )
+      .select('*')
       .or(`requester_classroom_id.eq.${classroomId},target_classroom_id.eq.${classroomId}`)
       .eq('status', 'accepted')
       .order('accepted_at', { ascending: false });
 
-    ensureNo406(status);
-    if (error) throw error;
-    return (data || []) as ConnectionWithDetails[];
+    ensureNo406(s1);
+    if (connectionsError) throw connectionsError;
+
+    if (!connections || connections.length === 0) {
+      return [];
+    }
+
+    // Get unique classroom IDs from connections
+    const classroomIds = new Set<string>();
+    connections.forEach(conn => {
+      classroomIds.add(conn.requester_classroom_id);
+      classroomIds.add(conn.target_classroom_id);
+    });
+
+    // Get network settings for all involved classrooms
+    const { data: networkSettings, error: settingsError, status: s2 } = await db
+      .from('classroom_network_settings')
+      .select(`
+        classroom_id,
+        display_name,
+        bio,
+        classroom:classrooms (name)
+      `)
+      .in('classroom_id', Array.from(classroomIds));
+
+    ensureNo406(s2);
+    if (settingsError) throw settingsError;
+
+    // Create a map for quick lookup
+    const settingsMap = new Map();
+    networkSettings?.forEach(setting => {
+      settingsMap.set(setting.classroom_id, setting);
+    });
+
+    // Combine the data
+    const result: ConnectionWithDetails[] = connections.map(conn => ({
+      ...conn,
+      requester_classroom: settingsMap.get(conn.requester_classroom_id),
+      target_classroom: settingsMap.get(conn.target_classroom_id)
+    }));
+
+    return result;
   }
 
   static async getPendingRequests(classroomId: string): Promise<{
     incoming: ConnectionWithDetails[];
     outgoing: ConnectionWithDetails[];
   }> {
-    const { data: incoming, error: incomingError, status: s1 } = await db
+    // Get incoming requests
+    const { data: incomingConnections, error: incomingError, status: s1 } = await db
       .from('classroom_connections')
-      .select(
-        `
-        *,
-        requester_classroom:classroom_network_settings!classroom_connections_requester_classroom_id_fkey (
-          classroom_id,
-          display_name,
-          bio,
-          classroom:classrooms (name)
-        )
-      `
-      )
+      .select('*')
       .eq('target_classroom_id', classroomId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -276,19 +291,10 @@ export class NetworkService {
     ensureNo406(s1);
     if (incomingError) throw incomingError;
 
-    const { data: outgoing, error: outgoingError, status: s2 } = await db
+    // Get outgoing requests
+    const { data: outgoingConnections, error: outgoingError, status: s2 } = await db
       .from('classroom_connections')
-      .select(
-        `
-        *,
-        target_classroom:classroom_network_settings!classroom_connections_target_classroom_id_fkey (
-          classroom_id,
-          display_name,
-          bio,
-          classroom:classrooms (name)
-        )
-      `
-      )
+      .select('*')
       .eq('requester_classroom_id', classroomId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -296,10 +302,47 @@ export class NetworkService {
     ensureNo406(s2);
     if (outgoingError) throw outgoingError;
 
-    return {
-      incoming: (incoming || []) as ConnectionWithDetails[],
-      outgoing: (outgoing || []) as ConnectionWithDetails[]
-    };
+    // Get all unique classroom IDs from both incoming and outgoing requests
+    const allClassroomIds = new Set<string>();
+    [...(incomingConnections || []), ...(outgoingConnections || [])].forEach(conn => {
+      allClassroomIds.add(conn.requester_classroom_id);
+      allClassroomIds.add(conn.target_classroom_id);
+    });
+
+    // Get network settings for all involved classrooms
+    const { data: networkSettings, error: settingsError, status: s3 } = await db
+      .from('classroom_network_settings')
+      .select(`
+        classroom_id,
+        display_name,
+        bio,
+        classroom:classrooms (name)
+      `)
+      .in('classroom_id', Array.from(allClassroomIds));
+
+    ensureNo406(s3);
+    if (settingsError) throw settingsError;
+
+    // Create a map for quick lookup
+    const settingsMap = new Map();
+    networkSettings?.forEach(setting => {
+      settingsMap.set(setting.classroom_id, setting);
+    });
+
+    // Combine the data
+    const incoming: ConnectionWithDetails[] = (incomingConnections || []).map(conn => ({
+      ...conn,
+      requester_classroom: settingsMap.get(conn.requester_classroom_id),
+      target_classroom: settingsMap.get(conn.target_classroom_id)
+    }));
+
+    const outgoing: ConnectionWithDetails[] = (outgoingConnections || []).map(conn => ({
+      ...conn,
+      requester_classroom: settingsMap.get(conn.requester_classroom_id),
+      target_classroom: settingsMap.get(conn.target_classroom_id)
+    }));
+
+    return { incoming, outgoing };
   }
 
   static async respondToConnectionRequest(
@@ -450,11 +493,13 @@ export class NetworkService {
         display_name,
         region,
         grade_level,
-        classroom:classrooms!inner (
+        classroom:classrooms (
           id,
           name,
           teacher_id,
-          teacher:profiles (school_name)
+          teacher:profiles (
+            schools(name)
+          )
         )
       `
       )
@@ -509,7 +554,7 @@ export class NetworkService {
         tower_count: towerCount || 0,
         region: classroom.region,
         grade_level: classroom.grade_level,
-        school_name: cls.teacher?.school_name || null,
+        school_name: cls.teacher?.schools?.name || null,
         is_connected: connectedIds.includes(classroom.classroom_id)
       });
     }
