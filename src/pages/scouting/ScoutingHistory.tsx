@@ -110,7 +110,7 @@ export default function ScoutingHistory() {
         .from('pest_logs')
         .select(`
           *,
-          towers!inner(name, location),
+          towers(name, location),
           pest_catalog(name, type)
         `)
         .eq('teacher_id', user.id)
@@ -121,10 +121,10 @@ export default function ScoutingHistory() {
       // Transform the data
       const transformedEntries = entriesData?.map(entry => ({
         ...entry,
-        tower_name: entry.towers.name,
-        tower_location: entry.towers.location,
-        pest_catalog_name: entry.pest_catalog?.name,
-        pest_type: entry.pest_catalog?.type
+        tower_name: entry.towers?.name || 'Unknown Tower',
+        tower_location: entry.towers?.location || 'Unknown Location',
+        pest_catalog_name: entry.pest_catalog?.name || 'Unknown Pest',
+        pest_type: entry.pest_catalog?.type || 'Unknown Type'
       })) || [];
 
       setEntries(transformedEntries);

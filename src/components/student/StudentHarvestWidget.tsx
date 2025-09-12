@@ -57,7 +57,7 @@ export function StudentHarvestWidget({
             expected_harvest_date,
             port_number,
             tower_id,
-            towers!inner(id, name)
+            towers(id, name)
           `)
           .eq('teacher_id', teacherId)
           .eq('status', 'active')
@@ -88,7 +88,7 @@ export function StudentHarvestWidget({
           return {
             id: plant.id,
             plantName: plant.name,
-            towerName: plant.towers.name,
+            towerName: plant.towers?.name || 'Unknown Tower',
             towerId: plant.tower_id,
             expectedHarvestDate: plant.expected_harvest_date!,
             daysRemaining: Math.abs(daysRemaining),

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
+import { findClassroomByPin } from "@/utils/kiosk-login";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ export default function StudentLoginPage() {
   const { toast } = useToast();
   const [studentName, setStudentName] = useState("");
   const [kioskPin, setKioskPin] = useState("");
+  const [studentPin, setStudentPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,28 +26,88 @@ export default function StudentLoginPage() {
     setLoading(true);
     setError("");
 
-    // Find the classroom by kiosk PIN only
-    const { data, error: queryError } = await supabase
-      .from("classrooms")
-      .select("id, name")
-      .eq("kiosk_pin", kioskPin.trim())
-      .single();
+    const name = studentName.trim();
+    const classroomPin = kioskPin.trim();
+    const pin = studentPin.trim();
 
-    if (queryError || !data) {
-      console.error("Login failed:", queryError);
-      setError("Invalid Kiosk PIN. Please check with your teacher.");
+    // Validate student PIN format
+    if (!pin) {
+      setError("Please enter your student PIN.");
       setLoading(false);
       return;
     }
 
-    // Store student info in localStorage
-    localStorage.setItem("student_classroom_id", data.id);
-    localStorage.setItem("student_classroom_name", data.name);
-    localStorage.setItem("student_name", studentName.trim());
-    
-    toast({ title: `Welcome, ${studentName}!` });
+    if (!/^\d{4,6}$/.test(pin)) {
+      setError("Student PIN must be 4-6 digits.");
+      setLoading(false);
+      return;
+    }
 
-    navigate("/student/dashboard");
+    try {
+      // Step 1: Find classroom by PIN using direct fetch
+      const { data: classroom, error: classroomErr } = await findClassroomByPin(classroomPin);
+
+      if (classroomErr || !classroom) {
+        console.error("Classroom lookup failed:", classroomErr);
+        setError("Invalid Classroom PIN. Please check with your teacher.");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Check if student exists in this classroom with matching PIN
+      const { data: student, error: studentErr } = await anonymousSupabase
+        .from("students")
+        .select("id, display_name, has_logged_in, student_pin")
+        .eq("classroom_id", classroom.id)
+        .eq("display_name", name)
+        .single();
+
+      if (studentErr || !student) {
+        console.error("Student lookup failed:", studentErr);
+        setError(`We couldn't find a student named "${name}" in ${classroom.name}. Please check your name spelling, or ask your teacher for help.`);
+        setLoading(false);
+        return;
+      }
+
+      // Verify the student PIN matches
+      if (student.student_pin !== pin) {
+        setError(`The PIN you entered doesn't match the PIN for "${name}". Please check with your teacher.`);
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Update login tracking
+      const isFirstLogin = !student.has_logged_in;
+      const now = new Date().toISOString();
+      
+      const { error: updateErr } = await anonymousSupabase
+        .from("students")
+        .update({
+          has_logged_in: true,
+          first_login_at: isFirstLogin ? now : undefined, // Only set on first login
+          last_login_at: now
+        })
+        .eq("id", student.id);
+
+      if (updateErr) {
+        console.error("Login tracking update failed:", updateErr);
+        setError("Could not record your login. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Success! Store student session data and redirect
+      localStorage.setItem("student_classroom_id", classroom.id);
+      localStorage.setItem("student_classroom_name", classroom.name);
+      localStorage.setItem("student_name", name);
+      
+      toast({ title: `Welcome, ${name}!` });
+      navigate("/student/dashboard");
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,7 +129,7 @@ export default function StudentLoginPage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Student Login</CardTitle>
-            <CardDescription>Enter your name and your classroom's PIN to begin.</CardDescription>
+            <CardDescription>Enter your name, classroom PIN, and student PIN to begin.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -89,6 +151,17 @@ export default function StudentLoginPage() {
                   value={kioskPin}
                   onChange={(e) => setKioskPin(e.target.value)}
                   placeholder="4-digit PIN from your teacher"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentPin">Your Student PIN</Label>
+                <Input
+                  id="studentPin"
+                  type="password"
+                  value={studentPin}
+                  onChange={(e) => setStudentPin(e.target.value)}
+                  placeholder="4-6 digit PIN assigned by your teacher"
                   required
                 />
               </div>

@@ -8,13 +8,16 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { SEO } from '@/components/SEO';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { isPromotionalPricingActive, getPromotionalPricingInfo } from '@/lib/stripe';
 
 const plans = [
   {
     name: 'Basic',
-    price: '$9.99',
+    price: '$19.99',
+    promotionalPrice: '$9.99',
     period: 'month',
-    priceId: 'price_basic_monthly', // Replace with your actual Stripe Price ID
+    priceId: 'price_1S41WnKHJbtiKAzVkLuDmvEu', // Basic Monthly Regular
+    promotionalPriceId: 'price_1S3NYCKHJbtiKAzVJBUoKWXX', // Basic Monthly Promo
     features: [
       'Up to 3 aeroponic towers',
       'Basic vitals tracking',
@@ -24,12 +27,14 @@ const plans = [
     ]
   },
   {
-    name: 'Pro',
-    price: '$19.99',
+    name: 'Professional',
+    price: '$39.99',
+    promotionalPrice: '$19.99',
     period: 'month',
-    priceId: 'price_pro_monthly', // Replace with your actual Stripe Price ID
+    priceId: 'price_1S41c2KHJbtiKAzV8crsVNX1', // Professional Monthly Regular
+    promotionalPriceId: 'price_1S41eGKHJbtiKAzV2c95F8ge', // Professional Monthly Promo
     features: [
-      'Unlimited aeroponic towers',
+      'Up to 10 aeroponic towers',
       'Advanced analytics',
       'Multiple classrooms',
       'Custom plant catalog',
@@ -40,16 +45,34 @@ const plans = [
   },
   {
     name: 'School',
-    price: '$49.99',
+    price: '$99.99',
+    promotionalPrice: '$49.99',
     period: 'month',
-    priceId: 'price_school_monthly', // Replace with your actual Stripe Price ID
+    priceId: 'price_1S41gQKHJbtiKAzV6qJdJIjN', // School Monthly Regular
+    promotionalPriceId: 'price_1S41hDKHJbtiKAzVW0n8QUPU', // School Monthly Promo
     features: [
-      'Everything in Pro',
+      'Up to 25 aeroponic towers',
       'Multi-teacher accounts',
       'School-wide reporting',
       'Admin dashboard',
-      'Dedicated support',
-      'Custom integrations'
+      'Custom integrations',
+      'Phone support'
+    ]
+  },
+  {
+    name: 'District',
+    price: '$299.99',
+    promotionalPrice: '$149.99',
+    period: 'month',
+    priceId: 'price_1S5YfqKHJbtiKAzV847eglJR', // District Monthly Regular
+    promotionalPriceId: 'price_1S5YhOKHJbtiKAzVh21kiE2m', // District Monthly Promo
+    features: [
+      'Unlimited aeroponic towers',
+      'Unlimited students',
+      'District-wide management',
+      'Custom branding',
+      'API access',
+      'Dedicated support'
     ]
   }
 ];
@@ -58,6 +81,10 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
+  
+  // Check if promotional pricing is active
+  const promotionalInfo = getPromotionalPricingInfo();
+  const isPromotionalActive = isPromotionalPricingActive();
 
   const handleSubscribe = async (priceId: string, planName: string) => {
     try {
@@ -77,12 +104,14 @@ export default function PricingPage() {
       }
 
       // Call the Edge Function to create checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
-          priceId,
-          successUrl: `${window.location.origin}/subscription/success`,
-          cancelUrl: `${window.location.origin}/pricing`
-        }
+          priceId: priceId, // The backend will handle promotional pricing automatically
+          customer_email: session.user.email || undefined,
+          userId: session.user.id,
+          billingPeriod: "monthly", // Default to monthly for this page
+          isPromotional: isPromotionalActive, // Automatically use promotional pricing if active
+        },
       });
 
       if (error) {

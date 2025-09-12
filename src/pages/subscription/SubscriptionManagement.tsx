@@ -19,6 +19,7 @@ import {
 import { SEO } from '@/components/SEO';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatPlanName, capitalizeSubscriptionStatus } from '@/lib/utils';
 
 interface SubscriptionData {
   subscription_status: string | null;
@@ -76,13 +77,13 @@ export default function SubscriptionManagement() {
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-600"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+        return <Badge className="bg-green-600"><CheckCircle className="h-3 w-3 mr-1" />{capitalizeSubscriptionStatus(status)}</Badge>;
       case 'trial':
         return <Badge variant="outline" className="border-blue-500 text-blue-600">Free Trial</Badge>;
       case 'past_due':
-        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>;
+        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />{capitalizeSubscriptionStatus(status)}</Badge>;
       case 'canceled':
-        return <Badge variant="secondary">Canceled</Badge>;
+        return <Badge variant="secondary">{capitalizeSubscriptionStatus(status)}</Badge>;
       default:
         return <Badge variant="outline">Free</Badge>;
     }
@@ -153,8 +154,7 @@ export default function SubscriptionManagement() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl font-bold">
-                        {subscription?.subscription_plan?.charAt(0).toUpperCase() + 
-                         (subscription?.subscription_plan?.slice(1) || 'Free')} Plan
+                        {formatPlanName(subscription?.subscription_plan)} Plan
                       </span>
                       {getStatusBadge(subscription?.subscription_status)}
                     </div>

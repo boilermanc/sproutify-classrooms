@@ -11,6 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
+import { findClassroomByPin } from "@/utils/kiosk-login";
+import { Eye, EyeOff } from "lucide-react";
+import { sendRegistrationWebhook } from "@/utils/webhooks";
 
 /**
  * MailerLiteForm Component
@@ -145,6 +149,15 @@ const MailerLiteForm = () => {
   );
 };
 
+// Helper function to generate district join codes
+const generateDistrictJoinCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 /** Gate promos through the end of September (adjust year if needed) */
 const isBackToSchoolActive = () => {
@@ -161,6 +174,7 @@ const Index = () => {
 
   const [selectedPlan, setSelectedPlan] = useState("professional");
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual"); // Default to annual
+  const [schoolDistrictTab, setSchoolDistrictTab] = useState<"school" | "district">("school");
   const [openLogin, setOpenLogin] = useState<LoginPanel>(null);
 
   // Registration form state
@@ -171,8 +185,11 @@ const Index = () => {
     password: "",
     confirmPassword: "",
     schoolName: "",
+    districtJoinCode: "",
     loading: false,
   });
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Teacher login
   const [loginForm, setLoginForm] = useState({
@@ -180,129 +197,89 @@ const Index = () => {
     password: "",
     loading: false,
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   // Student login
   const [studentForm, setStudentForm] = useState({
     studentName: "",
     kioskPin: "",
+    studentPin: "",
     loading: false,
   });
 
-  // Helper function to get plan limits
-  const getPlanLimits = (planId: string) => {
-    switch (planId) {
-      case "basic":
-        return { max_towers: 3, max_students: 50 };
-      case "professional":
-        return { max_towers: 10, max_students: 200 };
-      case "school":
-        return { max_towers: 999999, max_students: 999999 }; // "Unlimited"
-      default:
-        return { max_towers: 3, max_students: 50 };
-    }
-  };
-
-  const handleRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (regForm.password !== regForm.confirmPassword) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
-      return;
-    }
-    setRegForm((prev) => ({ ...prev, loading: true }));
-
-    try {
-      // 1) Create auth user
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: regForm.email,
-        password: regForm.password,
-      });
-      if (signUpError || !signUpData?.user) throw new Error(signUpError?.message ?? "Sign up failed");
-      const userId = signUpData.user.id;
-
-      // 2) Upsert/find school
-      const { data: existingSchools, error: schoolLookupError } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("name", regForm.schoolName)
-        .limit(1);
-      if (schoolLookupError) throw new Error(schoolLookupError.message);
-
-      let schoolId: string;
-      if (existingSchools && existingSchools.length > 0) {
-        schoolId = existingSchools[0].id;
-      } else {
-        const { data: newSchool, error: schoolInsertError } = await supabase
-          .from("schools")
-          .insert({ name: regForm.schoolName })
-          .select()
-          .single();
-        if (schoolInsertError || !newSchool) throw new Error(schoolInsertError?.message ?? "School insert failed");
-        schoolId = newSchool.id;
-      }
-
-      // 3) Get plan limits
-      const planLimits = getPlanLimits(selectedPlan);
-      
-      // Calculate trial end date (7 days from now)
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-      // 4) Profile with subscription setup including billing period
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        {
-          id: userId,
-          first_name: regForm.firstName,
-          last_name: regForm.lastName,
-          school_id: schoolId,
-          // Subscription fields
-          subscription_status: 'trial',
-          subscription_plan: selectedPlan,
-          billing_period: billingPeriod, // Add billing period
-          trial_ends_at: trialEndsAt.toISOString(),
-          max_towers: planLimits.max_towers,
-          max_students: planLimits.max_students,
-          // Initialize Stripe fields as null (will be set when they actually subscribe)
-          stripe_customer_id: null,
-          stripe_subscription_id: null,
-          subscription_ends_at: null,
-        },
-        { onConflict: "id" }
-      );
-      if (profileError) throw new Error(profileError.message);
-
-      // 5) Role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: userId,
-        role: "teacher",
-      });
-      if (roleError) throw new Error(roleError.message);
-
-      const planName = plans.find((p) => p.id === selectedPlan)?.name;
-      const period = billingPeriod === "annual" ? "Annual" : "Monthly";
-      
-      toast({
-        title: "Account created!",
-        description: `Welcome to Sproutify School ${planName} ${period} plan. Your 7-day free trial has started!`,
-      });
-      navigate("/app");
-    } catch (err: any) {
-      toast({ title: "Signup failed", description: err.message ?? "Something went wrong", variant: "destructive" });
-    } finally {
-      setRegForm((prev) => ({ ...prev, loading: false }));
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginForm((prev) => ({ ...prev, loading: true }));
+    
+    // Basic validation
+    if (!loginForm.email.trim()) {
+      toast({ 
+        title: "Email required", 
+        description: "Please enter your email address", 
+        variant: "destructive" 
+      });
+      setLoginForm((prev) => ({ ...prev, loading: false }));
+      return;
+    }
+    
+    if (!loginForm.password.trim()) {
+      toast({ 
+        title: "Password required", 
+        description: "Please enter your password", 
+        variant: "destructive" 
+      });
+      setLoginForm((prev) => ({ ...prev, loading: false }));
+      return;
+    }
+    
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: loginForm.email,
+      console.log('Attempting login with email:', loginForm.email);
+      const { data: { user }, error } = await supabase.auth.signInWithPassword({
+        email: loginForm.email.trim(),
         password: loginForm.password,
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error('Supabase auth error:', error);
+        throw new Error(error.message);
+      }
+      
       toast({ title: "Welcome back!" });
-      navigate("/app");
+      
+      // Check user role to determine correct redirect path
+      if (user) {
+        // First check if user is super_admin or staff
+        const { data: teamMember, error: teamMemberError } = await supabase
+          .from("team_members")
+          .select("role, active")
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .maybeSingle();
+
+        // If no error and we have a team member, redirect to admin
+        if (!teamMemberError && teamMember && (teamMember.role === "super_admin" || teamMember.role === "staff")) {
+          navigate("/admin");
+          return;
+        }
+
+        // Check regular user roles
+        const [{ data: profile }, { data: roles }] = await Promise.all([
+          supabase.from("profiles").select("id, district_id, school_id").eq("id", user.id).single(),
+          supabase.from("user_roles").select("role").eq("user_id", user.id)
+        ]);
+
+        const userRoles = roles?.map(r => r.role) || [];
+        
+        if (userRoles.includes("district_admin") && profile?.district_id) {
+          navigate("/district");
+        } else if (userRoles.includes("school_admin") && profile?.school_id) {
+          navigate("/school");
+        } else {
+          navigate("/app");
+        }
+      } else {
+        navigate("/app");
+      }
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message ?? "Check your email/password", variant: "destructive" });
     } finally {
@@ -316,17 +293,52 @@ const Index = () => {
     try {
       const studentName = studentForm.studentName.trim();
       const kioskPin = studentForm.kioskPin.trim();
+      const studentPin = studentForm.studentPin.trim();
+      
       if (!studentName) throw new Error("Please enter your name");
+      if (!studentPin) throw new Error("Please enter your student PIN");
+      if (!/^\d{4,6}$/.test(studentPin)) throw new Error("Student PIN must be 4-6 digits");
 
-      const { data, error: queryError } = await supabase
-        .from("classrooms")
-        .select("id, name")
-        .eq("kiosk_pin", kioskPin)
+      // Use direct fetch for kiosk login
+      const { data: classroom, error: classroomErr } = await findClassroomByPin(kioskPin);
+      if (classroomErr || !classroom) throw new Error("Invalid Classroom PIN. Please check with your teacher.");
+
+      // Check if student exists in this classroom with matching PIN
+      const { data: student, error: studentErr } = await anonymousSupabase
+        .from("students")
+        .select("id, display_name, has_logged_in, student_pin")
+        .eq("classroom_id", classroom.id)
+        .eq("display_name", studentName)
         .single();
-      if (queryError || !data) throw new Error("Invalid Kiosk PIN. Please check with your teacher.");
 
-      localStorage.setItem("student_classroom_id", data.id);
-      localStorage.setItem("student_classroom_name", data.name);
+      if (studentErr || !student) {
+        throw new Error(`We couldn't find a student named "${studentName}" in ${classroom.name}. Please check your name spelling, or ask your teacher for help.`);
+      }
+
+      // Verify the student PIN matches
+      if (student.student_pin !== studentPin) {
+        throw new Error(`The PIN you entered doesn't match the PIN for "${studentName}". Please check with your teacher.`);
+      }
+
+      // Update login tracking
+      const isFirstLogin = !student.has_logged_in;
+      const now = new Date().toISOString();
+      
+      const { error: updateErr } = await anonymousSupabase
+        .from("students")
+        .update({
+          has_logged_in: true,
+          first_login_at: isFirstLogin ? now : undefined,
+          last_login_at: now
+        })
+        .eq("id", student.id);
+
+      if (updateErr) {
+        throw new Error("Could not record your login. Please try again.");
+      }
+
+      localStorage.setItem("student_classroom_id", classroom.id);
+      localStorage.setItem("student_classroom_name", classroom.name);
       localStorage.setItem("student_name", studentName);
 
       toast({ title: `Welcome, ${studentName}!` });
@@ -338,6 +350,266 @@ const Index = () => {
     }
   };
 
+  // Helper function to get plan limits
+  const getPlanLimits = (planId: string) => {
+    switch (planId) {
+      case "basic":
+        return { max_towers: 1, max_students: 15 };
+      case "professional":
+        return { max_towers: 3, max_students: 999999 }; // "Unlimited" students
+      case "school":
+        return { max_towers: 999999, max_students: 999999 }; // "Unlimited"
+      default:
+        return { max_towers: 1, max_students: 15 };
+    }
+  };
+
+  const handleRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (regForm.password !== regForm.confirmPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    
+    // Add password validation
+    if (regForm.password.length < 6) {
+      toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    
+    // Add email validation
+    if (!regForm.email.trim()) {
+      toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
+    
+    // Add name validation
+    if (!regForm.firstName.trim() || !regForm.lastName.trim()) {
+      toast({ title: "Name required", description: "Please enter your first and last name.", variant: "destructive" });
+      return;
+    }
+    
+    // Add school name validation
+    if (!regForm.schoolName.trim()) {
+      toast({ title: "School name required", description: "Please enter your school name.", variant: "destructive" });
+      return;
+    }
+    
+    setRegForm((prev) => ({ ...prev, loading: true }));
+
+    try {
+      // 1) Create auth user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: regForm.email.trim(),
+        password: regForm.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/login`
+        }
+      });
+      if (signUpError) {
+        console.error('Supabase signup error:', signUpError);
+        throw new Error(signUpError.message ?? "Sign up failed");
+      }
+      
+      // Check if user needs email confirmation
+      if (signUpData.user && !signUpData.user.email_confirmed_at) {
+        toast({ 
+          title: "Check your email", 
+          description: "We've sent you a confirmation link. Please check your email and click the link to activate your account." 
+        });
+        setRegForm((prev) => ({ ...prev, loading: false }));
+        return;
+      }
+      
+      if (!signUpData?.user) {
+        throw new Error("Sign up failed - no user created");
+      }
+      const userId = signUpData.user.id;
+
+      // Calculate trial end date (7 days from now)
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+      // Check if this is a district registration (School plan + District tab selected)
+      const isDistrictRegistration = selectedPlan === "school" && schoolDistrictTab === "district";
+
+      if (isDistrictRegistration) {
+        // DISTRICT REGISTRATION FLOW
+        
+        // 2) Create district
+        const joinCode = generateDistrictJoinCode();
+        const { data: newDistrict, error: districtError } = await supabase
+          .from("districts")
+          .insert({
+            name: regForm.schoolName, // Using schoolName field for district name
+            join_code: joinCode,
+            contact_email: regForm.email,
+            max_teachers: 999999, // Unlimited for now
+            subscription_status: 'trial',
+            subscription_tier: 'district',
+            trial_start_date: new Date().toISOString(),
+            trial_end_date: trialEndsAt.toISOString(),
+          })
+          .select()
+          .single();
+        if (districtError || !newDistrict) throw new Error(districtError?.message ?? "District creation failed");
+
+        // 3) Create profile for district admin
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: userId,
+            first_name: regForm.firstName,
+            last_name: regForm.lastName,
+            district_id: newDistrict.id,
+            // Subscription fields
+            subscription_status: 'trial',
+            subscription_plan: `school_${billingPeriod}`, // Same plan, different role
+            trial_ends_at: trialEndsAt.toISOString(),
+            max_towers: 999999,
+            max_students: 999999,
+            // Initialize Stripe fields as null
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            subscription_ends_at: null,
+            // Set default avatar
+            avatar_url: "https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
+          },
+          { onConflict: "id" }
+        );
+        if (profileError) throw new Error(profileError.message);
+
+        // 4) Assign district_admin role
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: userId,
+          role: "district_admin",
+        });
+        if (roleError) throw new Error(roleError.message);
+
+        toast({
+          title: "District Account created!",
+          description: `Welcome to Sproutify School District plan. Your 7-day free trial has started!`,
+        });
+
+      } else {
+        // SCHOOL REGISTRATION FLOW (Basic, Professional, or School plan)
+        
+        // 2) Handle district lookup if join code provided
+        let districtId: string | null = null;
+        if (regForm.districtJoinCode.trim()) {
+          const { data: district, error: districtError } = await supabase
+            .from("districts")
+            .select("id")
+            .eq("join_code", regForm.districtJoinCode.trim())
+            .single();
+          
+          if (districtError || !district) {
+            throw new Error("Invalid district join code. Please check with your district administrator.");
+          }
+          districtId = district.id;
+        }
+        
+        // 3) Upsert/find school
+        const { data: existingSchools, error: schoolLookupError } = await supabase
+          .from("schools")
+          .select("id, district_id")
+          .eq("name", regForm.schoolName)
+          .limit(1);
+        if (schoolLookupError) throw new Error(schoolLookupError.message);
+
+        let schoolId: string;
+        if (existingSchools && existingSchools.length > 0) {
+          schoolId = existingSchools[0].id;
+          
+          // If school exists but doesn't have district_id and we have one, update it
+          if (districtId && !existingSchools[0].district_id) {
+            const { error: updateError } = await supabase
+              .from("schools")
+              .update({ district_id: districtId })
+              .eq("id", schoolId);
+            if (updateError) console.warn("Failed to link school to district:", updateError);
+          }
+        } else {
+          const { data: newSchool, error: schoolInsertError } = await supabase
+            .from("schools")
+            .insert({ 
+              name: regForm.schoolName,
+              district_id: districtId // Link new school to district if provided
+            })
+            .select()
+            .single();
+          if (schoolInsertError || !newSchool) throw new Error(schoolInsertError?.message ?? "School insert failed");
+          schoolId = newSchool.id;
+        }
+
+        // 4) Get plan limits
+        const planLimits = getPlanLimits(selectedPlan);
+
+        // 5) Profile with subscription setup including billing period
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: userId,
+            first_name: regForm.firstName,
+            last_name: regForm.lastName,
+            school_id: schoolId,
+            district_id: districtId, // Include district_id if provided
+            // Subscription fields
+            subscription_status: 'trial',
+            subscription_plan: `${selectedPlan}_${billingPeriod}`,
+            billing_period: billingPeriod, // Add billing period
+            trial_ends_at: trialEndsAt.toISOString(),
+            max_towers: planLimits.max_towers,
+            max_students: planLimits.max_students,
+            // Initialize Stripe fields as null (will be set when they actually subscribe)
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            subscription_ends_at: null,
+            // Set default avatar
+            avatar_url: "https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
+          },
+          { onConflict: "id" }
+        );
+        if (profileError) throw new Error(profileError.message);
+
+        // 6) Role
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: userId,
+          role: "teacher",
+        });
+        if (roleError) throw new Error(roleError.message);
+
+        const planName = plans.find((p) => p.id === selectedPlan)?.name;
+        const period = billingPeriod === "annual" ? "Annual" : "Monthly";
+        
+        toast({
+          title: "Account created!",
+          description: `Welcome to Sproutify School ${planName} ${period} plan. Your 7-day free trial has started!`,
+        });
+      }
+      
+      // Send registration webhook to n8n
+      try {
+        await sendRegistrationWebhook({
+          id: userId,
+          email: regForm.email,
+          firstName: regForm.firstName,
+          lastName: regForm.lastName,
+          schoolName: regForm.schoolName,
+          plan: selectedPlan as 'basic' | 'professional' | 'school' | 'district',
+          trialEndsAt: trialEndsAt.toISOString(),
+        });
+      } catch (webhookError) {
+        console.error('Failed to send registration webhook:', webhookError);
+        // Don't fail the registration if webhook fails
+      }
+      
+      navigate("/app");
+    } catch (err: any) {
+      toast({ title: "Signup failed", description: err.message ?? "Something went wrong", variant: "destructive" });
+    } finally {
+      setRegForm((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const plans = [
     {
       id: "basic",
@@ -346,8 +618,8 @@ const Index = () => {
       annualPrice: "$107.88",
       originalMonthlyPrice: "$19.99",
       originalAnnualPrice: "$119.88",
-      description: "Perfect for small classrooms and getting started with aeroponic education.",
-      features: ["Up to 3 towers", "50 student accounts", "Basic curriculum modules", "Student progress tracking", "Email support"],
+      description: "Perfect for individual teachers starting their hydroponic journey.",
+      features: ["1 Tower Management", "Basic Vitals Tracking", "Plant Lifecycle Logging", "Up to 15 Students"],
     },
     {
       id: "professional",
@@ -356,32 +628,28 @@ const Index = () => {
       annualPrice: "$215.88",
       originalMonthlyPrice: "$39.99",
       originalAnnualPrice: "$239.88",
-      description: "Ideal for larger classrooms and comprehensive agricultural education programs.",
+      description: "Ideal for teachers managing multiple towers with advanced tracking.",
       popular: true,
       features: [
-        "Up to 10 towers",
-        "200 student accounts",
-        "Complete curriculum library",
-        "Advanced analytics & reporting",
-        "Teacher collaboration tools",
-        "Priority email support",
+        "Up to 3 Towers",
+        "Complete Vitals & History",
+        "Harvest & Waste Logging",
+        "Photo Gallery",
       ],
     },
     {
       id: "school",
-      name: "School",
-      monthlyPrice: "$39.99",
-      annualPrice: "$431.88",
-      originalMonthlyPrice: "$79.99",
-      originalAnnualPrice: "$479.88",
-      description: "Comprehensive solution for entire schools and district-wide implementations.",
+      name: "Accelerator",
+      monthlyPrice: "$49.99",
+      annualPrice: "$1,080",
+      originalMonthlyPrice: "$99.99",
+      originalAnnualPrice: "$1,200",
+      description: "Comprehensive solution for full classroom hydroponic programs.",
       features: [
-        "Unlimited towers",
-        "Unlimited student accounts",
-        "Custom curriculum development",
-        "District-wide reporting",
-        "Administrator dashboard",
-        "Dedicated account manager",
+        "Unlimited Towers",
+        "Classroom Management",
+        "Pest Management System",
+        "Gamified Leaderboards",
       ],
     },
   ];
@@ -457,13 +725,29 @@ const Index = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="loginPasswordTop">Password</Label>
-                      <Input
-                        id="loginPasswordTop"
-                        type="password"
-                        required
-                        value={loginForm.password}
-                        onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="loginPasswordTop"
+                          type={showPassword ? "text" : "password"}
+                          required
+                          value={loginForm.password}
+                          onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <Button type="submit" disabled={loginForm.loading}>
@@ -486,7 +770,7 @@ const Index = () => {
               <Card className="max-w-xl mx-auto">
                 <CardHeader>
                   <CardTitle>Student Login</CardTitle>
-                  <p className="text-muted-foreground">Enter your name and classroom PIN to begin</p>
+                  <p className="text-muted-foreground">Enter your name, classroom PIN, and student PIN to begin</p>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleStudentLogin} className="space-y-4">
@@ -509,6 +793,17 @@ const Index = () => {
                         placeholder="4-digit PIN from your teacher"
                         value={studentForm.kioskPin}
                         onChange={(e) => setStudentForm((p) => ({ ...p, kioskPin: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="studentPinTop">Your Student PIN</Label>
+                      <Input
+                        id="studentPinTop"
+                        type="password"
+                        required
+                        placeholder="4-6 digit PIN assigned by your teacher"
+                        value={studentForm.studentPin}
+                        onChange={(e) => setStudentForm((p) => ({ ...p, studentPin: e.target.value }))}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -620,38 +915,89 @@ const Index = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="schoolName">School name</Label>
+                        <Label htmlFor="schoolName">
+                          {selectedPlan === "school" && schoolDistrictTab === "district" ? "District name" : "School name"}
+                        </Label>
                         <Input
                           id="schoolName"
                           required
+                          placeholder={selectedPlan === "school" && schoolDistrictTab === "district" ? "e.g. Springfield School District" : "e.g. Roosevelt Elementary School"}
                           value={regForm.schoolName}
                           onChange={(e) => setRegForm((p) => ({ ...p, schoolName: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="districtJoinCode">District join code (optional)</Label>
                         <Input
-                          id="password"
-                          type="password"
-                          required
-                          value={regForm.password}
-                          onChange={(e) => setRegForm((p) => ({ ...p, password: e.target.value }))}
+                          id="districtJoinCode"
+                          placeholder="Enter district join code if provided"
+                          value={regForm.districtJoinCode}
+                          onChange={(e) => setRegForm((p) => ({ ...p, districtJoinCode: e.target.value }))}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          If your school is part of a district, enter the join code provided by your district administrator.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showRegPassword ? "text" : "password"}
+                            required
+                            value={regForm.password}
+                            onChange={(e) => setRegForm((p) => ({ ...p, password: e.target.value }))}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowRegPassword(!showRegPassword)}
+                          >
+                            {showRegPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="confirmPassword">Confirm password</Label>
-                        <Input
-                          id="confirmPassword"
-                          type="password"
-                          required
-                          value={regForm.confirmPassword}
-                          onChange={(e) => setRegForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            required
+                            value={regForm.confirmPassword}
+                            onChange={(e) => setRegForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <Button type="submit" className="w-full" disabled={regForm.loading}>
                         {regForm.loading
                           ? "Creating Account..."
-                          : `Start 7-Day Free Trial - ${plans.find((p) => p.id === selectedPlan)?.name}`}
+                          : `Start 7-Day Free Trial - ${
+                              selectedPlan === "school" && schoolDistrictTab === "district" 
+                                ? "District" 
+                                : plans.find((p) => p.id === selectedPlan)?.name
+                            }`}
                       </Button>
                       <p className="text-center text-sm text-muted-foreground mt-2">
                         Then 50% off for first 3 months • Cancel anytime
@@ -688,10 +1034,99 @@ const Index = () => {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {plans.map((plan) => {
                       const pricing = getCurrentPlanPricing(plan);
+
+                      // Special rendering for the "School" plan: make the card a tabbed box (School/District)
+                      if (plan.id === "school") {
+                        return (
+                          <Card
+                            key={plan.id}
+                            className={`cursor-pointer transition-all ${
+                              selectedPlan === plan.id ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"
+                            }`}
+                            onClick={() => setSelectedPlan(plan.id)}
+                          >
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <CardTitle className="text-lg flex items-center gap-2">
+                                    Accelerator
+                                  </CardTitle>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      {schoolDistrictTab === "district" 
+                                        ? (billingPeriod === "annual" ? "$3,240" : "$299.99")
+                                        : pricing.originalPrice
+                                      }
+                                    </span>
+                                    <p className="text-2xl font-bold text-green-600">
+                                      {schoolDistrictTab === "district" 
+                                        ? (billingPeriod === "annual" ? "$3,240" : "$149.99")
+                                        : pricing.price
+                                      }
+                                      <span className="text-sm font-normal text-muted-foreground">{pricing.period}</span>
+                                    </p>
+                                    <Badge variant="destructive" className="text-xs">
+                                      {pricing.savings}
+                                    </Badge>
+                                  </div>
+                                  {billingPeriod === "annual" && (
+                                    <p className="text-xs text-green-600 font-medium">
+                                      Save {schoolDistrictTab === "district" 
+                                        ? "$358.80" 
+                                        : (parseFloat(pricing.originalPrice.replace(/[$,]/g, '')) - parseFloat(pricing.price.replace(/[$,]/g, ''))).toFixed(2)
+                                      } per year
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
+                                </div>
+                                <div
+                                  className={`w-4 h-4 rounded-full border-2 ${
+                                    selectedPlan === plan.id ? "bg-primary border-primary" : "border-muted-foreground"
+                                  }`}
+                                />
+                              </div>
+
+                              {/* Inline Tabs inside the School card */}
+                              <Tabs
+                                value={schoolDistrictTab}
+                                onValueChange={(v) => setSchoolDistrictTab(v as "school" | "district")}
+                                className="mt-4"
+                              >
+                                <TabsList className="grid w-full grid-cols-2">
+                                  <TabsTrigger value="school">School</TabsTrigger>
+                                  <TabsTrigger value="district">District</TabsTrigger>
+                                </TabsList>
+                              </Tabs>
+                            </CardHeader>
+
+                            <CardContent className="pt-0">
+                              {/* Same description/features for both tabs for now */}
+                              <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
+                              <ul className="text-xs text-muted-foreground">
+                                {(schoolDistrictTab === "district" ? [
+                                  "Multi-School Reporting",
+                                  "Bulk User Management", 
+                                  "Advanced Analytics",
+                                  "District Dashboard"
+                                ] : plan.features).slice(0, 4).map((feature, idx) => (
+                                  <li key={idx}>• {feature}</li>
+                                ))}
+                              </ul>
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                {schoolDistrictTab === "district"
+                                  ? "District plan: Multi-school reporting, bulk user management, advanced analytics, and district dashboard."
+                                  : "School plan: Unlimited towers, classroom management, pest management system, and gamified leaderboards."}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+
+                      // Default rendering for Basic/Professional
                       return (
                         <Card
                           key={plan.id}
@@ -706,7 +1141,7 @@ const Index = () => {
                                 <CardTitle className="text-lg flex items-center gap-2">
                                   {plan.name}
                                   {plan.popular && (
-                                    <Badge className="bg-secondary text-secondary-foreground">Most Popular</Badge>
+                                    <Badge className="bg-blue-500 text-white">Most Popular</Badge>
                                   )}
                                 </CardTitle>
                                 <div className="flex items-center gap-2">
@@ -721,7 +1156,7 @@ const Index = () => {
                                 </div>
                                 {billingPeriod === "annual" && (
                                   <p className="text-xs text-green-600 font-medium">
-                                    Save ${(parseFloat(pricing.originalPrice.replace('$', '')) - parseFloat(pricing.price.replace('$', ''))).toFixed(2)} per year
+                                    Save {(parseFloat(pricing.originalPrice.replace('$', '')) - parseFloat(pricing.price.replace('$', ''))).toFixed(2)} per year
                                   </p>
                                 )}
                                 <p className="text-xs text-green-600 font-medium">7-day FREE trial</p>
@@ -890,7 +1325,8 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Second Back to School Promo (date-gated) */}
+        {/* Second Back to Schoo
+           l Promo (date-gated) */}
         {isBackToSchoolActive() && (
           <section className="text-center mb-12">
             <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 max-w-2xl mx-auto">
@@ -898,7 +1334,7 @@ const Index = () => {
                 <Badge className="mb-4 bg-secondary text-secondary-foreground">Back to School Special</Badge>
                 <h3 className="text-2xl font-bold mb-2">50% Off First 3 Months</h3>
                 <p className="text-muted-foreground mb-4">
-                  Start your classroom garden journey with our special back-to-school pricing. Valid through September 2025.
+                  Start your classroom gar den journey with our special back-to-school pricing. Valid through September 2025.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   7-day free trial, then 50% off your chosen plan for the first 3 months

@@ -5,13 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 export type UserProfile = {
   id: string;
   full_name: string | null;
-  school_name: string | null;
   avatar_url: string | null;
-  district: string | null;
+  district_id: string | null;
   bio: string | null;
   phone: string | null;
   timezone: string | null;
   school_image_url: string | null;
+  school_name?: string | null;
 };
 
 export function useProfile() {
@@ -43,10 +43,20 @@ export function useProfile() {
           return;
         }
 
-        // Fetch profile data
+        // Fetch profile data with school name via JOIN
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("id, full_name, school_name, avatar_url, district, bio, phone, timezone, school_image_url")
+          .select(`
+            id, 
+            full_name, 
+            avatar_url, 
+            district_id, 
+            bio, 
+            phone, 
+            timezone, 
+            school_image_url,
+            schools(name)
+          `)
           .eq("id", user.id)
           .single();
 
@@ -56,17 +66,21 @@ export function useProfile() {
         }
 
         if (mounted) {
-          setProfile(profileData || {
+          const profile = profileData ? {
+            ...profileData,
+            school_name: profileData.schools?.name || null
+          } : {
             id: user.id,
             full_name: null,
-            school_name: null,
             avatar_url: null,
-            district: null,
+            district_id: null,
             bio: null,
             phone: null,
             timezone: null,
             school_image_url: null,
-          });
+            school_name: null,
+          };
+          setProfile(profile);
         }
 
       } catch (err) {

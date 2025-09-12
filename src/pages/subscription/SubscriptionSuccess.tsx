@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { SEO } from '@/components/SEO';
 import { supabase } from '@/integrations/supabase/client';
+import { formatPlanName } from '@/lib/utils';
 
 export default function SubscriptionSuccess() {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ export default function SubscriptionSuccess() {
             {userPlan && (
               <div className="inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
                 <span className="text-green-800 font-medium">
-                  {userPlan.charAt(0).toUpperCase() + userPlan.slice(1)} Plan Active
+                  {formatPlanName(userPlan)} Plan Active
                 </span>
               </div>
             )}
@@ -101,9 +102,9 @@ export default function SubscriptionSuccess() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
                 <div>
-                  <h3 className="font-medium">Create Your First Tower</h3>
+                  <h3 className="font-medium">Create Your Classroom</h3>
                   <p className="text-sm text-muted-foreground">
-                    Set up your classroom aeroponic tower and start tracking plants
+                    Set up your classroom and generate join codes for your students
                   </p>
                 </div>
               </div>
@@ -111,9 +112,9 @@ export default function SubscriptionSuccess() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
                 <div>
-                  <h3 className="font-medium">Invite Your Students</h3>
+                  <h3 className="font-medium">Create Your First Tower</h3>
                   <p className="text-sm text-muted-foreground">
-                    Create classrooms and generate join codes for your students
+                    Set up your classroom aeroponic tower and start tracking plants
                   </p>
                 </div>
               </div>
@@ -144,18 +145,18 @@ export default function SubscriptionSuccess() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 variant="outline"
-                onClick={() => navigate('/app/towers/new')}
+                onClick={() => navigate('/app/classrooms')}
                 className="w-full sm:w-auto"
               >
-                Create First Tower
+                Create Classroom
               </Button>
               
               <Button 
                 variant="outline"
-                onClick={() => navigate('/app/classrooms')}
+                onClick={() => navigate('/app/towers/new')}
                 className="w-full sm:w-auto"
               >
-                Set Up Classroom
+                Create First Tower
               </Button>
             </div>
           </div>

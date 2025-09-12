@@ -27,6 +27,10 @@ import {
 
 import VitalsReport from "@/components/reports/VitalsReport";
 import PestReport from "@/components/reports/PestReport";
+import StudentPhotoReport from "@/components/reports/StudentPhotoReport";
+import StudentPlantingReport from "@/components/reports/StudentPlantingReport";
+import StudentHarvestReport from "@/components/reports/StudentHarvestReport";
+import StudentWasteReport from "@/components/reports/StudentWasteReport";
 
 type StudentHarvestItem = {
   id: string;
@@ -77,7 +81,7 @@ function StudentTowerHarvestWidget({
             expected_harvest_date,
             port_number,
             tower_id,
-            towers!inner(id, name)
+            towers(id, name)
           `)
           .eq('teacher_id', teacherId)
           .eq('tower_id', towerId)
@@ -102,7 +106,7 @@ function StudentTowerHarvestWidget({
           return {
             id: plant.id,
             plantName: plant.name,
-            towerName: plant.towers.name,
+            towerName: plant.towers?.name || 'Unknown Tower',
             towerId: plant.tower_id,
             expectedHarvestDate: plant.expected_harvest_date!,
             daysRemaining: Math.abs(daysRemaining),
@@ -349,6 +353,21 @@ export default function StudentTowerDetail() {
         </Button>
       </div>
 
+      {/* Log New Data Section */}
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">Log New Data</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ActionCard to={`/student/add-plant?towerId=${towerId}`} title="Add a New Plant" description="Log a new seedling you've just planted." />
+            <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
+            <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
+            <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
+            <ActionCard to={`/student/pests?towerId=${towerId}`} title="Log Pest Observation" description="Note any pests or issues you see." />
+            <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Tower Harvest Schedule */}
       {teacherId && classroomId && towerId && (
         <StudentTowerHarvestWidget 
@@ -366,6 +385,34 @@ export default function StudentTowerDetail() {
             </AccordionContent>
         </AccordionItem>
 
+        <AccordionItem value="photos">
+            <AccordionTrigger className="text-2xl font-semibold">Photo Gallery</AccordionTrigger>
+            <AccordionContent className="pt-4">
+                <StudentPhotoReport towerId={towerId} teacherId={teacherId} />
+            </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="planting">
+            <AccordionTrigger className="text-2xl font-semibold">Planting History</AccordionTrigger>
+            <AccordionContent className="pt-4">
+                <StudentPlantingReport towerId={towerId} teacherId={teacherId} />
+            </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="harvests">
+            <AccordionTrigger className="text-2xl font-semibold">Harvest History</AccordionTrigger>
+            <AccordionContent className="pt-4">
+                <StudentHarvestReport towerId={towerId} teacherId={teacherId} />
+            </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="waste">
+            <AccordionTrigger className="text-2xl font-semibold">Waste History</AccordionTrigger>
+            <AccordionContent className="pt-4">
+                <StudentWasteReport towerId={towerId} teacherId={teacherId} />
+            </AccordionContent>
+        </AccordionItem>
+
         <AccordionItem value="pests">
             <AccordionTrigger className="text-2xl font-semibold">Pest Observation History</AccordionTrigger>
             <AccordionContent className="pt-4">
@@ -373,20 +420,6 @@ export default function StudentTowerDetail() {
             </AccordionContent>
         </AccordionItem>
       </Accordion>
-
-      <Separator />
-
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Log New Data</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ActionCard to={`/student/add-plant?towerId=${towerId}`} title="Add a New Plant" description="Log a new seedling you've just planted." />
-            <ActionCard to={`/student/vitals?towerId=${towerId}`} title="Log Vitals" description="Enter today's pH and EC readings." />
-            <ActionCard to={`/student/harvest?towerId=${towerId}`} title="Log a Harvest" description="Record the weight of plants harvested." />
-            <ActionCard to={`/student/waste?towerId=${towerId}`} title="Log Waste" description="Record any plants that were discarded." />
-            <ActionCard to={`/student/pests?towerId=${towerId}`} title="Log Pest Observation" description="Note any pests or issues you see." />
-            <ActionCard to={`/student/photos?towerId=${towerId}`} title="Add a Photo" description="Upload a picture of the tower's progress." />
-        </div>
-      </div>
     </div>
   );
 }

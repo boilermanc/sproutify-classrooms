@@ -22,6 +22,8 @@ export type Database = {
           name: string
           teacher_id: string
           updated_at: string
+          educational_package?: 'base' | 'elementary' | 'middle_school' | 'high_school' | 'advanced_stem' | null
+          is_selected_for_network: boolean
         }
         Insert: {
           created_at?: string
@@ -30,6 +32,8 @@ export type Database = {
           name: string
           teacher_id: string
           updated_at?: string
+          educational_package?: 'base' | 'elementary' | 'middle_school' | 'high_school' | 'advanced_stem' | null
+          is_selected_for_network?: boolean
         }
         Update: {
           created_at?: string
@@ -38,6 +42,8 @@ export type Database = {
           name?: string
           teacher_id?: string
           updated_at?: string
+          educational_package?: 'base' | 'elementary' | 'middle_school' | 'high_school' | 'advanced_stem' | null
+          is_selected_for_network?: boolean
         }
         Relationships: []
       }
@@ -229,6 +235,194 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "network_challenges"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      // NEW: District Package Tables
+      districts: {
+        Row: {
+          id: string
+          name: string
+          join_code: string
+          logo_url: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          address: string | null
+          street_address: string | null
+          city: string | null
+          state: string | null
+          postal_code: string | null
+          country: string | null
+          website: string | null
+          max_teachers: number
+          subscription_status: string
+          subscription_tier: string
+          trial_start_date: string | null
+          trial_end_date: string | null
+          settings: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          join_code: string
+          logo_url?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          address?: string | null
+          street_address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+          country?: string | null
+          website?: string | null
+          max_teachers?: number
+          subscription_status?: string
+          subscription_tier?: string
+          trial_start_date?: string | null
+          trial_end_date?: string | null
+          settings?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          join_code?: string
+          logo_url?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          address?: string | null
+          street_address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+          country?: string | null
+          website?: string | null
+          max_teachers?: number
+          subscription_status?: string
+          subscription_tier?: string
+          trial_start_date?: string | null
+          trial_end_date?: string | null
+          settings?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      district_join_codes: {
+        Row: {
+          id: string
+          district_id: string
+          code: string
+          description: string | null
+          max_uses: number | null
+          current_uses: number
+          expires_at: string | null
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          district_id: string
+          code: string
+          description?: string | null
+          max_uses?: number | null
+          current_uses?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          district_id?: string
+          code?: string
+          description?: string | null
+          max_uses?: number | null
+          current_uses?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "district_join_codes_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "district_join_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      district_invitations: {
+        Row: {
+          id: string
+          district_id: string
+          email: string
+          invited_by: string
+          school_id: string | null
+          status: 'pending' | 'accepted' | 'expired'
+          token: string
+          expires_at: string
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          district_id: string
+          email: string
+          invited_by: string
+          school_id?: string | null
+          status?: 'pending' | 'accepted' | 'expired'
+          token: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          district_id?: string
+          email?: string
+          invited_by?: string
+          school_id?: string | null
+          status?: 'pending' | 'accepted' | 'expired'
+          token?: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "district_invitations_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "district_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "district_invitations_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           }
         ]
@@ -449,7 +643,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
-          district: string | null
+          district_id: string | null  // UPDATED: changed from district text to district_id
           email: string | null
           first_name: string | null
           full_name: string | null
@@ -457,10 +651,10 @@ export type Database = {
           last_name: string | null
           max_students: number | null
           max_towers: number | null
+          onboarding_completed: boolean | null
           phone: string | null
           school_id: string | null
           school_image_url: string | null
-          school_name: string | null
           settings: Json
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -474,7 +668,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
-          district?: string | null
+          district_id?: string | null  // UPDATED: changed from district text to district_id
           email?: string | null
           first_name?: string | null
           full_name?: string | null
@@ -482,10 +676,10 @@ export type Database = {
           last_name?: string | null
           max_students?: number | null
           max_towers?: number | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           school_id?: string | null
           school_image_url?: string | null
-          school_name?: string | null
           settings?: Json
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -499,7 +693,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
-          district?: string | null
+          district_id?: string | null  // UPDATED: changed from district text to district_id
           email?: string | null
           first_name?: string | null
           full_name?: string | null
@@ -507,10 +701,10 @@ export type Database = {
           last_name?: string | null
           max_students?: number | null
           max_towers?: number | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           school_id?: string | null
           school_image_url?: string | null
-          school_name?: string | null
           settings?: Json
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -523,6 +717,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
@@ -534,26 +735,34 @@ export type Database = {
       schools: {
         Row: {
           created_at: string
-          district: string | null
+          district_id: string | null  // UPDATED: changed from district text to district_id
           id: string
           name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          district?: string | null
+          district_id?: string | null  // UPDATED: changed from district text to district_id
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          district?: string | null
+          district_id?: string | null  // UPDATED: changed from district text to district_id
           id?: string
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "schools_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       students: {
         Row: {
@@ -562,12 +771,14 @@ export type Database = {
           display_name: string
           id: string
           updated_at: string
-          // NEW FIELDS from our migration:
+          // NEW FIELDS from existing migration:
           student_id: string | null
           grade_level: string | null
           has_logged_in: boolean
           first_login_at: string | null
           last_login_at: string | null
+          // Two-factor authentication:
+          student_pin: string | null
         }
         Insert: {
           classroom_id: string
@@ -581,6 +792,8 @@ export type Database = {
           has_logged_in?: boolean  // Will default to false
           first_login_at?: string | null
           last_login_at?: string | null
+          // Two-factor authentication:
+          student_pin?: string | null
         }
         Update: {
           classroom_id?: string
@@ -594,6 +807,8 @@ export type Database = {
           has_logged_in?: boolean
           first_login_at?: string | null
           last_login_at?: string | null
+          // Two-factor authentication:
+          student_pin?: string | null
         }
         Relationships: [
           {
@@ -791,9 +1006,39 @@ export type Database = {
         }
         Returns: boolean
       }
+      // NEW: District Package Functions
+      is_district_admin: {
+        Args: {
+          _user_id: string
+          _district_id: string
+        }
+        Returns: boolean
+      }
+      get_user_district_id: {
+        Args: {
+          _user_id: string
+        }
+        Returns: string | null
+      }
+      validate_district_join_code: {
+        Args: {
+          _code: string
+        }
+        Returns: {
+          district_id: string | null
+          is_valid: boolean
+          message: string
+        }[]
+      }
+      use_district_join_code: {
+        Args: {
+          _code: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student"
+      app_role: "admin" | "teacher" | "student" | "district_admin" | "school_admin"  // UPDATED: added district_admin and school_admin
     }
     CompositeTypes: {
       [_ in never]: never
@@ -900,6 +1145,9 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+// Educational Package Types
+export type EducationalPackageType = 'base' | 'elementary' | 'middle_school' | 'high_school' | 'advanced_stem'
 
 // ========================================
 // ADDITIONAL INTERFACES FOR THE NEW STUDENT SYSTEM
@@ -1012,6 +1260,77 @@ export interface ChallengeParticipation {
 }
 
 // ========================================
+// NEW: DISTRICT PACKAGE INTERFACES
+// ========================================
+
+// District utility types
+export type District = Database['public']['Tables']['districts']['Row']
+export type DistrictInsert = Database['public']['Tables']['districts']['Insert']
+export type DistrictUpdate = Database['public']['Tables']['districts']['Update']
+
+export type DistrictJoinCode = Database['public']['Tables']['district_join_codes']['Row']
+export type DistrictJoinCodeInsert = Database['public']['Tables']['district_join_codes']['Insert']
+export type DistrictJoinCodeUpdate = Database['public']['Tables']['district_join_codes']['Update']
+
+export type DistrictInvitation = Database['public']['Tables']['district_invitations']['Row']
+export type DistrictInvitationInsert = Database['public']['Tables']['district_invitations']['Insert']
+export type DistrictInvitationUpdate = Database['public']['Tables']['district_invitations']['Update']
+
+export type AppRole = Database['public']['Enums']['app_role']
+
+// District-related query result types
+export type DistrictWithStats = District & {
+  school_count: number
+  teacher_count: number
+  student_count: number
+  total_harvests: number
+  total_harvest_weight: number
+}
+
+export type SchoolWithDistrict = Database['public']['Tables']['schools']['Row'] & {
+  district?: District | null
+}
+
+export type ProfileWithDistrict = Database['public']['Tables']['profiles']['Row'] & {
+  district?: District | null
+  school?: Database['public']['Tables']['schools']['Row'] | null
+}
+
+// Join code validation response type
+export type JoinCodeValidation = {
+  district_id: string | null
+  is_valid: boolean
+  message: string
+}
+
+// District admin dashboard types
+export interface DistrictDashboardData {
+  district: District
+  schools: SchoolWithDistrict[]
+  teachers: ProfileWithDistrict[]
+  total_students: number
+  total_towers: number
+  total_harvests: number
+  total_harvest_weight: number
+  recent_activity: {
+    type: 'teacher_joined' | 'school_added' | 'harvest_logged'
+    message: string
+    timestamp: string
+  }[]
+}
+
+// Teacher invitation types
+export interface TeacherInvitationRequest {
+  email: string
+  school_id?: string
+  message?: string
+}
+
+export interface BulkInvitationRequest {
+  invitations: TeacherInvitationRequest[]
+}
+
+// ========================================
 // VALIDATION HELPERS FOR THE NEW SYSTEM
 // ========================================
 
@@ -1037,10 +1356,41 @@ export const validateStudentId = (studentId?: string): string | null => {
   return null;
 };
 
+export const validateStudentPin = (pin?: string): string | null => {
+  if (!pin) return "Student PIN is required";
+  const trimmed = pin.trim();
+  if (!/^\d{4,6}$/.test(trimmed)) return "Student PIN must be 4-6 digits";
+  return null;
+};
+
 export const validateGradeLevel = (grade?: string): string | null => {
   if (!grade) return null; // Optional field
   const trimmed = grade.trim();
   if (trimmed.length > 20) return "Grade level must be less than 20 characters";
+  return null;
+};
+
+// NEW: District validation helpers
+export const validateDistrictName = (name: string): string | null => {
+  const trimmed = name.trim();
+  if (!trimmed) return "District name is required";
+  if (trimmed.length < 2) return "District name must be at least 2 characters";
+  if (trimmed.length > 100) return "District name must be less than 100 characters";
+  return null;
+};
+
+export const validateJoinCode = (code: string): string | null => {
+  const trimmed = code.trim();
+  if (!trimmed) return "Join code is required";
+  if (!/^[A-Z0-9]{6,12}$/.test(trimmed)) return "Join code must be 6-12 uppercase letters and numbers";
+  return null;
+};
+
+export const validateEmail = (email: string): string | null => {
+  const trimmed = email.trim();
+  if (!trimmed) return "Email is required";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmed)) return "Please enter a valid email address";
   return null;
 };
 

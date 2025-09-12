@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { TrialStatusBanner } from "@/components/TrialStatusBanner";
 import { UsageIndicator } from "@/components/UsageIndicator";
+import WelcomeModal from "@/components/WelcomeModal";
+import SchoolAdminWelcomeModal from "@/components/SchoolAdminWelcomeModal";
+import DistrictAdminWelcomeModal from "@/components/DistrictAdminWelcomeModal";
 
 type Stats = {
   towers: number;
@@ -30,6 +33,24 @@ interface SubscriptionData {
   subscription_status: string | null;
   subscription_plan: string | null;
   trial_ends_at: string | null;
+}
+
+interface UserProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  subscription_plan: string | null;
+  subscription_status: string | null;
+  onboarding_completed?: boolean;
+  schools?: {
+    name: string;
+  };
+  districts?: {
+    id: string;
+    name: string;
+    join_code: string;
+  };
+  user_role?: string;
 }
 
 // Subscription Banner Component
@@ -159,6 +180,10 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showSchoolAdminModal, setShowSchoolAdminModal] = useState(false);
+  const [showDistrictAdminModal, setShowDistrictAdminModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -170,6 +195,50 @@ export default function DashboardHome() {
         }
         
         setTeacherId(user.id);
+
+        // Fetch user profile to check onboarding status
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select(`
+            id, 
+            first_name, 
+            last_name, 
+            subscription_plan, 
+            subscription_status, 
+            onboarding_completed,
+            schools(name),
+            districts(id, name, join_code)
+          `)
+          .eq('id', user.id)
+          .single();
+
+        if (!profileError && profile) {
+          // Fetch user role
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id)
+            .single();
+
+          const userRole = roleData?.role || 'teacher';
+          const profileWithRole = { ...profile, user_role: userRole };
+          setUserProfile(profileWithRole);
+          
+          // Show appropriate welcome modal if onboarding hasn't been completed
+          if (!profile.onboarding_completed) {
+            switch (userRole) {
+              case 'district_admin':
+                setShowDistrictAdminModal(true);
+                break;
+              case 'school_admin':
+                setShowSchoolAdminModal(true);
+                break;
+              default:
+                setShowWelcomeModal(true);
+                break;
+            }
+          }
+        }
 
         // Fetch basic stats
         const [towersRes, plantsRes, harvestsRes] = await Promise.all([
@@ -192,7 +261,7 @@ export default function DashboardHome() {
             name,
             expected_harvest_date,
             tower_id,
-            towers!inner(id, name)
+            towers(id, name)
           `)
           .eq('teacher_id', user.id)
           .eq('status', 'active')
@@ -214,7 +283,7 @@ export default function DashboardHome() {
 
           return {
             towerId: plant.tower_id,
-            towerName: plant.towers.name,
+            towerName: plant.towers?.name || 'Unknown Tower',
             plantName: plant.name,
             expectedHarvestDate: plant.expected_harvest_date!,
             daysRemaining: Math.abs(daysRemaining),
@@ -270,6 +339,62 @@ export default function DashboardHome() {
   const urgentHarvests = harvestSummary.filter(h => h.status === 'overdue' || h.status === 'today');
   const soonHarvests = harvestSummary.filter(h => h.status === 'soon');
   const upcomingHarvests = harvestSummary.filter(h => h.status === 'upcoming').slice(0, 3);
+
+  const handleWelcomeModalClose = async () => {
+    setShowWelcomeModal(false);
+    // Refresh user profile to get updated onboarding status
+    await refreshUserProfile();
+  };
+
+  const handleSchoolAdminModalClose = async () => {
+    setShowSchoolAdminModal(false);
+    // Refresh user profile to get updated onboarding status
+    await refreshUserProfile();
+  };
+
+  const handleDistrictAdminModalClose = async () => {
+    setShowDistrictAdminModal(false);
+    // Refresh user profile to get updated onboarding status
+    await refreshUserProfile();
+  };
+
+  const refreshUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch updated user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          subscription_plan, 
+          subscription_status, 
+          onboarding_completed,
+          schools(name),
+          districts(id, name, join_code)
+        `)
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profile) {
+        // Fetch user role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+
+        const userRole = roleData?.role || 'teacher';
+        const profileWithRole = { ...profile, user_role: userRole };
+        setUserProfile(profileWithRole);
+      }
+    } catch (error) {
+      console.error('Error refreshing user profile:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -472,6 +597,27 @@ export default function DashboardHome() {
           <UsageIndicator />
         </div>
       </div>
+
+      {/* Welcome Modals */}
+      {userProfile && (
+        <>
+          <WelcomeModal
+            isOpen={showWelcomeModal}
+            onClose={handleWelcomeModalClose}
+            userProfile={userProfile}
+          />
+          <SchoolAdminWelcomeModal
+            isOpen={showSchoolAdminModal}
+            onClose={handleSchoolAdminModalClose}
+            userProfile={userProfile}
+          />
+          <DistrictAdminWelcomeModal
+            isOpen={showDistrictAdminModal}
+            onClose={handleDistrictAdminModalClose}
+            userProfile={userProfile}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ Usage:
 Defaults to 'auto' if no env is provided.
 
 Behavior:
-- prod : deploy to production target (requires branch: main) + confirmation
+- prod : deploy to production target (prefers branch: main). If not on main, asks for OVERRIDE. Always asks for YES before proceeding.
 - test : deploy to test target (prefers branch: dev; warns if not)
 - auto : CI-friendly; main->prod, else->test
 - -Force : bypass confirmation & branch guards (use sparingly)
@@ -101,6 +101,45 @@ function Confirm-Prod {
   if ($ans -ne 'YES') { throw "Aborted by user." }
 }
 
+# -------- Database Safety Check --------
+function Test-DatabaseSafety {
+    param([string]$Environment)
+    
+    Write-Host "Performing database safety checks..."
+    
+    # Check if we're about to deploy to production
+    if ($Environment -eq 'prod') {
+        Write-Warning "PRODUCTION DEPLOYMENT DETECTED!"
+        
+        # Check git branch
+        $currentBranch = Get-CurrentBranch
+        if ($currentBranch -ne 'main' -and -not $Force) {
+            Write-Error "Production deployments should only run from 'main' branch. Current: '$currentBranch'"
+            throw "Branch safety check failed"
+        }
+        
+        # Check for uncommitted changes
+        $gitStatus = & $GIT status --porcelain
+        if ($gitStatus) {
+            Write-Warning "Uncommitted changes detected:"
+            Write-Host $gitStatus
+            $ans = Read-Host "Continue with uncommitted changes? Type 'YES' to continue"
+            if ($ans -ne 'YES') { throw "Deployment cancelled due to uncommitted changes" }
+        }
+        
+        # Check for database migration files
+        $migrationFiles = Get-ChildItem -Path "supabase/migrations" -Filter "*.sql" | Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-1) }
+        if ($migrationFiles) {
+            Write-Warning "Recent migration files detected:"
+            $migrationFiles | ForEach-Object { Write-Host "  $($_.Name)" }
+            $ans = Read-Host "Recent migrations detected. Type 'MIGRATE-PROD' to confirm production migration"
+            if ($ans -ne 'MIGRATE-PROD') { throw "Production migration cancelled" }
+        }
+        
+        Write-Host "✅ Production safety checks passed"
+    }
+}
+
 # -------- Build locally (always) --------
 Write-Host "Building (npm ci && npm run build)…"
 npm ci
@@ -121,6 +160,9 @@ $effective = switch ($env) {
   }
 }
 
+# Run safety checks after $effective is computed
+Test-DatabaseSafety -Environment $effective
+
 $target     = $Targets[$effective]
 $HostAlias  = $target.HostAlias
 $RemotePath = $target.RemotePath
@@ -130,7 +172,9 @@ $Url        = $target.Url
 $currentBranch = Get-CurrentBranch
 if (-not $Force) {
   if ($effective -eq 'prod' -and $currentBranch -ne 'main') {
-    throw "Prod deploys must run from 'main' (current: '$currentBranch'). Use -Force to override."
+    Write-Warning "You're attempting to DEPLOY TO PROD from branch '$currentBranch' (not 'main')."
+    $ans = Read-Host "Type 'OVERRIDE' to continue, or anything else to cancel"
+    if ($ans -ne 'OVERRIDE') { throw "Aborted by user." }
   }
   if ($effective -eq 'test' -and $currentBranch -ne 'dev') {
     Write-Warning "Test deploys typically run from 'dev'. Current branch: '$currentBranch'. Proceeding…"
@@ -144,7 +188,7 @@ Write-Host ("Host                 : {0}" -f $HostAlias)
 Write-Host ("RemotePath           : {0}" -f $RemotePath)
 Write-Host ("Local branch         : {0}" -f $currentBranch)
 
-# Final confirmation for prod
+# Final confirmation for prod (always ask unless -Force)
 if ($effective -eq 'prod' -and -not $Force) { Confirm-Prod -HostAlias $HostAlias -RemotePath $RemotePath }
 
 # identity check (ensures we're hitting the right box)
@@ -158,7 +202,8 @@ if ($effective -eq 'test' -and $target.ComposeDir -and $target.Service) {
   $restart = ("cd {0} && (docker compose restart {1} || docker-compose restart {1})" -f $target.ComposeDir, $target.Service)
   Invoke-SSH $HostAlias $restart 'restart test container'
 } elseif ($effective -eq 'prod') {
-  $stamp = (Get-Date -AsUTC -Format s)
+  # *** THIS IS THE UPDATED LINE ***
+  $stamp = ([DateTime]::UtcNow).ToString("s")
   Invoke-SSH $HostAlias ("printf '%s`n' '$stamp' > '{0}/.deployed_utc'" -f $RemotePath) 'write stamp'
 }
 
@@ -172,13 +217,19 @@ $verifyCmds = @(
 ) -join " && "
 Invoke-SSH $HostAlias $verifyCmds 'remote verify'
 
-# optional HTTP HEAD check
+# fast, non-blocking connectivity probe for confirmation
 if ($Url) {
   try {
-    $resp = Invoke-WebRequest -Method Head -Uri $Url -UseBasicParsing
-    Write-Host ("HTTP check: {0} -> {1}" -f $Url, $resp.StatusCode)
+    $uri  = [System.Uri]$Url
+    $port = if ($uri.Port -ne -1) { $uri.Port } elseif ($uri.Scheme -eq 'https') { 443 } else { 80 }
+    $ok   = Test-NetConnection $uri.DnsSafeHost -Port $port -InformationLevel Quiet
+    if ($ok) {
+      Write-Host ("CONFIRM: {0} is reachable on port {1}" -f $Url, $port)
+    } else {
+      Write-Warning ("CONFIRM: {0} NOT reachable on port {1}" -f $Url, $port)
+    }
   } catch {
-    Write-Warning ("HTTP check failed: {0}" -f $_.Exception.Message)
+    Write-Warning ("Port check failed: {0}" -f $_.Exception.Message)
   }
 }
 

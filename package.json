@@ -8,8 +8,17 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy:test": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 test",
-    "deploy:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy_school.ps1 prod"
+    "deploy:auto": "node scripts/deploy.js auto",
+    "deploy:test": "node scripts/deploy.js test",
+    "deploy:prod": "node scripts/deploy.js prod",
+    "deploy:prod:force": "node scripts/deploy.js prod --force",
+    "db:backup": "node scripts/db-safety.js backup",
+    "db:migrate": "node scripts/db-safety.js migrate",
+    "db:reset": "node scripts/db-safety.js reset",
+    "db:list-backups": "node scripts/db-safety.js list-backups",
+    "db:safe": "node scripts/supabase-safe.js",
+    "db:emergency": "node scripts/emergency-recovery.js recover",
+    "db:check": "node scripts/emergency-recovery.js check-integrity"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -82,7 +91,7 @@
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.9",
     "postcss": "^8.5.6",
-    "supabase": "^2.34.3",
+    "supabase": "^2.40.7",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",

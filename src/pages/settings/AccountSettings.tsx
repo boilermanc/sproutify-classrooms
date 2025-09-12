@@ -36,11 +36,15 @@ export default function AccountSettings() {
         setUserId(user.id);
         
         // Load current weight unit preference from profile
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("preferred_weight_unit")
           .eq("id", user.id)
           .single();
+          
+        if (profileError) {
+          console.log("Profile error (this might be expected if preferred_weight_unit doesn't exist):", profileError);
+        }
           
         if (profileData?.preferred_weight_unit) {
           setWeightUnit(profileData.preferred_weight_unit as 'grams' | 'ounces');

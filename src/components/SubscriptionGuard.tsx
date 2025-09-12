@@ -93,8 +93,55 @@ export const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }
     }
   };
 
-  const handleUpgrade = () => {
-    navigate('/pricing');
+  const handleUpgrade = async () => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        navigate('/auth/login');
+        return;
+      }
+
+      // Use plan identifier instead of hardcoded price ID
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          plan: "basic", // Plan identifier instead of price ID
+          customer_email: user.email || undefined,
+          userId: user.id,
+          billingPeriod: "annual",
+        },
+      });
+
+      if (error) {
+        console.error("Checkout create failed:", error);
+        toast({
+          title: "Error",
+          description: "Failed to start checkout process. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data?.url) {
+        toast({
+          title: "Error", 
+          description: "No checkout URL returned. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start checkout process. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleContactSupport = () => {

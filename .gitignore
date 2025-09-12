@@ -33,4 +33,5 @@ lerna-debug.log*
 *.sw?
 
 # Custom tool directories (Corrected from your original)
-lovable-uploads/
+lovable-uploads/.env
+.env

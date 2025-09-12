@@ -187,19 +187,88 @@ export default function NetworkDashboard() {
 
   if (!selectedClassroom) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <Network className="mx-auto h-12 w-12 text-muted-foreground" />
-          <div>
-            <h2 className="text-xl font-semibold">Select a Classroom</h2>
-            <p className="text-muted-foreground">
-              Please select a classroom to access Garden Network features.
-            </p>
-          </div>
-          <Button asChild>
-            <Link to="/app/classrooms">Go to Classrooms</Link>
-          </Button>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Garden Network</h1>
+          <p className="text-muted-foreground">
+            Connect with classrooms worldwide to compete, collaborate, and share growing experiences.
+          </p>
         </div>
+
+        <Card className="border-dashed">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <Network className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle>Welcome to Garden Network</CardTitle>
+            <CardDescription>
+              Join a global community of educators and students growing together
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <div className="grid md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <Trophy className="mx-auto h-8 w-8 mb-2 text-muted-foreground" />
+                <div className="font-medium">Compete</div>
+                <div className="text-muted-foreground">Join harvest challenges and friendly competitions</div>
+              </div>
+              <div>
+                <Users className="mx-auto h-8 w-8 mb-2 text-muted-foreground" />
+                <div className="font-medium">Collaborate</div>
+                <div className="text-muted-foreground">Share tips and learn from other educators</div>
+              </div>
+              <div>
+                <TrendingUp className="mx-auto h-8 w-8 mb-2 text-muted-foreground" />
+                <div className="font-medium">Track Progress</div>
+                <div className="text-muted-foreground">Compare your growth with similar classrooms</div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <div className="flex gap-3 justify-center">
+                <Button asChild>
+                  <Link to="/app/classrooms">Select a Classroom</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/app/network/settings">Configure Network</Link>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                First, select a classroom to participate in Garden Network features
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Getting Started Guide */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Getting Started
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="font-medium">1. Select Your Classroom</div>
+                <div className="text-muted-foreground">Choose which classroom will participate in the network</div>
+              </div>
+              <div>
+                <div className="font-medium">2. Configure Settings</div>
+                <div className="text-muted-foreground">Set your privacy preferences and classroom profile</div>
+              </div>
+              <div>
+                <div className="font-medium">3. Discover Classrooms</div>
+                <div className="text-muted-foreground">Find other classrooms to connect with</div>
+              </div>
+              <div>
+                <div className="font-medium">4. Join Challenges</div>
+                <div className="text-muted-foreground">Participate in monthly competitions</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -1,13 +1,16 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Zap, Loader2, ArrowLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCircle, Zap, Loader2, ArrowLeft, CreditCard, FileText } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { SEO } from "@/components/SEO";
 import { SUBSCRIPTION_PLANS, getPriceId } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { formatPlanName } from "@/lib/utils";
+import { DISTRICT_PRICING } from "@/config/pricing";
 
 interface UserSubscription {
   subscription_status: string | null;
@@ -23,6 +26,8 @@ const Pricing = () => {
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual"); // Default to annual
+  const [schoolDistrictTab, setSchoolDistrictTab] = useState<"school" | "district">("school");
   
   // Promo code state
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -70,10 +75,67 @@ const Pricing = () => {
     checkUserStatus();
   }, []);
 
-  const plans = Object.entries(SUBSCRIPTION_PLANS).map(([key, plan]) => ({
-    id: key,
-    ...plan
-  }));
+  // Updated plans with both monthly and annual pricing
+  const plans = [
+    {
+      id: "basic",
+      name: "Basic",
+      monthlyPrice: 999, // $9.99 in cents
+      annualPrice: 10788, // $107.88 in cents (10% off from $119.88)
+      originalMonthlyPrice: 1999, // $19.99 original
+      originalAnnualPrice: 11988, // $119.88 original
+      description: "Perfect for individual teachers starting their hydroponic journey.",
+      features: [
+        "1 Tower Management",
+        "Basic Vitals Tracking",
+        "Plant Lifecycle Logging",
+        "Up to 15 Students"
+      ],
+      featureLimits: {
+        towers: 1,
+        students: 15
+      }
+    },
+    {
+      id: "professional", 
+      name: "Professional",
+      monthlyPrice: 1999, // $19.99 in cents
+      annualPrice: 21588, // $215.88 in cents (10% off from $239.88)
+      originalMonthlyPrice: 3999, // $39.99 original
+      originalAnnualPrice: 23988, // $239.88 original
+      description: "Ideal for teachers managing multiple towers with advanced tracking.",
+      popular: true,
+      features: [
+        "Up to 3 Towers",
+        "Complete Vitals & History",
+        "Harvest & Waste Logging",
+        "Photo Gallery"
+      ],
+      featureLimits: {
+        towers: 3,
+        students: 999999 // unlimited
+      }
+    },
+    {
+      id: "school",
+      name: "Accelerator", 
+      monthlyPrice: 4999, // $49.99 in cents
+      annualPrice: 108000, // $1,080 in cents
+      originalMonthlyPrice: 9999, // $99.99 original
+      originalAnnualPrice: 108000, // $1,080 original
+      description: "Comprehensive solution for full classroom hydroponic programs.",
+      features: [
+        "Unlimited Towers",
+        "Classroom Management",
+        "Pest Management System",
+        "Gamified Leaderboards"
+      ],
+      featureLimits: {
+        towers: -1, // unlimited
+        students: -1 // unlimited
+      }
+    }
+  ];
 
   const handleCodeApplied = (code: string, discount: string) => {
     setAppliedCode(code);
@@ -95,6 +157,9 @@ const Pricing = () => {
 
   const getButtonText = (planId: string) => {
     if (!isLoggedIn) {
+      if (planId === 'school' && schoolDistrictTab === 'district') {
+        return 'Start District Trial';
+      }
       return 'Start Free Trial';
     }
 
@@ -117,26 +182,30 @@ const Pricing = () => {
            userSubscription?.subscription_status === 'active';
   };
 
-  // Updated function to use Supabase Edge Function
-  const createCheckoutSession = async (priceId: string, userId: string, promoCode?: string | null) => {
+  // Simplified function to use Supabase Edge Function
+  const createCheckoutSession = async (priceId: string, userEmail?: string, userId?: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      console.log('Creating checkout session with:', { priceId, userEmail, userId, billingPeriod });
+      
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           priceId,
-          successUrl: `${window.location.origin}/subscription/success`,
-          cancelUrl: `${window.location.origin}/pricing`,
-          promoCode: promoCode || undefined
-        }
+          customer_email: userEmail || undefined,
+          userId: userId || undefined,
+          billingPeriod: billingPeriod,
+        },
       });
 
       if (error) {
-        throw error;
+        console.error("Checkout create failed:", error);
+        throw new Error(`Checkout failed: ${error.message || 'Unknown error'}`);
       }
 
       if (!data?.url) {
         throw new Error('No checkout URL returned');
       }
 
+      console.log('Checkout URL received:', data.url);
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
@@ -158,17 +227,24 @@ const Pricing = () => {
       
       if (!session?.user) {
         // Not logged in - redirect to registration
-        const params = new URLSearchParams({ plan: planId });
+        const params = new URLSearchParams({ 
+          plan: planId,
+          billing: billingPeriod
+        });
         if (appliedCode) {
           params.append('code', appliedCode);
+        }
+        // Add district tab info for Accelerator plan
+        if (planId === 'school' && schoolDistrictTab === 'district') {
+          params.append('district', 'true');
         }
         navigate(`/auth/register?${params.toString()}`);
         return;
       }
 
       // User is logged in - create checkout session for upgrade/subscription
-      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, true);
-      await createCheckoutSession(priceId, session.user.id, appliedCode);
+      const priceId = getPriceId(planId as keyof typeof SUBSCRIPTION_PLANS, billingPeriod, false);
+      await createCheckoutSession(priceId, session.user.email, session.user.id);
       
     } catch (error: any) {
       console.error('Error processing plan action:', error);
@@ -196,6 +272,22 @@ const Pricing = () => {
     } else {
       return Math.max(0, originalPrice - discount.value);
     }
+  };
+
+  // Helper function to get current pricing for a plan
+  const getCurrentPlanPricing = (plan: typeof plans[0]) => {
+    const basePrice = billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice;
+    const originalPrice = billingPeriod === "annual" ? plan.originalAnnualPrice : plan.originalMonthlyPrice;
+    const period = billingPeriod === "annual" ? "/year" : "/month";
+    const savings = billingPeriod === "annual" ? "Save 10%" : "50% OFF";
+    
+    return {
+      price: basePrice,
+      originalPrice,
+      period,
+      savings,
+      annualSavings: billingPeriod === "annual" ? (originalPrice - basePrice) / 100 : null
+    };
   };
 
   if (checkingAuth) {
@@ -273,10 +365,48 @@ const Pricing = () => {
                 : 'Manage your classroom aeroponic towers with confidence. All plans include a 7-day free trial.'
               }
             </p>
+            
+            {/* Key benefits */}
+            <div className="flex flex-wrap justify-center gap-4 mb-6">
+              <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                <CreditCard className="w-4 h-4" />
+                No credit card needed for trial
+              </div>
+              <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                <FileText className="w-4 h-4" />
+                We accept purchase orders (POs)
+              </div>
+            </div>
+            
             <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
               <Zap className="h-4 w-4 mr-1" />
               50% OFF Your First 3 Months
             </Badge>
+          </div>
+
+          {/* Billing Period Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center bg-muted rounded-lg p-1">
+              <Button
+                variant={billingPeriod === "monthly" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setBillingPeriod("monthly")}
+                className="px-6 py-2"
+              >
+                Monthly
+              </Button>
+              <Button
+                variant={billingPeriod === "annual" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setBillingPeriod("annual")}
+                className="px-6 py-2 relative"
+              >
+                Annual
+                <Badge className="ml-2 bg-green-500 text-white text-xs px-2 py-0">
+                  Save 10%
+                </Badge>
+              </Button>
+            </div>
           </div>
 
           {/* Trial Status for logged in users */}
@@ -288,7 +418,7 @@ const Pricing = () => {
                     Your free trial ends on {new Date(userSubscription.trial_ends_at).toLocaleDateString()}
                   </p>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
-                    Current plan: {userSubscription.subscription_plan?.charAt(0).toUpperCase() + (userSubscription.subscription_plan?.slice(1) || '')}
+                    Current plan: {formatPlanName(userSubscription.subscription_plan)}
                   </p>
                 </CardContent>
               </Card>
@@ -348,11 +478,192 @@ const Pricing = () => {
               const isLoading = loading === plan.id;
               const isCurrent = isCurrentPlan(plan.id);
               
-              const basePrice = plan.promotionalPrice;
+              const pricing = getCurrentPlanPricing(plan);
+              const basePrice = pricing.price;
               const discountedPrice = appliedCode ? 
                 calculateDiscountedPrice(basePrice, appliedCode) : basePrice;
               const isFree = discountedPrice === 0;
               
+              // Special rendering for the Accelerator plan with tabs
+              if (plan.id === "school") {
+                return (
+                  <Card 
+                    key={plan.id} 
+                    className={`relative ${
+                      isCurrent ? 'border-green-500 bg-green-50' : ''
+                    }`}
+                  >
+                    {isCurrent && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <Badge className="bg-green-600 text-white">
+                          Current Plan
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    <CardHeader className="text-center">
+                      <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                      <CardDescription>
+                        {plan.description}
+                      </CardDescription>
+                      
+                      <div className="pt-4">
+                        {(() => {
+                          // District pricing when district tab is selected
+                          if (schoolDistrictTab === "district") {
+                            const districtBasePrice = billingPeriod === "annual" ? DISTRICT_PRICING.annualPrice : DISTRICT_PRICING.monthlyPrice;
+                            const districtOriginalPrice = billingPeriod === "annual" ? DISTRICT_PRICING.originalAnnualPrice : DISTRICT_PRICING.originalMonthlyPrice;
+                            const districtDiscountedPrice = appliedCode ? calculateDiscountedPrice(districtBasePrice, appliedCode) : districtBasePrice;
+                            const districtIsFree = districtDiscountedPrice === 0;
+                            const districtPeriod = billingPeriod === "annual" ? "/year" : "/month";
+                            const districtSavings = billingPeriod === "annual" ? "Save 10%" : "50% OFF";
+                            
+                            return (
+                              <>
+                                {districtIsFree ? (
+                                  <div className="text-4xl font-bold text-green-600">
+                                    FREE
+                                    <span className="text-lg font-normal text-muted-foreground">{districtPeriod}</span>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                      <span className="text-sm text-muted-foreground line-through">
+                                        ${(districtOriginalPrice / 100).toFixed(2)}
+                                      </span>
+                                      <Badge variant="destructive" className="text-xs">
+                                        {districtSavings}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-4xl font-bold text-green-600">
+                                      ${(districtDiscountedPrice / 100).toFixed(2)}
+                                      <span className="text-lg font-normal text-muted-foreground">{districtPeriod}</span>
+                                    </div>
+                                    {billingPeriod === "annual" && (
+                                      <p className="text-sm text-green-600 font-medium mt-1">
+                                        Save ${((districtOriginalPrice - districtBasePrice) / 100).toFixed(2)} per year
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {appliedCode && !districtIsFree && (
+                                  <div className="text-sm text-muted-foreground mt-2">
+                                    <span className="line-through">${(districtBasePrice / 100).toFixed(2)}{districtPeriod}</span>
+                                    <span className="text-green-600 font-medium ml-2">with {appliedCode}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs text-green-600 font-medium mt-2">
+                                  7-day FREE trial
+                                </div>
+                              </>
+                            );
+                          }
+                          
+                          // School pricing (default)
+                          return (
+                            <>
+                              {isFree ? (
+                                <div className="text-4xl font-bold text-green-600">
+                                  FREE
+                                  <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="flex items-center justify-center gap-2 mb-1">
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      ${(pricing.originalPrice / 100).toFixed(2)}
+                                    </span>
+                                    <Badge variant="destructive" className="text-xs">
+                                      {pricing.savings}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-4xl font-bold text-green-600">
+                                    ${(discountedPrice / 100).toFixed(2)}
+                                    <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
+                                  </div>
+                                  {billingPeriod === "annual" && pricing.annualSavings && (
+                                    <p className="text-sm text-green-600 font-medium mt-1">
+                                      Save ${pricing.annualSavings.toFixed(2)} per year
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {appliedCode && !isFree && (
+                                <div className="text-sm text-muted-foreground mt-2">
+                                  <span className="line-through">${(basePrice / 100).toFixed(2)}{pricing.period}</span>
+                                  <span className="text-green-600 font-medium ml-2">with {appliedCode}</span>
+                                </div>
+                              )}
+                              
+                              <div className="text-xs text-green-600 font-medium mt-2">
+                                7-day FREE trial
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* School/District Tabs */}
+                      <Tabs
+                        value={schoolDistrictTab}
+                        onValueChange={(v) => setSchoolDistrictTab(v as "school" | "district")}
+                        className="mt-4"
+                      >
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="school">School</TabsTrigger>
+                          <TabsTrigger value="district">District</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <div className="space-y-3">
+                        {(schoolDistrictTab === "district" ? [
+                          "Multi-School Reporting",
+                          "Bulk User Management", 
+                          "Advanced Analytics",
+                          "District Dashboard"
+                        ] : plan.features).slice(0, 4).map((feature, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                            <span>• {feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        {schoolDistrictTab === "district"
+                          ? "District plan: Multi-school reporting, bulk user management, advanced analytics, and district dashboard."
+                          : "School plan: Unlimited towers, classroom management, pest management system, and gamified leaderboards."}
+                      </p>
+                    </CardContent>
+                    
+                    <CardFooter>
+                      <Button 
+                        onClick={() => handlePlanAction(plan.id)}
+                        disabled={isLoading || isCurrent}
+                        className={`w-full ${isCurrent ? 'opacity-50' : ''}`} 
+                        size="lg"
+                        variant={isCurrent ? 'outline' : 'default'}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          getButtonText(plan.id)
+                        )}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              }
+              
+              // Default rendering for Basic/Professional plans
               return (
                 <Card 
                   key={plan.id} 
@@ -379,109 +690,63 @@ const Pricing = () => {
                   <CardHeader className="text-center">
                     <CardTitle className="text-2xl">{plan.name}</CardTitle>
                     <CardDescription>
-                      {plan.id === 'basic' && 'Perfect for individual teachers'}
-                      {plan.id === 'professional' && 'Ideal for multiple classrooms'}
-                      {plan.id === 'school' && 'Best for whole school districts'}
+                      {plan.description}
                     </CardDescription>
                     
                     <div className="pt-4">
                       {isFree ? (
                         <div className="text-4xl font-bold text-green-600">
                           FREE
-                          <span className="text-lg font-normal text-muted-foreground">/month</span>
+                          <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
                         </div>
                       ) : (
-                        <div className="text-4xl font-bold">
-                          ${(discountedPrice / 100).toFixed(2)}
-                          <span className="text-lg font-normal text-muted-foreground">/month</span>
+                        <div>
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <span className="text-sm text-muted-foreground line-through">
+                              ${(pricing.originalPrice / 100).toFixed(2)}
+                            </span>
+                            <Badge variant="destructive" className="text-xs">
+                              {pricing.savings}
+                            </Badge>
+                          </div>
+                          <div className="text-4xl font-bold text-green-600">
+                            ${(discountedPrice / 100).toFixed(2)}
+                            <span className="text-lg font-normal text-muted-foreground">{pricing.period}</span>
+                          </div>
+                          {billingPeriod === "annual" && pricing.annualSavings && (
+                            <p className="text-sm text-green-600 font-medium mt-1">
+                              Save ${pricing.annualSavings.toFixed(2)} per year
+                            </p>
+                          )}
                         </div>
                       )}
                       
                       {appliedCode && !isFree && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="line-through">${(basePrice / 100).toFixed(2)}/month</span>
+                        <div className="text-sm text-muted-foreground mt-2">
+                          <span className="line-through">${(basePrice / 100).toFixed(2)}{pricing.period}</span>
                           <span className="text-green-600 font-medium ml-2">with {appliedCode}</span>
                         </div>
                       )}
                       
-                      {!appliedCode && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="line-through">${(plan.monthlyPrice / 100).toFixed(2)}/month</span>
-                          <span className="text-green-600 font-medium ml-2">for first 3 months</span>
-                        </div>
-                      )}
-                      
-                      {!isFree && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Then ${(plan.monthlyPrice / 100).toFixed(2)}/month
-                        </div>
-                      )}
+                      <div className="text-xs text-green-600 font-medium mt-2">
+                        7-day FREE trial
+                      </div>
                     </div>
                   </CardHeader>
                   
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>
-                          <strong>
-                            {plan.features.towers === -1 ? 'Unlimited' : plan.features.towers}
-                          </strong> Tower Gardens
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>
-                          <strong>
-                            {plan.features.students === -1 ? 'Unlimited' : plan.features.students}
-                          </strong> Student Accounts
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>Complete tower management</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>Vitals tracking (pH, EC)</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>Harvest & waste logging</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>Student photo uploads</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span>Kiosk mode for classrooms</span>
-                      </div>
-                      
-                      {plan.id === 'professional' && (
+                      {plan.features.slice(0, 3).map((feature, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                          <span>• {feature}</span>
+                        </div>
+                      ))}
+                      {plan.features.length > 3 && (
                         <div className="flex items-center gap-3">
                           <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                          <span>Priority support</span>
+                          <span>• +{plan.features.length - 3} more features</span>
                         </div>
-                      )}
-                      
-                      {plan.id === 'school' && (
-                        <>
-                          <div className="flex items-center gap-3">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>District-wide reporting</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <span>Dedicated account manager</span>
-                          </div>
-                        </>
                       )}
                     </div>
                   </CardContent>
@@ -509,32 +774,33 @@ const Pricing = () => {
             })}
           </div>
 
-          {/* CTA Section */}
-          {(!isLoggedIn || userSubscription?.subscription_status !== 'active') && (
-            <div className="text-center mt-20">
-              <h2 className="text-2xl font-bold mb-4">Ready to Transform Your Classroom?</h2>
-              <p className="text-muted-foreground mb-6">
-                Join thousands of educators using Sproutify School to engage students in hands-on learning.
-              </p>
-              <Button 
-                onClick={() => handlePlanAction('professional')}
-                disabled={loading === 'professional'}
-                size="lg" 
-                className="text-lg px-8"
-              >
-                {loading === 'professional' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : isLoggedIn ? (
-                  'Subscribe Now'
-                ) : (
-                  'Start Your Free Trial Today'
-                )}
-              </Button>
-            </div>
-          )}
+          {/* Purchase Order Information */}
+          <div className="text-center mt-20">
+            <Card className="max-w-2xl mx-auto border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+              <CardContent className="pt-6">
+                <h2 className="text-xl font-bold mb-4 text-blue-900 dark:text-blue-100">Need a Purchase Order?</h2>
+                <p className="text-blue-800 dark:text-blue-200 mb-4">
+                  We accept purchase orders from schools and districts. Contact us to set up your PO and get started with your free trial.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open('mailto:support@sproutify.app?subject=Purchase Order Inquiry', '_blank')}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  >
+                    Contact Us for PO Setup
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open('https://school.sproutify.app/', '_blank')}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  >
+                    Visit Our Website
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

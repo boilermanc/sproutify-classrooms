@@ -17,7 +17,11 @@ import {
   AlertTriangle, 
   Sparkles,
   Trophy,
-  Target
+  Target,
+  Camera,
+  Wheat,
+  Trash2,
+  Bug
 } from "lucide-react";
 
 // Define a type for our tower data
@@ -50,6 +54,221 @@ const TowerCard = ({ tower }: { tower: Tower }) => (
   </Link>
 );
 
+// Recent Activity Widget Component
+function RecentActivityWidget({ 
+  classroomId, 
+  teacherId, 
+  maxItems = 8
+}: {
+  classroomId: string;
+  teacherId: string;
+  maxItems?: number;
+}) {
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      try {
+        // Fetch recent activities from multiple tables
+        const [vitalsData, photosData, harvestsData, plantingsData, pestsData] = await Promise.all([
+          supabase
+            .from('tower_vitals')
+            .select('recorded_at, ph, ec, towers(name)')
+            .eq('teacher_id', teacherId)
+            .order('recorded_at', { ascending: false })
+            .limit(5),
+          
+          supabase
+            .from('tower_photos')
+            .select('taken_at, caption, student_name, towers(name)')
+            .eq('teacher_id', teacherId)
+            .order('taken_at', { ascending: false })
+            .limit(5),
+          
+          supabase
+            .from('harvests')
+            .select('harvested_at, plant_name, plant_quantity, weight_grams, tower_id, towers(name)')
+            .eq('teacher_id', teacherId)
+            .order('harvested_at', { ascending: false })
+            .limit(5),
+          
+          supabase
+            .from('plantings')
+            .select('planted_at, name, towers(name)')
+            .eq('teacher_id', teacherId)
+            .order('planted_at', { ascending: false })
+            .limit(5),
+          
+          supabase
+            .from('pest_logs')
+            .select('observed_at, pest, towers(name)')
+            .eq('teacher_id', teacherId)
+            .order('observed_at', { ascending: false })
+            .limit(5)
+        ]);
+
+        const allActivities: any[] = [];
+
+        // Process vitals
+        vitalsData.data?.forEach(vital => {
+          allActivities.push({
+            type: 'vitals',
+            date: vital.recorded_at,
+            icon: '📊',
+            title: 'Vitals Logged',
+            description: `pH: ${vital.ph || 'N/A'}, EC: ${vital.ec || 'N/A'}`,
+            tower: vital.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Process photos
+        photosData.data?.forEach(photo => {
+          allActivities.push({
+            type: 'photo',
+            date: photo.taken_at,
+            icon: '📸',
+            title: 'Photo Added',
+            description: photo.caption || 'New tower photo',
+            student: photo.student_name,
+            tower: photo.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Process harvests
+        harvestsData.data?.forEach(harvest => {
+          allActivities.push({
+            type: 'harvest',
+            date: harvest.harvested_at,
+            icon: '🥗',
+            title: 'Harvest Recorded',
+            description: `${harvest.plant_name} (${harvest.weight_grams || harvest.plant_quantity || 0}g)`,
+            student: 'Teacher', // Harvests don't have student_name, so show as Teacher
+            tower: harvest.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Process plantings
+        plantingsData.data?.forEach(planting => {
+          allActivities.push({
+            type: 'planting',
+            date: planting.planted_at,
+            icon: '🌱',
+            title: 'Plant Added',
+            description: planting.name,
+            tower: planting.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Process pests
+        pestsData.data?.forEach(pest => {
+          allActivities.push({
+            type: 'pest',
+            date: pest.observed_at,
+            icon: '🐛',
+            title: 'Pest Observed',
+            description: pest.pest,
+            tower: pest.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Sort by date and take the most recent
+        allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setActivities(allActivities.slice(0, maxItems));
+
+      } catch (error) {
+        console.error('Error fetching recent activity:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (teacherId && classroomId) {
+      fetchRecentActivity();
+    }
+  }, [classroomId, teacherId, maxItems]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            Recent Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            Recent Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="font-medium mb-2">No recent activity</h3>
+            <p className="text-sm text-muted-foreground">
+              Activity will appear here as students log data!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-blue-600" />
+          Recent Activity ({activities.length} items)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {activities.map((activity, index) => (
+            <div key={index} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+              <span className="text-lg">{activity.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">{activity.title}</h4>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(activity.date).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-muted-foreground">{activity.tower}</span>
+                  {activity.student && (
+                    <>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">by {activity.student}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // Student Harvest Widget Component
 function StudentHarvestWidget({ 
   classroomId, 
@@ -74,7 +293,7 @@ function StudentHarvestWidget({
             expected_harvest_date,
             port_number,
             tower_id,
-            towers!inner(id, name)
+            towers(id, name)
           `)
           .eq('teacher_id', teacherId)
           .eq('status', 'active')
@@ -98,7 +317,7 @@ function StudentHarvestWidget({
           return {
             id: plant.id,
             plantName: plant.name,
-            towerName: plant.towers.name,
+            towerName: plant.towers?.name || 'Unknown Tower',
             towerId: plant.tower_id,
             expectedHarvestDate: plant.expected_harvest_date!,
             daysRemaining: Math.abs(daysRemaining),
@@ -304,15 +523,19 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [classroomId, setClassroomId] = useState<string>("");
   const [teacherId, setTeacherId] = useState<string>("");
+  const [studentName, setStudentName] = useState<string | null>(null);
 
   useEffect(() => {
     const storedClassroomId = localStorage.getItem("student_classroom_id");
+    const storedStudentName = localStorage.getItem("student_name");
+    
     if (!storedClassroomId) {
       setLoading(false);
       return;
     }
 
     setClassroomId(storedClassroomId);
+    setStudentName(storedStudentName);
 
     const fetchTowersForClass = async () => {
       // First, get the teacher_id for the classroom
@@ -353,14 +576,21 @@ export default function StudentDashboard() {
     <div className="container py-8 space-y-8">
       <SEO title="Student Dashboard | Sproutify School" />
       <div>
-        <h1 className="text-3xl font-bold">Student Dashboard</h1>
+        <h1 className="text-3xl font-bold">
+          {studentName ? `Welcome, ${studentName}!` : "Student Dashboard"}
+        </h1>
         <p className="text-muted-foreground">Check harvest schedule and select a tower to log data.</p>
       </div>
 
-      {/* Harvest Schedule Section */}
+      {/* Harvest Schedule and Recent Activity Section */}
       {teacherId && classroomId && (
-        <div className="space-y-4">
+        <div className="grid lg:grid-cols-2 gap-6">
           <StudentHarvestWidget 
+            classroomId={classroomId} 
+            teacherId={teacherId}
+            maxItems={8}
+          />
+          <RecentActivityWidget 
             classroomId={classroomId} 
             teacherId={teacherId}
             maxItems={8}
