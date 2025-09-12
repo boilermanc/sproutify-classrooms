@@ -22,7 +22,7 @@ import {
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Edit2, Copy, Clock, Network } from "lucide-react";
+import { Plus, Trash2, Edit2, Copy, Clock, Network, Sprout } from "lucide-react";
 import { useAppStore } from "@/context/AppStore";
 
 // Updated interfaces for the new system
@@ -157,7 +157,7 @@ export default function Classrooms() {
         </Card>
       )}
 
-      <section className="grid md:grid-cols-2 gap-6">
+      <section className="grid md:grid-cols-2 gap-8 mb-8">
         <Card>
           <CardHeader>
             <CardTitle>Create a classroom</CardTitle>
@@ -201,6 +201,54 @@ export default function Classrooms() {
         </Card>
       </section>
 
+      <section className="grid md:grid-cols-2 gap-8 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sprout className="h-5 w-5 text-primary" />
+              Seeding Experience
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure educational approaches for seed tracking and plant monitoring. 
+              Choose from different learning styles tailored to your grade level.
+            </p>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>• Select appropriate learning mode for your grade</p>
+              <p>• Track germination and growth progress</p>
+              <p>• Engage students with age-appropriate activities</p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <p className="text-sm text-muted-foreground">
+              Available after creating a classroom
+            </p>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Garden Network</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Connect with other classrooms, share experiences, and participate in challenges.
+            </p>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>• Connect with other classrooms</p>
+              <p>• Share harvest data and photos</p>
+              <p>• Participate in friendly competitions</p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="outline">
+              <Link to="/app/network">Explore Network</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </section>
+
       <Separator className="my-8" />
 
       <section className="grid gap-4">
@@ -228,6 +276,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentId, setNewStudentId] = useState("");
+  const [newStudentPin, setNewStudentPin] = useState("");
   const [newGradeLevel, setNewGradeLevel] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -344,8 +393,22 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
     setSubmitting(true);
 
     const name = newStudentName.trim();
+    const pin = newStudentPin.trim();
+    
     if (!name) {
       toast({ title: "Name required", description: "Please enter the student's name." });
+      setSubmitting(false);
+      return;
+    }
+
+    if (!pin) {
+      toast({ title: "PIN required", description: "Please enter a student PIN." });
+      setSubmitting(false);
+      return;
+    }
+
+    if (!/^\d{4,6}$/.test(pin)) {
+      toast({ title: "Invalid PIN", description: "Student PIN must be 4-6 digits." });
       setSubmitting(false);
       return;
     }
@@ -357,6 +420,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
           classroom_id: classroom.id,
           display_name: name,
           student_id: newStudentId.trim() || null,
+          student_pin: pin,
           grade_level: newGradeLevel.trim() || null,
           has_logged_in: false
         });
@@ -384,6 +448,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
       
       setNewStudentName("");
       setNewStudentId("");
+      setNewStudentPin("");
       setNewGradeLevel("");
       setShowAddDialog(false);
       
@@ -434,6 +499,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
     setEditingStudent(student);
     setNewStudentName(student.display_name);
     setNewStudentId(student.student_id || "");
+    setNewStudentPin(student.student_pin || "");
     setNewGradeLevel(student.grade_level || "");
   };
 
@@ -443,12 +509,34 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
     
     setSubmitting(true);
 
+    const name = newStudentName.trim();
+    const pin = newStudentPin.trim();
+
+    if (!name) {
+      toast({ title: "Name required", description: "Please enter the student's name." });
+      setSubmitting(false);
+      return;
+    }
+
+    if (!pin) {
+      toast({ title: "PIN required", description: "Please enter a student PIN." });
+      setSubmitting(false);
+      return;
+    }
+
+    if (!/^\d{4,6}$/.test(pin)) {
+      toast({ title: "Invalid PIN", description: "Student PIN must be 4-6 digits." });
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const { error } = await sb
         .from("students")
         .update({
-          display_name: newStudentName.trim(),
+          display_name: name,
           student_id: newStudentId.trim() || null,
+          student_pin: pin,
           grade_level: newGradeLevel.trim() || null
         })
         .eq("id", editingStudent.id);
@@ -544,6 +632,12 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
                   ? "Remove from Network" 
                   : "Add to Network"
               }
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/app/seeding/${classroom.id}`}>
+                <Sprout className="h-4 w-4 mr-2" />
+                Seeding
+              </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link to={`/app/kiosk?classId=${classroom.id}`}>
@@ -712,6 +806,19 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="studentPin">Student PIN (required)</Label>
+                <Input
+                  id="studentPin"
+                  value={newStudentPin}
+                  onChange={(e) => setNewStudentPin(e.target.value)}
+                  placeholder="4-6 digit PIN"
+                  maxLength={6}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Students will use this PIN along with their name to log in.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="gradeLevel">Grade Level (optional)</Label>
                 <Input
                   id="gradeLevel"
@@ -762,6 +869,19 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
                   onChange={(e) => setNewStudentId(e.target.value)}
                   placeholder="School ID number"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editStudentPin">Student PIN</Label>
+                <Input
+                  id="editStudentPin"
+                  value={newStudentPin}
+                  onChange={(e) => setNewStudentPin(e.target.value)}
+                  placeholder="4-6 digit PIN"
+                  maxLength={6}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Students use this PIN along with their name to log in.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editGradeLevel">Grade Level</Label>

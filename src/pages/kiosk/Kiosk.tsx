@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
+import { findClassroomByPin } from "@/utils/kiosk-login";
 const sb = supabase as any;
 import { Link } from "react-router-dom";
 
@@ -15,6 +17,7 @@ export default function Kiosk() {
   const { toast } = useToast();
   const [studentName, setStudentName] = useState("");
   const [kioskPin, setKioskPin] = useState("");
+  const [studentPin, setStudentPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,7 +25,8 @@ export default function Kiosk() {
     setSubmitting(true);
 
     const name = studentName.trim();
-    const pin = kioskPin.trim();
+    const classroomPin = kioskPin.trim();
+    const pin = studentPin.trim();
 
     // Basic validation
     if (!name) {
@@ -31,19 +35,27 @@ export default function Kiosk() {
       return;
     }
 
-    if (!pin) {
+    if (!classroomPin) {
       toast({ title: "Enter classroom PIN", description: "Ask your teacher for the classroom PIN." });
       setSubmitting(false);
       return;
     }
 
+    if (!pin) {
+      toast({ title: "Enter your student PIN", description: "Ask your teacher for your personal student PIN." });
+      setSubmitting(false);
+      return;
+    }
+
+    if (!/^\d{4,6}$/.test(pin)) {
+      toast({ title: "Invalid student PIN", description: "Student PIN must be 4-6 digits." });
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      // Step 1: Find classroom by PIN
-      const { data: classroom, error: classroomErr } = await sb
-        .from("classrooms")
-        .select("id, name")
-        .eq("kiosk_pin", pin)
-        .single();
+      // Step 1: Find classroom by PIN using direct fetch (fallback approach)
+      const { data: classroom, error: classroomErr } = await findClassroomByPin(classroomPin);
 
       if (classroomErr || !classroom) {
         console.error("Classroom lookup failed:", classroomErr);
@@ -55,19 +67,20 @@ export default function Kiosk() {
         return;
       }
 
-      // Step 2: Check if student exists in this classroom
+      // Step 2: Check if student exists in this classroom with matching PIN
       const { data: student, error: studentErr } = await sb
         .from("students")
         .select("id, display_name, has_logged_in")
         .eq("classroom_id", classroom.id)
         .eq("display_name", name)
+        .eq("student_pin", pin)
         .single();
 
       if (studentErr || !student) {
         console.error("Student lookup failed:", studentErr);
         toast({ 
           title: "Student not found", 
-          description: `We couldn't find "${name}" in ${classroom.name}. Please check the spelling or ask your teacher to add you to the class.` 
+          description: `We couldn't find a student named "${name}" with that PIN in ${classroom.name}. Please check your name spelling and PIN, or ask your teacher for help.` 
         });
         setSubmitting(false);
         return;
@@ -131,7 +144,7 @@ export default function Kiosk() {
     <div className="min-h-screen container max-w-xl py-8">
       <SEO 
         title="Kiosk Mode | Sproutify School" 
-        description="Students log in with their name and classroom PIN." 
+        description="Students log in with their name, classroom PIN, and personal student PIN." 
         canonical="/app/kiosk" 
       />
       <header className="mb-6 flex items-center justify-between">
@@ -175,6 +188,21 @@ export default function Kiosk() {
                 Your teacher will share this PIN with the class.
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="studentPin">Your Student PIN</Label>
+              <Input 
+                id="studentPin" 
+                type="password" 
+                value={studentPin} 
+                onChange={(e) => setStudentPin(e.target.value)} 
+                placeholder="Your personal 4-6 digit PIN"
+                maxLength={6}
+                required 
+              />
+              <p className="text-xs text-muted-foreground">
+                Your teacher will give you this personal PIN when they add you to the class.
+              </p>
+            </div>
             <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? "Signing in..." : "Sign In"}
             </Button>
@@ -190,6 +218,7 @@ export default function Kiosk() {
             <li>• Make sure your teacher has added you to the class list</li>
             <li>• Check that you're spelling your name exactly as your teacher entered it</li>
             <li>• Ask your teacher for the correct classroom PIN</li>
+            <li>• Ask your teacher for your personal student PIN</li>
             <li>• If you're still having trouble, ask your teacher for help</li>
           </ul>
         </CardContent>

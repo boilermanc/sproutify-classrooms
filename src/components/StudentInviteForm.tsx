@@ -40,6 +40,11 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
       .filter(name => name.length > 0);
   };
 
+  const generateRandomPin = (): string => {
+    // Generate a random 4-digit PIN
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  };
+
   const handleSingleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -58,11 +63,13 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
     setError(null);
 
     try {
+      const studentPin = generateRandomPin();
       const { error: insertError } = await supabase
         .from('students')
         .insert({
           classroom_id: classroomId,
           display_name: singleName.trim(),
+          student_pin: studentPin,
         });
 
       if (insertError) {
@@ -71,7 +78,7 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
 
       toast({
         title: "Student Added",
-        description: `${singleName.trim()} has been added to ${classroomName}`,
+        description: `${singleName.trim()} has been added to ${classroomName}. Their PIN is ${studentPin}.`,
       });
 
       setSingleName('');
@@ -114,6 +121,7 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
       const studentsToInsert = names.map(name => ({
         classroom_id: classroomId,
         display_name: name,
+        student_pin: generateRandomPin(),
       }));
 
       const { error: insertError } = await supabase
@@ -126,7 +134,7 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
 
       toast({
         title: "Students Added",
-        description: `${names.length} student${names.length === 1 ? '' : 's'} added to ${classroomName}`,
+        description: `${names.length} student${names.length === 1 ? '' : 's'} added to ${classroomName}. Each student has been assigned a random PIN.`,
       });
 
       setBulkNames('');
