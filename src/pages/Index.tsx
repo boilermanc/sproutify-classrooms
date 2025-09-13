@@ -166,7 +166,7 @@ const isBackToSchoolActive = () => {
   return now <= end;
 };
 
-type LoginPanel = "teacher" | "student" | null;
+type LoginPanel = "teacher" | "student" | "info" | null;
 
 const Index = () => {
   const { toast } = useToast();
@@ -699,6 +699,12 @@ const Index = () => {
             >
               Student Login
             </Button>
+            <Button
+              variant={openLogin === "info" ? "default" : "secondary"}
+              onClick={() => setOpenLogin((p) => (p === "info" ? null : "info"))}
+            >
+              Get Info
+            </Button>
           </div>
         </div>
 
@@ -820,6 +826,27 @@ const Index = () => {
             </div>
           </div>
         )}
+
+        {openLogin === "info" && (
+          <div className="border-t">
+            <div className="container mx-auto px-6 py-4">
+              <Card className="max-w-xl mx-auto">
+                <CardHeader>
+                  <CardTitle>Get Updates & Resources</CardTitle>
+                  <p className="text-muted-foreground">Join our waitlist for educational resources and platform updates</p>
+                </CardHeader>
+                <CardContent>
+                  <MailerLiteForm />
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="ghost" type="button" onClick={() => setOpenLogin(null)}>
+                      Close
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
 
       <main className="relative container mx-auto px-6 py-12 sm:py-20 flex-1">
@@ -853,17 +880,11 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Registration + Info tabs (logins moved to top bar) */}
+        {/* Registration Section */}
         <section className="mb-20">
-          <Tabs defaultValue="register" className="max-w-4xl mx-auto">
-            <TabsList className="flex w-full flex-wrap gap-2 sm:grid sm:grid-cols-2">
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="register">Start Free Trial</TabsTrigger>
-              <TabsTrigger className="flex-1 min-w-[42%] sm:min-w-0" value="info">Get Info</TabsTrigger>
-            </TabsList>
+          <div className="max-w-4xl mx-auto">
 
-            {/* Registration Tab */}
-            <TabsContent value="register" className="mt-8">
-              <div className="grid lg:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-2 gap-8">
                 {/* Registration Form */}
                 <Card className="order-2 lg:order-1">
                   <CardHeader>
@@ -1183,20 +1204,7 @@ const Index = () => {
                   </div>
                 </div>
               </div>
-            </TabsContent>
-
-            {/* Info Tab (MailerLite direct-post, no scripts) */}
-            <TabsContent value="info" className="mt-8">
-              <Card className="max-w-md mx-auto">
-                <CardHeader>
-                  <CardTitle>Get Updates & Resources</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MailerLiteForm />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          </div>
         </section>
 
         {/* Back to School Promo Banner (date-gated) */}

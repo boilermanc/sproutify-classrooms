@@ -11,9 +11,8 @@ const __dirname = path.dirname(__filename);
 const platform = os.platform();
 const args = process.argv.slice(2);
 
-function runDeployScript(environment, force = false) {
+function runDeployScript(environment, force = false, mergeOnly = false, mergeFirst = false) {
     const scriptPath = path.join(__dirname, '..', 'deploy_school.ps1');
-    const forceFlag = force ? '-Force' : '';
     
     let command, args;
     
@@ -21,16 +20,16 @@ function runDeployScript(environment, force = false) {
         // Windows - use PowerShell
         command = 'powershell';
         args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, environment];
-        if (forceFlag) {
-            args.push(forceFlag);
-        }
+        if (force) args.push('-Force');
+        if (mergeOnly) args.push('-MergeOnly');
+        if (mergeFirst) args.push('-MergeFirst');
     } else {
         // macOS/Linux - use PowerShell Core if available, otherwise show error
         command = 'pwsh';
         args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, environment];
-        if (forceFlag) {
-            args.push(forceFlag);
-        }
+        if (force) args.push('-Force');
+        if (mergeOnly) args.push('-MergeOnly');
+        if (mergeFirst) args.push('-MergeFirst');
     }
     
     console.log(`Running deployment for ${environment} environment...`);
@@ -67,10 +66,16 @@ function runDeployScript(environment, force = false) {
 // Parse command line arguments
 const environment = args[0];
 const force = args.includes('--force') || args.includes('-Force');
+const mergeOnly = args.includes('--merge-only') || args.includes('-MergeOnly');
+const mergeFirst = args.includes('--merge-first') || args.includes('-MergeFirst');
 
 if (!environment) {
-    console.error('Usage: node deploy.js <environment> [--force]');
+    console.error('Usage: node deploy.js <environment> [--force] [--merge-only] [--merge-first]');
     console.error('Environments: auto, test, prod');
+    console.error('Options:');
+    console.error('  --force       Bypass confirmation & branch guards');
+    console.error('  --merge-only  Only merge to main, don\'t deploy');
+    console.error('  --merge-first Merge to main first, then deploy');
     process.exit(1);
 }
 
@@ -79,4 +84,4 @@ if (!['auto', 'test', 'prod'].includes(environment)) {
     process.exit(1);
 }
 
-runDeployScript(environment, force);
+runDeployScript(environment, force, mergeOnly, mergeFirst);
