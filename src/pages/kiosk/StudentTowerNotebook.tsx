@@ -367,7 +367,12 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
 }
 
 // Center Panel - Chat Component
-function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string; selectedSources: string[]; towerId: string }) {
+function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: { 
+  towerName: string; 
+  selectedSources: string[]; 
+  towerId: string;
+  selectedOutput?: GeneratedOutput | null;
+}) {
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -504,6 +509,129 @@ function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string;
           </div>
         </div>
 
+        {/* Selected Output Display */}
+        {selectedOutput && (
+          <div className="mb-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  {selectedOutput.type === 'timeline' && <Clock className="h-5 w-5 text-blue-600" />}
+                  {selectedOutput.type === 'study-guide' && <BookOpen className="h-5 w-5 text-green-600" />}
+                  {selectedOutput.type === 'faq' && <HelpCircle className="h-5 w-5 text-purple-600" />}
+                  {selectedOutput.type === 'audio' && <Volume2 className="h-5 w-5 text-orange-600" />}
+                  {selectedOutput.type === 'report' && <BarChart3 className="h-5 w-5 text-red-600" />}
+                  {selectedOutput.type === 'visualization' && <Eye className="h-5 w-5 text-indigo-600" />}
+                  <div>
+                    <CardTitle className="text-lg">{selectedOutput.title}</CardTitle>
+                    <p className="text-sm text-muted-foreground">Created {selectedOutput.date}</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {selectedOutput.type === 'timeline' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Growth Timeline</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <div>
+                          <p className="font-medium">Week 1-2: Germination</p>
+                          <p className="text-sm text-muted-foreground">Seeds sprout and develop first leaves</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <div>
+                          <p className="font-medium">Week 3-4: Vegetative Growth</p>
+                          <p className="text-sm text-muted-foreground">Rapid leaf development and stem growth</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        <div>
+                          <p className="font-medium">Week 5-6: Flowering</p>
+                          <p className="text-sm text-muted-foreground">First flowers appear and pollination begins</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <div>
+                          <p className="font-medium">Week 7-8: Harvest Ready</p>
+                          <p className="text-sm text-muted-foreground">Fruits mature and ready for harvest</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'study-guide' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Study Guide</h4>
+                    <div className="prose prose-sm max-w-none">
+                      <h5>Tower Care Basics</h5>
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Check pH levels daily (optimal range: 5.5-6.5)</li>
+                        <li>Monitor EC levels weekly (1.2-2.0 mS/cm)</li>
+                        <li>Ensure adequate lighting (14-16 hours daily)</li>
+                        <li>Maintain proper water circulation</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'faq' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Frequently Asked Questions</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="font-medium">Q: How often should I check the pH?</p>
+                        <p className="text-sm text-muted-foreground">A: Check pH levels daily for optimal plant health.</p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Q: What's the ideal temperature?</p>
+                        <p className="text-sm text-muted-foreground">A: Maintain 65-75°F (18-24°C) for best growth.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'audio' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Audio Overview</h4>
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <Button size="sm">
+                        <Play className="h-4 w-4 mr-2" />
+                        Play Audio
+                      </Button>
+                      <span className="text-sm text-muted-foreground">Duration: 3:45</span>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'report' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Progress Report</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="font-medium text-green-800">Growth Rate</p>
+                        <p className="text-2xl font-bold text-green-600">+15%</p>
+                      </div>
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="font-medium text-blue-800">Health Score</p>
+                        <p className="text-2xl font-bold text-blue-600">92%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'visualization' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Growth Visualization</h4>
+                    <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <p className="text-muted-foreground">Growth chart visualization would appear here</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-3 mb-6">
           <Button variant="outline">
@@ -612,9 +740,10 @@ function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string;
 }
 
 // Right Panel - Create Component
-function CreatePanel({ towerId }: { towerId: string }) {
+function CreatePanel({ towerId, onOutputSelected }: { towerId: string; onOutputSelected?: (output: GeneratedOutput) => void }) {
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [selectedOutput, setSelectedOutput] = useState<GeneratedOutput | null>(null);
 
   useEffect(() => {
     // Mock data for generated outputs
@@ -730,6 +859,12 @@ function CreatePanel({ towerId }: { towerId: string }) {
     { type: 'visualization' as const, label: 'Visualization', icon: Eye },
   ];
 
+  const handleOutputClick = (output: GeneratedOutput) => {
+    setSelectedOutput(output);
+    onOutputSelected?.(output);
+    console.log('Opening output:', output);
+  };
+
   const getOutputIcon = (type: GeneratedOutput['type']) => {
     switch (type) {
       case 'study-guide': return <BookOpen className="h-4 w-4" />;
@@ -773,7 +908,13 @@ function CreatePanel({ towerId }: { towerId: string }) {
         {outputs.length > 0 ? (
           <div className="space-y-3">
             {outputs.map((output) => (
-              <div key={output.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50">
+              <div 
+                key={output.id} 
+                className={`flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors ${
+                  selectedOutput?.id === output.id ? 'bg-muted/50 border-primary' : ''
+                }`}
+                onClick={() => handleOutputClick(output)}
+              >
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                   {getOutputIcon(output.type)}
                   <div className="flex-1 min-w-0">
@@ -783,11 +924,25 @@ function CreatePanel({ towerId }: { towerId: string }) {
                 </div>
                 <div className="flex items-center space-x-1">
                   {output.status === 'completed' && (
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOutputClick(output);
+                      }}
+                    >
                       <Play className="h-3 w-3" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('More options for:', output.title);
+                    }}
+                  >
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>
                 </div>
@@ -819,6 +974,7 @@ export default function StudentTowerNotebook() {
   const [towerName, setTowerName] = useState("");
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOutput, setSelectedOutput] = useState<GeneratedOutput | null>(null);
 
   useEffect(() => {
     const fetchTowerName = async () => {
@@ -895,8 +1051,16 @@ export default function StudentTowerNotebook() {
           selectedSources={selectedSources} 
           setSelectedSources={setSelectedSources} 
         />
-        <ChatPanel towerName={towerName} selectedSources={selectedSources} towerId={towerId} />
-        <CreatePanel towerId={towerId} />
+        <ChatPanel 
+          towerName={towerName} 
+          selectedSources={selectedSources} 
+          towerId={towerId} 
+          selectedOutput={selectedOutput}
+        />
+        <CreatePanel 
+          towerId={towerId} 
+          onOutputSelected={setSelectedOutput}
+        />
       </div>
     </div>
   );
