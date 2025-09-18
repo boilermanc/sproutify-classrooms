@@ -44,6 +44,10 @@ import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 import StudentDocumentForm from "@/pages/kiosk/StudentDocumentForm";
 
+// Milestone components
+import MilestoneList from "@/pages/milestones/MilestoneList";
+import CreateMilestone from "@/pages/milestones/CreateMilestone";
+
 // Subscription components
 import SubscriptionSuccess from "@/pages/subscription/SubscriptionSuccess";
 import SubscriptionManagement from "@/pages/subscription/SubscriptionManagement";
@@ -273,6 +277,8 @@ const App = () => (
             <Route path="school-guide" element={<SchoolGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
+            <Route path="milestones" element={<MilestoneList />} />
+            <Route path="milestones/create" element={<CreateMilestone />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
             <Route path="profile" element={<Profile />} />
