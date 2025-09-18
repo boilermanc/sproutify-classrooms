@@ -614,6 +614,7 @@ function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string;
 // Right Panel - Create Component
 function CreatePanel({ towerId }: { towerId: string }) {
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
   useEffect(() => {
     // Mock data for generated outputs
@@ -635,6 +636,90 @@ function CreatePanel({ towerId }: { towerId: string }) {
     ];
     setOutputs(mockOutputs);
   }, [towerId]);
+
+  const handleCreateOutput = async (type: GeneratedOutput['type']) => {
+    setIsGenerating(type);
+    
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Generate more specific titles based on tower data
+      const title = await generateSpecificTitle(type, towerId);
+      
+      // Create new output
+      const newOutput: GeneratedOutput = {
+        id: Date.now().toString(),
+        type: type,
+        title: title,
+        date: 'Just now',
+        status: 'completed'
+      };
+      
+      // Add to outputs list
+      setOutputs(prev => [newOutput, ...prev]);
+      
+    } catch (error) {
+      console.error('Error creating output:', error);
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const generateSpecificTitle = async (type: GeneratedOutput['type'], towerId: string): Promise<string> => {
+    try {
+      // Fetch tower data to make titles more specific
+      const { data: towerData } = await supabase
+        .from('towers')
+        .select('name')
+        .eq('id', towerId)
+        .single();
+
+      const towerName = towerData?.name || 'Tower';
+
+      // Fetch recent plantings to make timeline more specific
+      const { data: plantings } = await supabase
+        .from('plantings')
+        .select('name, created_at')
+        .eq('tower_id', towerId)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      const plantNames = plantings?.map(p => p.name).join(', ') || 'plants';
+
+      switch (type) {
+        case 'timeline':
+          return `${towerName} Growth Timeline - ${plantNames}`;
+        case 'study-guide':
+          return `${towerName} Care Guide - ${plantNames}`;
+        case 'faq':
+          return `${towerName} FAQ - ${plantNames}`;
+        case 'audio':
+          return `${towerName} Audio Overview - ${plantNames}`;
+        case 'report':
+          return `${towerName} Progress Report - ${plantNames}`;
+        case 'visualization':
+          return `${towerName} Growth Visualization - ${plantNames}`;
+        default:
+          return `${towerName} Generated Content`;
+      }
+    } catch (error) {
+      console.error('Error generating specific title:', error);
+      return getOutputTitle(type);
+    }
+  };
+
+  const getOutputTitle = (type: GeneratedOutput['type']): string => {
+    switch (type) {
+      case 'study-guide': return 'Study Guide';
+      case 'faq': return 'FAQ';
+      case 'timeline': return 'Growth Timeline';
+      case 'audio': return 'Audio Overview';
+      case 'report': return 'Report';
+      case 'visualization': return 'Visualization';
+      default: return 'Generated Content';
+    }
+  };
 
   const createButtons = [
     { type: 'study-guide' as const, label: 'Study Guide', icon: BookOpen },
@@ -668,8 +753,14 @@ function CreatePanel({ towerId }: { towerId: string }) {
               variant="outline" 
               size="sm"
               className="h-auto p-3 flex flex-col items-center gap-2"
+              onClick={() => handleCreateOutput(button.type)}
+              disabled={isGenerating === button.type}
             >
-              <button.icon className="h-4 w-4" />
+              {isGenerating === button.type ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <button.icon className="h-4 w-4" />
+              )}
               <span className="text-xs">{button.label}</span>
             </Button>
           ))}
