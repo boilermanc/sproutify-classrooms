@@ -77,31 +77,167 @@ function SourcesPanel({ towerId }: { towerId: string }) {
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        // Mock data for now - replace with actual data fetching
-        const mockSources: SourceItem[] = [
-          {
-            id: '1',
-            type: 'plant',
-            title: 'Lettuce Planted',
-            date: '2024-01-15',
-            description: 'Romaine lettuce in port 3'
-          },
-          {
-            id: '2',
-            type: 'vitals',
-            title: 'pH Reading',
-            date: '2024-01-16',
-            description: 'pH: 6.2, EC: 1.8'
-          },
-          {
-            id: '3',
-            type: 'pest',
-            title: 'Aphid Observation',
-            date: '2024-01-17',
-            description: 'Small green aphids on leaves'
-          }
-        ];
-        setSources(mockSources);
+        if (!towerId) return;
+        
+        const teacherId = localStorage.getItem("teacher_id_for_tower");
+        if (!teacherId) return;
+
+        // Fetch all tower-related data
+        const [plantingsResult, vitalsResult, harvestsResult, wasteResult, pestsResult, photosResult, documentsResult] = await Promise.all([
+          // Plantings
+          supabase
+            .from('plantings')
+            .select('id, name, created_at, port_number')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Vitals
+          supabase
+            .from('tower_vitals')
+            .select('id, ph_level, ec_level, created_at')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Harvests
+          supabase
+            .from('harvests')
+            .select('id, weight_grams, destination, created_at, plantings(name)')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Waste
+          supabase
+            .from('waste')
+            .select('id, plant_quantity, grams, notes, created_at, plantings(name)')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Pests
+          supabase
+            .from('pest_observations')
+            .select('id, pest_description, action_taken, notes, created_at')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Photos
+          supabase
+            .from('tower_photos')
+            .select('id, photo_url, description, created_at')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false }),
+          
+          // Documents
+          supabase
+            .from('tower_documents')
+            .select('id, title, description, file_name, created_at')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false })
+        ]);
+
+        const sources: SourceItem[] = [];
+
+        // Process plantings
+        if (plantingsResult.data) {
+          plantingsResult.data.forEach(planting => {
+            sources.push({
+              id: `plant-${planting.id}`,
+              type: 'plant',
+              title: planting.name,
+              date: new Date(planting.created_at).toLocaleDateString(),
+              description: planting.port_number ? `Port ${planting.port_number}` : undefined
+            });
+          });
+        }
+
+        // Process vitals
+        if (vitalsResult.data) {
+          vitalsResult.data.forEach(vital => {
+            sources.push({
+              id: `vital-${vital.id}`,
+              type: 'vitals',
+              title: 'pH & EC Reading',
+              date: new Date(vital.created_at).toLocaleDateString(),
+              description: `pH: ${vital.ph_level}, EC: ${vital.ec_level}`
+            });
+          });
+        }
+
+        // Process harvests
+        if (harvestsResult.data) {
+          harvestsResult.data.forEach(harvest => {
+            sources.push({
+              id: `harvest-${harvest.id}`,
+              type: 'harvest',
+              title: `${harvest.plantings?.name || 'Plant'} Harvest`,
+              date: new Date(harvest.created_at).toLocaleDateString(),
+              description: `${harvest.weight_grams}g${harvest.destination ? ` → ${harvest.destination}` : ''}`
+            });
+          });
+        }
+
+        // Process waste
+        if (wasteResult.data) {
+          wasteResult.data.forEach(waste => {
+            sources.push({
+              id: `waste-${waste.id}`,
+              type: 'waste',
+              title: `${waste.plantings?.name || 'Plant'} Waste`,
+              date: new Date(waste.created_at).toLocaleDateString(),
+              description: `${waste.grams}g - ${waste.notes || 'No notes'}`
+            });
+          });
+        }
+
+        // Process pests
+        if (pestsResult.data) {
+          pestsResult.data.forEach(pest => {
+            sources.push({
+              id: `pest-${pest.id}`,
+              type: 'pest',
+              title: 'Pest Observation',
+              date: new Date(pest.created_at).toLocaleDateString(),
+              description: pest.pest_description.substring(0, 50) + (pest.pest_description.length > 50 ? '...' : '')
+            });
+          });
+        }
+
+        // Process photos
+        if (photosResult.data) {
+          photosResult.data.forEach(photo => {
+            sources.push({
+              id: `photo-${photo.id}`,
+              type: 'photo',
+              title: 'Tower Photo',
+              date: new Date(photo.created_at).toLocaleDateString(),
+              description: photo.description || 'No description'
+            });
+          });
+        }
+
+        // Process documents
+        if (documentsResult.data) {
+          documentsResult.data.forEach(doc => {
+            sources.push({
+              id: `doc-${doc.id}`,
+              type: 'photo', // Using photo icon for documents
+              title: doc.title,
+              date: new Date(doc.created_at).toLocaleDateString(),
+              description: doc.description || doc.file_name
+            });
+          });
+        }
+
+        // Sort by date (newest first)
+        sources.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        setSources(sources);
       } catch (error) {
         console.error('Error fetching sources:', error);
       } finally {

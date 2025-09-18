@@ -116,7 +116,11 @@ export default function StudentHarvestForm() {
                         <Button onClick={handleSave} disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Harvest"}
                         </Button>
-                        <Button variant="outline" asChild><Link to="/student/dashboard">Back</Link></Button>
+                        <Button variant="outline" asChild>
+                            <Link to={towerId ? `/student/tower/${towerId}` : "/student/dashboard"}>
+                                Back
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

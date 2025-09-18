@@ -40,7 +40,7 @@ export default function StudentPestForm() {
             toast({ title: "Save Failed", description: error.message, variant: "destructive" }); 
         } else { 
             toast({ title: "Success!", description: "Pest observation has been logged." }); 
-            navigate("/student/dashboard"); 
+            navigate(towerId ? `/student/tower/${towerId}` : "/student/dashboard"); 
         }
     };
 
