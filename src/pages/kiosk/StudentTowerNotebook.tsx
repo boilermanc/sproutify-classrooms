@@ -62,7 +62,7 @@ type SourceItem = {
 
 type GeneratedOutput = {
   id: string;
-  type: 'faq' | 'timeline' | 'audio' | 'report' | 'visualization';
+  type: 'study-guide' | 'faq' | 'timeline' | 'audio' | 'report' | 'visualization';
   title: string;
   date: string;
   status: 'completed' | 'generating';
@@ -367,16 +367,16 @@ function CreatePanel({ towerId }: { towerId: string }) {
     const mockOutputs: GeneratedOutput[] = [
       {
         id: '1',
-        type: 'timeline',
-        title: 'Growth Timeline',
-        date: '1w ago',
+        type: 'study-guide',
+        title: 'Tower Care Basics',
+        date: '2d ago',
         status: 'completed'
       },
       {
         id: '2',
-        type: 'report',
-        title: 'Weekly Report',
-        date: '3d ago',
+        type: 'timeline',
+        title: 'Growth Timeline',
+        date: '1w ago',
         status: 'completed'
       }
     ];
@@ -384,6 +384,7 @@ function CreatePanel({ towerId }: { towerId: string }) {
   }, [towerId]);
 
   const createButtons = [
+    { type: 'study-guide' as const, label: 'Study Guide', icon: BookOpen },
     { type: 'faq' as const, label: 'FAQ', icon: HelpCircle },
     { type: 'timeline' as const, label: 'Timeline', icon: Clock },
     { type: 'audio' as const, label: 'Audio Overview', icon: Volume2 },
@@ -393,6 +394,7 @@ function CreatePanel({ towerId }: { towerId: string }) {
 
   const getOutputIcon = (type: GeneratedOutput['type']) => {
     switch (type) {
+      case 'study-guide': return <BookOpen className="h-4 w-4" />;
       case 'faq': return <HelpCircle className="h-4 w-4" />;
       case 'timeline': return <Clock className="h-4 w-4" />;
       case 'audio': return <Volume2 className="h-4 w-4" />;
