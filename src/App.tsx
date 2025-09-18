@@ -43,6 +43,7 @@ import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 import StudentDocumentForm from "@/pages/kiosk/StudentDocumentForm";
+import StudentKioskAI from "@/pages/kiosk/StudentKioskAI";
 
 // Subscription components
 import SubscriptionSuccess from "@/pages/subscription/SubscriptionSuccess";
@@ -92,6 +93,7 @@ import DistrictSettings from "@/pages/district/DistrictSettings";
 import AdminTestPage from "@/pages/AdminTestPage";
 import AuthTestPage from "@/pages/AuthTestPage";
 import AdminSetup from "@/pages/AdminSetup";
+import AIAdminConfig from "@/pages/admin/AIAdminConfig";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 
 // Garden Network (lazy-loaded but ALWAYS routed)
@@ -179,6 +181,7 @@ const App = () => (
             <Route path="reports" element={<div className="p-6">Reports coming soon.</div>} />
             <Route path="settings" element={<div className="p-6">Admin settings coming soon.</div>} />
             <Route path="style-guide" element={<StyleGuide />} />
+            <Route path="ai-config" element={<AIAdminConfig />} />
             <Route path="help" element={<div className="p-6">Admin help coming soon.</div>} />
           </Route>
 
@@ -186,6 +189,7 @@ const App = () => (
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="tower/:id" element={<StudentTowerNotebook />} />
+            <Route path="tower/:id/research" element={<StudentKioskAI />} />
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />

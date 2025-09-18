@@ -533,6 +533,12 @@ export default function StudentTowerNotebook() {
         </div>
         
         <div className="flex items-center space-x-2">
+          <Button variant="default" size="sm" asChild>
+            <Link to={`/student/tower/${towerId}/research`}>
+              <BookOpen className="h-4 w-4 mr-2" />
+              Research Mode
+            </Link>
+          </Button>
           <Button variant="ghost" size="sm">
             <Share2 className="h-4 w-4" />
           </Button>
