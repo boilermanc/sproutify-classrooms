@@ -47,7 +47,7 @@ import {
   ArrowLeft,
   Building2,
   Bot,
-  User
+  X
 } from "lucide-react";
 
 // Types
@@ -593,17 +593,27 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
           <div className="mb-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-3">
-                  {selectedOutput.type === 'timeline' && <Clock className="h-5 w-5 text-blue-600" />}
-                  {selectedOutput.type === 'study-guide' && <BookOpen className="h-5 w-5 text-green-600" />}
-                  {selectedOutput.type === 'faq' && <HelpCircle className="h-5 w-5 text-purple-600" />}
-                  {selectedOutput.type === 'audio' && <Volume2 className="h-5 w-5 text-orange-600" />}
-                  {selectedOutput.type === 'report' && <BarChart3 className="h-5 w-5 text-red-600" />}
-                  {selectedOutput.type === 'visualization' && <Eye className="h-5 w-5 text-indigo-600" />}
-                  <div>
-                    <CardTitle className="text-lg">{selectedOutput.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground">Created {selectedOutput.date}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {selectedOutput.type === 'timeline' && <Clock className="h-5 w-5 text-blue-600" />}
+                    {selectedOutput.type === 'study-guide' && <BookOpen className="h-5 w-5 text-green-600" />}
+                    {selectedOutput.type === 'faq' && <HelpCircle className="h-5 w-5 text-purple-600" />}
+                    {selectedOutput.type === 'audio' && <Volume2 className="h-5 w-5 text-orange-600" />}
+                    {selectedOutput.type === 'report' && <BarChart3 className="h-5 w-5 text-red-600" />}
+                    {selectedOutput.type === 'visualization' && <Eye className="h-5 w-5 text-indigo-600" />}
+                    <div>
+                      <CardTitle className="text-lg">{selectedOutput.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">Created {selectedOutput.date}</p>
+                    </div>
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedOutput(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
