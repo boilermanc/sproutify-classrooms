@@ -202,6 +202,10 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
         sources.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         setSources(sources);
+        
+        // Auto-select all sources by default so AI has access to all data
+        setSelectedSources(sources.map(s => s.id));
+        
         setLoading(false);
       } catch (err) {
         console.error('Error fetching sources:', err);
