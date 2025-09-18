@@ -372,11 +372,12 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
 }
 
 // Center Panel - Chat Component
-function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNoteSaved }: { 
+function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, setSelectedOutput, onNoteSaved }: { 
   towerName: string; 
   selectedSources: string[]; 
   towerId: string;
   selectedOutput?: GeneratedOutput | null;
+  setSelectedOutput?: (output: GeneratedOutput | null) => void;
   onNoteSaved?: () => void;
 }) {
   const [chatInput, setChatInput] = useState("");
@@ -609,7 +610,7 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => setSelectedOutput(null)}
+                    onClick={() => setSelectedOutput?.(null)}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
@@ -1485,6 +1486,7 @@ export default function StudentTowerNotebook() {
           selectedSources={selectedSources} 
           towerId={towerId} 
           selectedOutput={selectedOutput}
+          setSelectedOutput={setSelectedOutput}
           onNoteSaved={() => setRefreshTrigger(prev => prev + 1)}
         />
         <CreatePanel 
