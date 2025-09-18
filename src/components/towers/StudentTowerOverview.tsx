@@ -205,38 +205,38 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Unified Dashboard Grid - All 5 cards in one row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         
         {/* Plants Box */}
         <Card 
           className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-green-200"
           onClick={() => toggleExpanded('plants')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Sprout className="h-6 w-6 text-green-600" />
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <Sprout className="h-5 w-5 text-green-600" />
               </div>
               {expandedBox === 'plants' ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </div>
-            <div className="text-2xl font-bold text-green-600 mb-1">
+            <div className="text-xl font-bold text-green-600 mb-1">
               {overviewData.activePlants}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               Active Plants
             </div>
             
             {expandedBox === 'plants' && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-3 pt-3 border-t">
                 <div className="space-y-2">
                   {overviewData.plantings.length > 0 ? (
                     overviewData.plantings.map((planting, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm">
+                      <div key={index} className="flex items-center justify-between text-xs">
                         <span className="font-medium">{planting.name}</span>
                         <Badge variant="outline" className="text-xs">
                           Port {planting.port_number || '?'}
@@ -244,7 +244,7 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">No active plants</p>
+                    <p className="text-xs text-muted-foreground">No active plants</p>
                   )}
                 </div>
               </div>
@@ -257,30 +257,30 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-red-200"
           onClick={() => toggleExpanded('issues')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <Bug className="h-6 w-6 text-red-600" />
+              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                <Bug className="h-5 w-5 text-red-600" />
               </div>
               {expandedBox === 'issues' ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </div>
-            <div className="text-2xl font-bold text-red-600 mb-1">
+            <div className="text-xl font-bold text-red-600 mb-1">
               {overviewData.pestIssues}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               Pest Issues
             </div>
             
             {expandedBox === 'issues' && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-3 pt-3 border-t">
                 <div className="space-y-2">
                   {overviewData.pests.length > 0 ? (
                     overviewData.pests.map((pest, index) => (
-                      <div key={index} className="text-sm">
+                      <div key={index} className="text-xs">
                         <div className="font-medium">{pest.pest}</div>
                         <div className="text-xs text-muted-foreground">
                           Severity: {pest.severity || 'Unknown'} • {formatDate(pest.observed_at)}
@@ -288,7 +288,7 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">No pest issues detected</p>
+                    <p className="text-xs text-muted-foreground">No pest issues detected</p>
                   )}
                 </div>
               </div>
@@ -301,29 +301,29 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-blue-200"
           onClick={() => toggleExpanded('ph')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Droplets className="h-6 w-6 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Droplets className="h-5 w-5 text-blue-600" />
               </div>
               {expandedBox === 'ph' ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </div>
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+            <div className="text-xl font-bold text-blue-600 mb-1">
               {overviewData.recentPh ? overviewData.recentPh.toFixed(1) : '--'}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               pH Level
             </div>
             
             {expandedBox === 'ph' && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-3 pt-3 border-t">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <phStatus.icon className="h-4 w-4" />
+                    <phStatus.icon className="h-3 w-3" />
                     <Badge variant={phStatus.color as any} className="text-xs">
                       {phStatus.status}
                     </Badge>
@@ -347,29 +347,29 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-purple-200"
           onClick={() => toggleExpanded('ec')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Zap className="h-6 w-6 text-purple-600" />
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Zap className="h-5 w-5 text-purple-600" />
               </div>
               {expandedBox === 'ec' ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </div>
-            <div className="text-2xl font-bold text-purple-600 mb-1">
+            <div className="text-xl font-bold text-purple-600 mb-1">
               {overviewData.recentEc ? overviewData.recentEc.toFixed(1) : '--'}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               EC Level
             </div>
             
             {expandedBox === 'ec' && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-3 pt-3 border-t">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <ecStatus.icon className="h-4 w-4" />
+                    <ecStatus.icon className="h-3 w-3" />
                     <Badge variant={ecStatus.color as any} className="text-xs">
                       {ecStatus.status}
                     </Badge>
@@ -382,62 +382,58 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Harvest Schedule Box */}
-      <Card 
-        className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-orange-200"
-        onClick={() => toggleExpanded('harvest')}
-      >
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-orange-600" />
+        {/* Harvest Schedule Box */}
+        <Card 
+          className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-orange-200"
+          onClick={() => toggleExpanded('harvest')}
+        >
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-orange-600" />
               </div>
-              <div>
-                <div className="text-lg font-semibold">Harvest Schedule</div>
-                <div className="text-sm text-muted-foreground">
-                  {overviewData.nextHarvest ? formatDate(overviewData.nextHarvest) : 'No upcoming harvests'}
-                </div>
-              </div>
+              {expandedBox === 'harvest' ? (
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              )}
             </div>
-            {expandedBox === 'harvest' ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </div>
-          
-          {expandedBox === 'harvest' && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="space-y-3">
-                {overviewData.nextHarvest ? (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{overviewData.nextHarvestPlant || 'Plant'}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Expected harvest: {formatDate(overviewData.nextHarvest)}
+            <div className="text-lg font-bold text-orange-600 mb-1">
+              {overviewData.nextHarvest ? formatDate(overviewData.nextHarvest) : '--'}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Harvest Schedule
+            </div>
+            
+            {expandedBox === 'harvest' && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="space-y-2">
+                  {overviewData.nextHarvest ? (
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium">{overviewData.nextHarvestPlant || 'Plant'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Expected: {formatDate(overviewData.nextHarvest)}
                       </div>
+                      <Badge variant="outline" className="text-xs">
+                        <Clock className="h-2 w-2 mr-1" />
+                        Upcoming
+                      </Badge>
                     </div>
-                    <Badge variant="outline">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Upcoming
-                    </Badge>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No harvests scheduled</p>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">Total this season:</span>
+                    <span className="text-xs font-medium">{overviewData.totalHarvests}</span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No harvests scheduled</p>
-                )}
-                
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm text-muted-foreground">Total harvests this season:</span>
-                  <span className="font-medium">{overviewData.totalHarvests}</span>
                 </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

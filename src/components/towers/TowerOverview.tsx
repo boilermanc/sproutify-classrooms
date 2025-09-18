@@ -179,15 +179,15 @@ export function TowerOverview({ towerId, teacherId }: TowerOverviewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Key Metrics Cards - Compact Layout */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Plants</CardTitle>
+            <CardTitle className="text-xs font-medium">Active Plants</CardTitle>
             <Leaf className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{overviewData.activePlants}</div>
+            <div className="text-xl font-bold text-green-600">{overviewData.activePlants}</div>
             <p className="text-xs text-muted-foreground">
               {overviewData.activePlants > 0 ? 'Growing healthy' : 'No active plants'}
             </p>
@@ -196,11 +196,11 @@ export function TowerOverview({ towerId, teacherId }: TowerOverviewProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">pH Level</CardTitle>
+            <CardTitle className="text-xs font-medium">pH Level</CardTitle>
             <Droplets className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl font-bold">
               {overviewData.recentPh ? overviewData.recentPh.toFixed(1) : '--'}
             </div>
             <div className="flex items-center gap-2 mt-1">
@@ -218,11 +218,11 @@ export function TowerOverview({ towerId, teacherId }: TowerOverviewProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">EC Level</CardTitle>
+            <CardTitle className="text-xs font-medium">EC Level</CardTitle>
             <Activity className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl font-bold">
               {overviewData.recentEc ? overviewData.recentEc.toFixed(1) : '--'}
             </div>
             <div className="flex items-center gap-2 mt-1">
@@ -235,27 +235,42 @@ export function TowerOverview({ towerId, teacherId }: TowerOverviewProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pest Issues</CardTitle>
+            <CardTitle className="text-xs font-medium">Pest Issues</CardTitle>
             <Bug className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overviewData.pestIssues}</div>
+            <div className="text-xl font-bold text-red-600">{overviewData.pestIssues}</div>
             <p className="text-xs text-muted-foreground">
               Last 7 days
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium">Harvest Schedule</CardTitle>
+            <Calendar className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-orange-600">
+              {overviewData.nextHarvest ? formatDate(overviewData.nextHarvest) : '--'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {overviewData.nextHarvest ? 'Upcoming harvest' : 'No upcoming harvests'}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Status Summary */}
+      {/* Status Summary - Compact */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <TrendingUp className="h-5 w-5" />
             Tower Status Summary
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="flex items-start gap-3">
             <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
             <div>
