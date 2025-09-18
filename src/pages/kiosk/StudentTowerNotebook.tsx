@@ -610,36 +610,42 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
                 {selectedOutput.type === 'timeline' && (
                   <div className="space-y-4">
                     <h4 className="font-semibold">Growth Timeline</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <div>
-                          <p className="font-medium">Week 1-2: Germination</p>
-                          <p className="text-sm text-muted-foreground">Seeds sprout and develop first leaves</p>
+                    {selectedOutput.content ? (
+                      <div className="bg-muted p-4 rounded-lg">
+                        <pre className="whitespace-pre-wrap text-sm font-mono">{selectedOutput.content}</pre>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <div>
+                            <p className="font-medium">Week 1-2: Germination</p>
+                            <p className="text-sm text-muted-foreground">Seeds sprout and develop first leaves</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                          <div>
+                            <p className="font-medium">Week 3-4: Vegetative Growth</p>
+                            <p className="text-sm text-muted-foreground">Rapid leaf development and stem growth</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                          <div>
+                            <p className="font-medium">Week 5-6: Flowering</p>
+                            <p className="text-sm text-muted-foreground">First flowers appear and pollination begins</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <div>
+                            <p className="font-medium">Week 7-8: Harvest Ready</p>
+                            <p className="text-sm text-muted-foreground">Fruits mature and ready for harvest</p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        <div>
-                          <p className="font-medium">Week 3-4: Vegetative Growth</p>
-                          <p className="text-sm text-muted-foreground">Rapid leaf development and stem growth</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                        <div>
-                          <p className="font-medium">Week 5-6: Flowering</p>
-                          <p className="text-sm text-muted-foreground">First flowers appear and pollination begins</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <div>
-                          <p className="font-medium">Week 7-8: Harvest Ready</p>
-                          <p className="text-sm text-muted-foreground">Fruits mature and ready for harvest</p>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
                 {selectedOutput.type === 'study-guide' && selectedOutput.title.includes('Chat Notes') && selectedOutput.content && (
@@ -653,30 +659,42 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
                 {selectedOutput.type === 'study-guide' && !selectedOutput.title.includes('Chat Notes') && (
                   <div className="space-y-4">
                     <h4 className="font-semibold">Study Guide</h4>
-                    <div className="prose prose-sm max-w-none">
-                      <h5>Tower Care Basics</h5>
-                      <ul className="list-disc list-inside space-y-2">
-                        <li>Check pH levels daily (optimal range: 5.5-6.5)</li>
-                        <li>Monitor EC levels weekly (1.2-2.0 mS/cm)</li>
-                        <li>Ensure adequate lighting (14-16 hours daily)</li>
-                        <li>Maintain proper water circulation</li>
-                      </ul>
-                    </div>
+                    {selectedOutput.content ? (
+                      <div className="bg-muted p-4 rounded-lg">
+                        <pre className="whitespace-pre-wrap text-sm font-mono">{selectedOutput.content}</pre>
+                      </div>
+                    ) : (
+                      <div className="prose prose-sm max-w-none">
+                        <h5>Tower Care Basics</h5>
+                        <ul className="list-disc list-inside space-y-2">
+                          <li>Check pH levels daily (optimal range: 5.5-6.5)</li>
+                          <li>Monitor EC levels weekly (1.2-2.0 mS/cm)</li>
+                          <li>Ensure adequate lighting (14-16 hours daily)</li>
+                          <li>Maintain proper water circulation</li>
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
                 {selectedOutput.type === 'faq' && (
                   <div className="space-y-4">
                     <h4 className="font-semibold">Frequently Asked Questions</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="font-medium">Q: How often should I check the pH?</p>
-                        <p className="text-sm text-muted-foreground">A: Check pH levels daily for optimal plant health.</p>
+                    {selectedOutput.content ? (
+                      <div className="bg-muted p-4 rounded-lg">
+                        <pre className="whitespace-pre-wrap text-sm font-mono">{selectedOutput.content}</pre>
                       </div>
-                      <div>
-                        <p className="font-medium">Q: What's the ideal temperature?</p>
-                        <p className="text-sm text-muted-foreground">A: Maintain 65-75°F (18-24°C) for best growth.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium">Q: How often should I check the pH?</p>
+                          <p className="text-sm text-muted-foreground">A: Check pH levels daily for optimal plant health.</p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Q: What's the ideal temperature?</p>
+                          <p className="text-sm text-muted-foreground">A: Maintain 65-75°F (18-24°C) for best growth.</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
                 {selectedOutput.type === 'audio' && (
@@ -694,16 +712,22 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
                 {selectedOutput.type === 'report' && (
                   <div className="space-y-4">
                     <h4 className="font-semibold">Progress Report</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 bg-green-50 rounded-lg">
-                        <p className="font-medium text-green-800">Growth Rate</p>
-                        <p className="text-2xl font-bold text-green-600">+15%</p>
+                    {selectedOutput.content ? (
+                      <div className="bg-muted p-4 rounded-lg">
+                        <pre className="whitespace-pre-wrap text-sm font-mono">{selectedOutput.content}</pre>
                       </div>
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="font-medium text-blue-800">Health Score</p>
-                        <p className="text-2xl font-bold text-blue-600">92%</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-green-50 rounded-lg">
+                          <p className="font-medium text-green-800">Growth Rate</p>
+                          <p className="text-2xl font-bold text-green-600">+15%</p>
+                        </div>
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <p className="font-medium text-blue-800">Health Score</p>
+                          <p className="text-2xl font-bold text-blue-600">92%</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
                 {selectedOutput.type === 'visualization' && (
@@ -878,6 +902,14 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
           if (doc.document_type === 'milestone') {
             // Milestones should show as documents, not study guides
             outputType = 'report'; // Use report type for milestones to show document icon
+          } else if (doc.document_type === 'timeline') {
+            outputType = 'timeline';
+          } else if (doc.document_type === 'study-guide') {
+            outputType = 'study-guide';
+          } else if (doc.document_type === 'faq') {
+            outputType = 'faq';
+          } else if (doc.document_type === 'report') {
+            outputType = 'report';
           } else if (doc.file_type === 'text/plain' && doc.title.includes('Chat Notes')) {
             outputType = 'study-guide';
           } else if (doc.title.toLowerCase().includes('briefing') || doc.title.toLowerCase().includes('data-driven')) {
@@ -916,13 +948,72 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
       // Generate more specific titles based on tower data
       const title = await generateSpecificTitle(type, towerId);
       
-      // Create new output
+      // Get teacher ID from localStorage
+      const teacherId = localStorage.getItem('teacher_id_for_tower');
+      
+      if (!teacherId) {
+        console.error('No teacher ID found for saving document');
+        return;
+      }
+
+      // Generate content based on type
+      let content = '';
+      let documentType = 'generated';
+      
+      switch (type) {
+        case 'timeline':
+          content = generateTimelineContent(title);
+          documentType = 'timeline';
+          break;
+        case 'study-guide':
+          content = generateStudyGuideContent(title);
+          documentType = 'study-guide';
+          break;
+        case 'faq':
+          content = generateFAQContent(title);
+          documentType = 'faq';
+          break;
+        case 'report':
+          content = generateReportContent(title);
+          documentType = 'report';
+          break;
+        default:
+          content = `Generated ${type} content for ${title}`;
+      }
+
+      // Save to database
+      const { data: savedDoc, error } = await supabase
+        .from('tower_documents')
+        .insert({
+          tower_id: towerId,
+          teacher_id: teacherId,
+          title: title,
+          description: `Generated ${type} document`,
+          document_type: documentType,
+          content: content,
+          file_name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`,
+          file_path: `generated/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
+          file_url: `data:text/plain;base64,${btoa(content)}`,
+          file_size: content.length,
+          file_type: 'text/plain'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving document to database:', error);
+        return;
+      }
+      
+      // Create new output with database ID
       const newOutput: GeneratedOutput = {
-        id: Date.now().toString(),
+        id: savedDoc.id,
         type: type,
         title: title,
         date: 'Just now',
-        status: 'completed'
+        status: 'completed',
+        content: content,
+        documentType: documentType
       };
       
       // Add to outputs list
@@ -988,6 +1079,167 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
       case 'visualization': return 'Visualization';
       default: return 'Generated Content';
     }
+  };
+
+  const generateTimelineContent = (title: string): string => {
+    return `# ${title}
+
+## Growth Timeline Overview
+
+### Week 1-2: Germination Phase
+- Seeds sprout and develop first leaves
+- Root system begins to establish
+- Monitor moisture levels carefully
+- Expected growth: 1-2 inches
+
+### Week 3-4: Vegetative Growth
+- Rapid leaf development and stem growth
+- Plants establish strong root systems
+- Monitor pH levels (5.5-6.5 optimal)
+- Expected growth: 3-6 inches
+
+### Week 5-6: Flowering Phase
+- First flowers appear
+- Pollination begins
+- Monitor nutrient levels closely
+- Expected growth: 6-12 inches
+
+### Week 7-8: Harvest Ready
+- Fruits mature and ready for harvest
+- Monitor for optimal ripeness
+- Prepare for harvest timing
+- Expected growth: 12+ inches
+
+## Key Monitoring Points
+- Daily pH checks
+- Weekly EC monitoring
+- Visual inspection for pests
+- Growth rate tracking
+- Harvest timing optimization
+
+## Success Indicators
+- Healthy green foliage
+- Strong root development
+- Consistent growth rate
+- No pest or disease issues
+- Optimal harvest timing`;
+  };
+
+  const generateStudyGuideContent = (title: string): string => {
+    return `# ${title}
+
+## Tower Care Basics
+
+### Essential Daily Tasks
+1. **pH Monitoring**
+   - Check pH levels daily
+   - Optimal range: 5.5-6.5
+   - Adjust with pH up/down solutions
+
+2. **Visual Inspection**
+   - Look for pest damage
+   - Check plant health
+   - Monitor growth progress
+
+### Weekly Maintenance
+1. **EC Level Testing**
+   - Measure electrical conductivity
+   - Optimal range: 1.2-2.0 mS/cm
+   - Adjust nutrient concentration
+
+2. **System Cleaning**
+   - Clean growing medium
+   - Check water circulation
+   - Inspect pump function
+
+### Monthly Tasks
+1. **Deep System Clean**
+   - Complete system flush
+   - Replace growing medium
+   - Sanitize all components
+
+2. **Plant Rotation**
+   - Plan next crop cycle
+   - Order seeds/plants
+   - Prepare growing schedule
+
+## Troubleshooting Guide
+- **Yellow leaves**: Check nutrient levels
+- **Slow growth**: Verify pH and EC
+- **Pest issues**: Implement IPM strategies
+- **Root problems**: Check water quality`;
+  };
+
+  const generateFAQContent = (title: string): string => {
+    return `# ${title}
+
+## Frequently Asked Questions
+
+### General Tower Care
+**Q: How often should I check the pH?**
+A: Check pH levels daily for optimal plant health. The ideal range is 5.5-6.5.
+
+**Q: What's the ideal temperature for my tower?**
+A: Maintain 65-75°F (18-24°C) for best growth results.
+
+**Q: How much light do my plants need?**
+A: Provide 14-16 hours of light daily for optimal growth.
+
+### Nutrient Management
+**Q: When should I change the nutrient solution?**
+A: Change every 2-3 weeks or when EC levels drop significantly.
+
+**Q: What EC level should I maintain?**
+A: Keep EC between 1.2-2.0 mS/cm for most plants.
+
+**Q: How do I know if my plants need more nutrients?**
+A: Look for yellowing leaves, slow growth, or weak stems.
+
+### Plant Health
+**Q: What should I do if I see pests?**
+A: Identify the pest type and implement appropriate IPM strategies.
+
+**Q: How can I prevent diseases?**
+A: Maintain clean systems, proper air circulation, and avoid overwatering.
+
+**Q: When is the best time to harvest?**
+A: Harvest when fruits are fully mature and at peak ripeness.`;
+  };
+
+  const generateReportContent = (title: string): string => {
+    return `# ${title}
+
+## Tower Performance Report
+
+### Growth Metrics
+- **Average Growth Rate**: +15% week over week
+- **Plant Health Score**: 92%
+- **Harvest Efficiency**: 85%
+- **System Uptime**: 98%
+
+### Key Achievements
+- Consistent pH maintenance
+- Zero pest outbreaks
+- Optimal harvest timing
+- Efficient nutrient usage
+
+### Areas for Improvement
+- Increase harvest frequency
+- Optimize nutrient timing
+- Enhance growth monitoring
+- Improve yield consistency
+
+### Recommendations
+1. Continue current pH management
+2. Increase monitoring frequency
+3. Consider plant variety expansion
+4. Implement advanced tracking
+
+### Next Steps
+- Plan next crop cycle
+- Review growth data trends
+- Optimize system settings
+- Prepare for scaling up`;
   };
 
   const createButtons = [
