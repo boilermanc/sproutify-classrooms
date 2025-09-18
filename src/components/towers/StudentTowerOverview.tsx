@@ -16,7 +16,7 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
-  Plant,
+  Sprout,
   Zap,
   Shield
 } from "lucide-react";
@@ -216,7 +216,7 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Plant className="h-6 w-6 text-green-600" />
+                <Sprout className="h-6 w-6 text-green-600" />
               </div>
               {expandedBox === 'plants' ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
