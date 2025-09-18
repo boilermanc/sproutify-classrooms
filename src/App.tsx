@@ -43,7 +43,6 @@ import StudentPestForm from "@/pages/kiosk/StudentPestForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 import StudentDocumentForm from "@/pages/kiosk/StudentDocumentForm";
-import StudentKioskAI from "@/pages/kiosk/StudentKioskAI";
 
 // Subscription components
 import SubscriptionSuccess from "@/pages/subscription/SubscriptionSuccess";
@@ -189,7 +188,6 @@ const App = () => (
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="tower/:id" element={<StudentTowerNotebook />} />
-            <Route path="tower/:id/research" element={<StudentKioskAI />} />
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
