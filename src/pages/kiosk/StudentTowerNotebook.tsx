@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -394,7 +393,7 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
     const getGradeLevel = async () => {
       if (storedClassroomId) {
         try {
-          const { data: classroom } = await anonymousSupabase
+          const { data: classroom } = await supabase
             .from('classrooms')
             .select('grade_level')
             .eq('id', storedClassroomId)

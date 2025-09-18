@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { findClassroomByPin } from "@/utils/kiosk-login";
 import { Eye, EyeOff } from "lucide-react";
 import { sendRegistrationWebhook } from "@/utils/webhooks";
@@ -304,7 +303,7 @@ const Index = () => {
       if (classroomErr || !classroom) throw new Error("Invalid Classroom PIN. Please check with your teacher.");
 
       // Check if student exists in this classroom with matching PIN
-      const { data: student, error: studentErr } = await anonymousSupabase
+      const { data: student, error: studentErr } = await supabase
         .from("students")
         .select("id, display_name, has_logged_in, student_pin")
         .eq("classroom_id", classroom.id)
@@ -324,7 +323,7 @@ const Index = () => {
       const isFirstLogin = !student.has_logged_in;
       const now = new Date().toISOString();
       
-      const { error: updateErr } = await anonymousSupabase
+      const { error: updateErr } = await supabase
         .from("students")
         .update({
           has_logged_in: true,
