@@ -35,6 +35,7 @@ import Accessibility from "@/pages/legal/Accessibility";
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
+import StudentTowerNotebook from "@/pages/kiosk/StudentTowerNotebook";
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
@@ -183,7 +184,7 @@ const App = () => (
           {/* Student (protected) */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="tower/:id" element={<StudentTowerDetail />} />
+            <Route path="tower/:id" element={<StudentTowerNotebook />} />
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
