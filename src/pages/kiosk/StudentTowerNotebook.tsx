@@ -489,18 +489,8 @@ function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string;
   return (
     <div className="flex-1 bg-background flex flex-col">
       <div className="flex-1 p-6 overflow-y-auto">
-        {/* Tower Summary */}
+        {/* Tower Dashboard */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Leaf className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{towerName}</h1>
-              <p className="text-sm text-muted-foreground">{selectedSources.length} sources</p>
-            </div>
-          </div>
-          
           <StudentTowerOverview towerId={towerId} />
 
           <div className="flex gap-2 mt-4">
