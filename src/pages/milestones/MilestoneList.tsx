@@ -17,7 +17,7 @@ import {
   Eye, 
   BookOpen, 
   Sprout, 
-  Custom,
+  Star,
   FileText,
   Edit,
   Trash2,
@@ -41,7 +41,7 @@ const milestoneTypeConfig = {
   'observation': { label: 'Observation', icon: Eye, color: 'bg-blue-100 text-blue-800' },
   'achievement': { label: 'Achievement', icon: Award, color: 'bg-purple-100 text-purple-800' },
   'learning': { label: 'Learning', icon: BookOpen, color: 'bg-indigo-100 text-indigo-800' },
-  'custom': { label: 'Custom', icon: Custom, color: 'bg-gray-100 text-gray-800' },
+  'custom': { label: 'Custom', icon: Star, color: 'bg-gray-100 text-gray-800' },
 };
 
 export default function MilestoneList() {

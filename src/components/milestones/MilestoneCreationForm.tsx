@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, FileText, Calendar, Award, Eye, BookOpen, Sprout, Custom } from "lucide-react";
+import { Loader2, Upload, FileText, Calendar, Award, Eye, BookOpen, Sprout, Star } from "lucide-react";
 import { createMilestoneDocument, CreateMilestoneDocumentData } from "@/lib/milestoneDocuments";
 
 interface MilestoneCreationFormProps {
@@ -21,7 +21,7 @@ const milestoneTypes = [
   { value: 'observation', label: 'Observation Milestone', icon: Eye, description: 'Notable plant observations and discoveries' },
   { value: 'achievement', label: 'Achievement Milestone', icon: Award, description: 'Student accomplishments and badges earned' },
   { value: 'learning', label: 'Learning Milestone', icon: BookOpen, description: 'Educational milestones and knowledge gained' },
-  { value: 'custom', label: 'Custom Milestone', icon: Custom, description: 'Any other significant classroom achievement' },
+  { value: 'custom', label: 'Custom Milestone', icon: Star, description: 'Any other significant classroom achievement' },
 ];
 
 export function MilestoneCreationForm({ classroomId, onMilestoneCreated, onCancel }: MilestoneCreationFormProps) {
