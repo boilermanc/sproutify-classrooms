@@ -40,7 +40,9 @@ import {
   FileText,
   Play,
   MoreHorizontal,
-  Edit
+  Edit,
+  ArrowLeft,
+  Building2
 } from "lucide-react";
 
 // Types
@@ -60,7 +62,7 @@ type SourceItem = {
 
 type GeneratedOutput = {
   id: string;
-  type: 'study-guide' | 'faq' | 'timeline' | 'audio' | 'report' | 'visualization';
+  type: 'faq' | 'timeline' | 'audio' | 'report' | 'visualization';
   title: string;
   date: string;
   status: 'completed' | 'generating';
@@ -187,12 +189,16 @@ function SourcesPanel({ towerId }: { towerId: string }) {
                   Add Photo
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem>
+                <FileText className="h-4 w-4 mr-2" />
+                Add Document
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
           <Button variant="outline" size="sm" className="flex-1">
-            <Search className="h-4 w-4 mr-2" />
-            Discover
+            <BookOpen className="h-4 w-4 mr-2" />
+            Learning Guide
           </Button>
         </div>
 
@@ -282,6 +288,7 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
           
           <div className="prose max-w-none">
             <p className="text-muted-foreground leading-relaxed">
+              <em className="text-xs text-muted-foreground">[AI-generated summary will appear here]</em><br/><br/>
               Your tower is currently growing <strong>3 active plants</strong> with 
               <strong> healthy growth patterns</strong>. Recent pH readings show 
               <strong> optimal levels</strong> at 6.2, and EC measurements indicate 
@@ -307,14 +314,6 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
           <Button variant="outline">
             <FileText className="h-4 w-4 mr-2" />
             Add note
-          </Button>
-          <Button variant="outline">
-            <Volume2 className="h-4 w-4 mr-2" />
-            Audio Overview
-          </Button>
-          <Button variant="outline">
-            <Eye className="h-4 w-4 mr-2" />
-            Mind Map
           </Button>
         </div>
 
@@ -368,16 +367,16 @@ function CreatePanel({ towerId }: { towerId: string }) {
     const mockOutputs: GeneratedOutput[] = [
       {
         id: '1',
-        type: 'study-guide',
-        title: 'Tower Care Basics',
-        date: '2d ago',
+        type: 'timeline',
+        title: 'Growth Timeline',
+        date: '1w ago',
         status: 'completed'
       },
       {
         id: '2',
-        type: 'timeline',
-        title: 'Growth Timeline',
-        date: '1w ago',
+        type: 'report',
+        title: 'Weekly Report',
+        date: '3d ago',
         status: 'completed'
       }
     ];
@@ -385,7 +384,6 @@ function CreatePanel({ towerId }: { towerId: string }) {
   }, [towerId]);
 
   const createButtons = [
-    { type: 'study-guide' as const, label: 'Study Guide', icon: BookOpen },
     { type: 'faq' as const, label: 'FAQ', icon: HelpCircle },
     { type: 'timeline' as const, label: 'Timeline', icon: Clock },
     { type: 'audio' as const, label: 'Audio Overview', icon: Volume2 },
@@ -395,7 +393,6 @@ function CreatePanel({ towerId }: { towerId: string }) {
 
   const getOutputIcon = (type: GeneratedOutput['type']) => {
     switch (type) {
-      case 'study-guide': return <BookOpen className="h-4 w-4" />;
       case 'faq': return <HelpCircle className="h-4 w-4" />;
       case 'timeline': return <Clock className="h-4 w-4" />;
       case 'audio': return <Volume2 className="h-4 w-4" />;
@@ -518,7 +515,18 @@ export default function StudentTowerNotebook() {
       {/* Top Bar */}
       <div className="h-16 border-b border-border bg-background flex items-center justify-between px-6">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-semibold">{towerName || "Tower"}</h1>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/student/dashboard">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Classrooms
+            </Link>
+          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-green-600" />
+            </div>
+            <h1 className="text-xl font-semibold">{towerName || "Tower"}</h1>
+          </div>
         </div>
         
         <div className="flex items-center space-x-2">
