@@ -896,7 +896,7 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
 
         // Transform documents to GeneratedOutput format
         const documentOutputs: GeneratedOutput[] = documents?.map(doc => {
-          // Determine the type based on document_type and milestone_type
+          // Determine the type based on document_type field
           let outputType: GeneratedOutput['type'] = 'study-guide';
           
           if (doc.document_type === 'milestone') {
@@ -910,10 +910,19 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
             outputType = 'faq';
           } else if (doc.document_type === 'report') {
             outputType = 'report';
+          } else if (doc.document_type === 'generated') {
+            // Fallback to title-based detection for 'generated' type
+            if (doc.title.toLowerCase().includes('timeline')) {
+              outputType = 'timeline';
+            } else if (doc.title.toLowerCase().includes('study guide') || doc.title.toLowerCase().includes('care guide')) {
+              outputType = 'study-guide';
+            } else if (doc.title.toLowerCase().includes('faq')) {
+              outputType = 'faq';
+            } else if (doc.title.toLowerCase().includes('report')) {
+              outputType = 'report';
+            }
           } else if (doc.file_type === 'text/plain' && doc.title.includes('Chat Notes')) {
             outputType = 'study-guide';
-          } else if (doc.title.toLowerCase().includes('briefing') || doc.title.toLowerCase().includes('data-driven')) {
-            outputType = 'report'; // Briefing documents should show as reports
           }
 
           return {
@@ -939,6 +948,7 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
   }, [towerId, refreshTrigger]);
 
   const handleCreateOutput = async (type: GeneratedOutput['type']) => {
+    console.log('handleCreateOutput called with type:', type);
     setIsGenerating(type);
     
     try {
@@ -958,7 +968,7 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
 
       // Generate content based on type
       let content = '';
-      let documentType = 'generated';
+      let documentType = 'generated'; // Use 'generated' as default
       
       switch (type) {
         case 'timeline':
@@ -981,29 +991,47 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
           content = `Generated ${type} content for ${title}`;
       }
 
-      // Save to database
-      const { data: savedDoc, error } = await supabase
+      // Prepare the document data
+      const documentData = {
+        tower_id: towerId,
+        teacher_id: teacherId,
+        title: title,
+        description: `Generated ${type} document`,
+        document_type: documentType,
+        content: content,
+        file_name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`,
+        file_path: `generated/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
+        file_url: `data:text/plain;base64,${btoa(content)}`,
+        file_size: content.length,
+        file_type: 'text/plain'
+      };
+
+      console.log('Attempting to insert document with data:', documentData);
+
+      // Save to database using anonymous client (consistent with other student operations)
+      const { data: savedDoc, error } = await anonymousSupabase
         .from('tower_documents')
-        .insert({
-          tower_id: towerId,
-          teacher_id: teacherId,
-          title: title,
-          description: `Generated ${type} document`,
-          document_type: documentType,
-          content: content,
-          file_name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`,
-          file_path: `generated/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
-          file_url: `data:text/plain;base64,${btoa(content)}`,
-          file_size: content.length,
-          file_type: 'text/plain'
-        })
+        .insert(documentData)
         .select()
         .single();
 
       if (error) {
         console.error('Error saving document to database:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        toast({
+          title: "Error",
+          description: `Failed to save ${type}: ${error.message}`,
+          variant: "destructive",
+        });
         return;
       }
+
+      console.log('Document saved successfully:', savedDoc);
       
       // Create new output with database ID
       const newOutput: GeneratedOutput = {
