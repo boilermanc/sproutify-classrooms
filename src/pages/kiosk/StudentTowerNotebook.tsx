@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -330,7 +331,7 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
         ) : sources.length > 0 ? (
           <div className="space-y-3">
             {sources.map((source) => (
-              <div key={source.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50">
+              <div key={source.id} className={`flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50 ${selectedSources.includes(source.id) ? 'bg-green-50' : ''}`}>
                 <Checkbox 
                   checked={selectedSources.includes(source.id)}
                   onCheckedChange={(checked) => {
@@ -379,6 +380,7 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
   const [studentName, setStudentName] = useState<string>('');
   const [gradeLevel, setGradeLevel] = useState<string>('3-5');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const suggestedQuestions = [
     "How is my tower performing overall?",
@@ -491,6 +493,72 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
     }
   };
 
+  const handleSaveToNote = async () => {
+    if (messages.length === 0) return;
+
+    // Create a document name based on the conversation
+    const conversationTitle = `Chat Notes - ${new Date().toLocaleDateString()}`;
+    
+    // Combine all messages into a single text
+    const conversationText = messages.map(msg => 
+      `${msg.role === 'user' ? 'Student' : 'Assistant'}: ${msg.content}`
+    ).join('\n\n');
+
+    try {
+      // Get teacher ID from localStorage
+      const teacherId = localStorage.getItem('teacher_id_for_tower');
+      
+      if (!teacherId) {
+        toast({
+          title: "Error",
+          description: "No teacher ID found. Please refresh and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create a new document in the tower_documents table
+      const { error } = await supabase
+        .from('tower_documents')
+        .insert({
+          tower_id: towerId,
+          teacher_id: teacherId,
+          title: conversationTitle,
+          description: `Chat conversation saved on ${new Date().toLocaleDateString()}`,
+          file_name: `${conversationTitle}.txt`,
+          file_path: `chat-notes/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
+          file_url: `data:text/plain;base64,${btoa(conversationText)}`, // Store content as data URL
+          file_size: conversationText.length,
+          file_type: 'text/plain',
+          content: conversationText // Store the actual conversation content
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save chat to note. Please try again.",
+          variant: "destructive",
+        });
+        console.error('Error saving chat to note:', error);
+        return;
+      }
+
+      // Show success feedback
+      toast({
+        title: "Success",
+        description: "Chat conversation saved to your documents",
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save chat to note. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Failed to save chat to note:', error);
+    }
+  };
+
   return (
     <div className="flex-1 bg-background flex flex-col">
       <div className="flex-1 p-6 overflow-y-auto">
@@ -498,15 +566,18 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
         <div className="mb-6">
           <StudentTowerOverview towerId={towerId} />
 
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm">
-              <Pin className="h-4 w-4 mr-2" />
-              Save to note
-            </Button>
-            <Button variant="outline" size="sm">
-              <FileText className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Only show Save to note button if there are chat messages and no create item is selected */}
+          {messages.length > 0 && !selectedOutput && (
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={handleSaveToNote}>
+                <Pin className="h-4 w-4 mr-2" />
+                Save to note
+              </Button>
+              <Button variant="outline" size="sm">
+                <FileText className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Selected Output Display */}
@@ -958,12 +1029,6 @@ function CreatePanel({ towerId, onOutputSelected }: { towerId: string; onOutputS
         )}
       </div>
 
-      <div className="p-4 border-t border-border">
-        <Button className="w-full">
-          <Edit className="h-4 w-4 mr-2" />
-          Add note
-        </Button>
-      </div>
     </div>
   );
 }
