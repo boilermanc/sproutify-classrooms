@@ -71,6 +71,31 @@ async function pushToDev() {
     console.log('🔗 Test URL: http://100.96.83.5:8081/');
 }
 
+async function pushCurrentBranchToTest() {
+    console.log('🚀 PUSHING CURRENT BRANCH TO TEST\n');
+    
+    const currentBranch = await getCurrentBranch();
+    console.log(`📍 Current branch: ${currentBranch}`);
+    
+    const hasChanges = await checkUncommittedChanges();
+    if (hasChanges) {
+        console.log('📝 You have uncommitted changes.');
+        console.log('Please commit your changes first:');
+        console.log('  git add .');
+        console.log('  git commit -m "Your commit message"');
+        process.exit(1);
+    }
+    
+    console.log(`📤 Pushing ${currentBranch} branch to origin...`);
+    await runCommand('git', ['push', 'origin', currentBranch]);
+    
+    console.log('🧪 Deploying to TEST environment...');
+    await runCommand('npm', ['run', 'deploy:test']);
+    
+    console.log(`✅ ${currentBranch} branch pushed and deployed to test environment!`);
+    console.log('🔗 Test URL: http://100.96.83.5:8081/');
+}
+
 async function mergeToMain() {
     console.log('🔄 MERGING DEV TO MAIN\n');
     
@@ -102,7 +127,6 @@ async function mergeToMain() {
     await runCommand('git', ['pull', 'origin', 'main']);
     
     console.log('🔀 Merging dev into main...');
-    // Fixed: Use proper git merge syntax
     await runCommand('git', ['merge', 'dev', '--no-ff', '-m', 'Merge dev to main for production deployment']);
     
     console.log('📤 Pushing merged main to origin...');
@@ -197,6 +221,9 @@ switch (command) {
     case 'test':
         await pushToDev();
         break;
+    case 'test-current':
+        await pushCurrentBranchToTest();
+        break;
     case 'merge':
         await mergeToMain();
         break;
@@ -211,11 +238,12 @@ switch (command) {
         await showWorkflow();
         break;
     default:
-        console.log('Usage: node workflow.js [test|merge|prod|all|help]');
-        console.log('  test  - Push dev to dev and deploy to test');
-        console.log('  merge - Merge dev to main');
-        console.log('  prod  - Deploy from main to production');
-        console.log('  all   - Run complete workflow');
-        console.log('  help  - Show workflow guide');
+        console.log('Usage: node workflow.js [test|test-current|merge|prod|all|help]');
+        console.log('  test         - Push dev to dev and deploy to test');
+        console.log('  test-current - Push current branch to test');
+        console.log('  merge        - Merge dev to main');
+        console.log('  prod         - Deploy from main to production');
+        console.log('  all          - Run complete workflow');
+        console.log('  help         - Show workflow guide');
         process.exit(1);
 }

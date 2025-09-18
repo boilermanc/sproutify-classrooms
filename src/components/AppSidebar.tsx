@@ -12,7 +12,9 @@ import {
   Bug,
   Network,
   Building2,
-  BarChart3
+  BarChart3,
+  FileText,
+  Award
 } from "lucide-react";
 import {
   Sidebar,
@@ -43,6 +45,7 @@ const coreItems = [
   { title: "Seeding", url: "/app/seeding", icon: Sprout },
   { title: "Plant Catalog", url: "/app/catalog", icon: BookOpen },
   { title: "Pest & Disease Guide", url: "/app/pest-disease-guide", icon: Bug },
+  { title: "Milestones", url: "/app/milestones", icon: Award },
   { title: "Leaderboard", url: "/app/leaderboard", icon: Trophy },
 ];
 

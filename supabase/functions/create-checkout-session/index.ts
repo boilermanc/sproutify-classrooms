@@ -5,7 +5,7 @@ import Stripe from "https://esm.sh/stripe@14.21.0";
 const PROMOTIONAL_PRICING_CONFIG = {
   enabled: Deno.env.get("PROMOTIONAL_PRICING_ENABLED") === "true",
   schedule: {
-    startDate: Deno.env.get("PROMOTIONAL_PRICING_START") || '2025-01-01T00:00:00Z',
+    startDate: Deno.env.get("PROMOTIONAL_PRICING_START") || '2025-09-01T00:00:00Z',
     endDate: Deno.env.get("PROMOTIONAL_PRICING_END") || '2025-09-30T23:59:59Z',
   },
   eligiblePlans: (Deno.env.get("PROMOTIONAL_ELIGIBLE_PLANS") || 'basic,professional,school,district').split(',').map(p => p.trim()),
@@ -215,18 +215,34 @@ serve(async (req) => {
       }
     }
 
-    // // (Optional) Promo code support:
-    // const promoCode: string | undefined = body.promoCode;
-    // if (promoCode) {
-    //   try {
-    //     const found = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
-    //     if (found.data.length > 0) {
-    //       (params as any).discounts = [{ promotion_code: found.data[0].id }];
-    //     }
-    //   } catch (e) {
-    //     console.warn("Promo code lookup failed:", e);
-    //   }
-    // }
+    // Auto-apply September coupon if in promotional period
+    const septemberCouponId = Deno.env.get("SEPTEMBER_COUPON_ID");
+    if (isPromotionalPeriod && septemberCouponId) {
+      try {
+        // Verify the coupon exists and is active
+        const coupon = await stripe.coupons.retrieve(septemberCouponId);
+        if (coupon && coupon.valid) {
+          params.discounts = [{ coupon: septemberCouponId }];
+          console.log('Auto-applying September coupon:', septemberCouponId);
+        }
+      } catch (e) {
+        console.warn("September coupon lookup failed:", e);
+      }
+    }
+
+    // Manual promo code support (if user enters a code)
+    const promoCode: string | undefined = body.promoCode;
+    if (promoCode && !params.discounts) { // Only apply manual code if no auto-coupon was applied
+      try {
+        const found = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 });
+        if (found.data.length > 0) {
+          params.discounts = [{ promotion_code: found.data[0].id }];
+          console.log('Applied manual promo code:', promoCode);
+        }
+      } catch (e) {
+        console.warn("Manual promo code lookup failed:", e);
+      }
+    }
 
     const session = await stripe.checkout.sessions.create(params);
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: corsHeaders });

@@ -35,12 +35,19 @@ import Accessibility from "@/pages/legal/Accessibility";
 import StudentLayout from "@/components/layout/StudentLayout";
 import StudentDashboard from "@/pages/kiosk/StudentDashboard";
 import StudentTowerDetail from "@/pages/kiosk/StudentTowerDetail";
+import StudentTowerNotebook from "@/pages/kiosk/StudentTowerNotebook";
 import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
+import StudentPestDiseaseForm from "@/pages/kiosk/StudentPestDiseaseForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
+import StudentDocumentForm from "@/pages/kiosk/StudentDocumentForm";
+
+// Milestone components
+import MilestoneList from "@/pages/milestones/MilestoneList";
+import CreateMilestone from "@/pages/milestones/CreateMilestone";
 
 // Subscription components
 import SubscriptionSuccess from "@/pages/subscription/SubscriptionSuccess";
@@ -90,6 +97,7 @@ import DistrictSettings from "@/pages/district/DistrictSettings";
 import AdminTestPage from "@/pages/AdminTestPage";
 import AuthTestPage from "@/pages/AuthTestPage";
 import AdminSetup from "@/pages/AdminSetup";
+import AIAdminConfig from "@/pages/admin/AIAdminConfig";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 
 // Garden Network (lazy-loaded but ALWAYS routed)
@@ -177,19 +185,22 @@ const App = () => (
             <Route path="reports" element={<div className="p-6">Reports coming soon.</div>} />
             <Route path="settings" element={<div className="p-6">Admin settings coming soon.</div>} />
             <Route path="style-guide" element={<StyleGuide />} />
+            <Route path="ai-config" element={<AIAdminConfig />} />
             <Route path="help" element={<div className="p-6">Admin help coming soon.</div>} />
           </Route>
 
           {/* Student (protected) */}
           <Route path="/student" element={<StudentLayout><Outlet /></StudentLayout>}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="tower/:id" element={<StudentTowerDetail />} />
+            <Route path="tower/:id" element={<StudentTowerNotebook />} />
             <Route path="vitals" element={<StudentVitalsForm />} />
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
             <Route path="pests" element={<StudentPestForm />} />
+            <Route path="pest-disease" element={<StudentPestDiseaseForm />} />
             <Route path="add-plant" element={<StudentPlantForm />} />
             <Route path="photos" element={<StudentPhotoForm />} />
+            <Route path="documents" element={<StudentDocumentForm />} />
             <Route path="pest-disease-guide" element={<StudentPestDiseaseGuide />} />
           </Route>
 
@@ -268,6 +279,8 @@ const App = () => (
             <Route path="school-guide" element={<SchoolGuide />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="classrooms" element={<Classrooms />} />
+            <Route path="milestones" element={<MilestoneList />} />
+            <Route path="milestones/create" element={<CreateMilestone />} />
             <Route path="kiosk" element={<Kiosk />} />
             <Route path="help" element={<HelpCenter />} />
             <Route path="profile" element={<Profile />} />
