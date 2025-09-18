@@ -26,13 +26,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS districts_join_code_key ON public.districts US
 ALTER TABLE public.profiles 
 ADD COLUMN IF NOT EXISTS district_id uuid REFERENCES public.districts(id);
 
--- Add district_id column to schools table if it doesn't exist
-ALTER TABLE public.schools 
-ADD COLUMN IF NOT EXISTS district_id uuid REFERENCES public.districts(id);
+-- Add district_id column to schools table if it exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schools' AND table_schema = 'public') THEN
+    ALTER TABLE public.schools 
+    ADD COLUMN IF NOT EXISTS district_id uuid REFERENCES public.districts(id);
+  END IF;
+END $$;;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_profiles_district_id ON public.profiles(district_id);
-CREATE INDEX IF NOT EXISTS idx_schools_district_id ON public.schools(district_id);
+
+-- Create schools district index if schools table exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schools' AND table_schema = 'public') THEN
+    CREATE INDEX IF NOT EXISTS idx_schools_district_id ON public.schools(district_id);
+  END IF;
+END $$;
 
 -- Enable RLS on districts table
 ALTER TABLE public.districts ENABLE ROW LEVEL SECURITY;
@@ -51,19 +63,24 @@ FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
--- Allow district admins to manage their district
-CREATE POLICY "District admins can manage their district"
-ON public.districts
-FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = auth.uid() 
-    AND ur.role = 'district_admin'
-    AND ur.district_id = districts.id
-  )
-);
+-- Allow district admins to manage their district (only if user_roles table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_roles' AND table_schema = 'public') THEN
+    CREATE POLICY "District admins can manage their district"
+    ON public.districts
+    FOR ALL
+    TO authenticated
+    USING (
+      EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid() 
+        AND ur.role = 'district_admin'
+        AND ur.district_id = districts.id
+      )
+    );
+  END IF;
+END $$;;
 
 -- Allow users to view districts they belong to
 CREATE POLICY "Users can view their district"
@@ -75,13 +92,6 @@ USING (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
     AND p.district_id = districts.id
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = auth.uid() 
-    AND ur.role = 'district_admin'
-    AND ur.district_id = districts.id
   )
 );
 
