@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { TrialStatusBanner } from "@/components/TrialStatusBanner";
 import { UsageIndicator } from "@/components/UsageIndicator";
+import { RecentActivityWidget } from "@/components/RecentActivityWidget";
 import WelcomeModal from "@/components/WelcomeModal";
 import SchoolAdminWelcomeModal from "@/components/SchoolAdminWelcomeModal";
 import DistrictAdminWelcomeModal from "@/components/DistrictAdminWelcomeModal";
@@ -592,9 +593,15 @@ export default function DashboardHome() {
           </Card>
         </div>
 
-        {/* Sidebar with Usage Indicator */}
+        {/* Sidebar with Usage Indicator and Recent Activity */}
         <div className="space-y-4">
           <UsageIndicator />
+          {teacherId && (
+            <RecentActivityWidget 
+              teacherId={teacherId}
+              maxItems={6}
+            />
+          )}
         </div>
       </div>
 
