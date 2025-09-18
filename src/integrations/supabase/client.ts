@@ -13,9 +13,14 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    storageKey: 'sb-main-auth-token' // Use a specific storage key
+    storageKey: 'sb-main-auth-token', // Use a specific storage key
+    debug: false // Disable debug logging to reduce noise
   },
   db: {
     schema: DEFAULT_SCHEMA,
   },
+  // Enable realtime for the main client
+  realtime: {
+    enabled: true
+  }
 });

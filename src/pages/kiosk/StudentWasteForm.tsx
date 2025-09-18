@@ -102,7 +102,7 @@ export default function StudentWasteForm() {
                                     <SelectValue placeholder="Choose a plant from your classroom catalog (optional)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">No specific plant</SelectItem>
+                                    <SelectItem value="none">No specific plant</SelectItem>
                                     {activePlants?.map((plant) => (
                                         <SelectItem key={plant.id} value={plant.id}>
                                             {plant.name}

@@ -20,12 +20,17 @@ export const anonymousSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_P
       removeItem: () => {}
     },
     detectSessionInUrl: false, // Don't detect sessions in URL
-    flowType: 'implicit' // Use implicit flow to avoid token conflicts
+    flowType: 'implicit', // Use implicit flow to avoid token conflicts
+    debug: false // Disable debug logging to reduce noise
   },
   global: {
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     }
+  },
+  // Disable realtime to avoid unnecessary connections
+  realtime: {
+    enabled: false
   }
 });

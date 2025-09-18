@@ -41,6 +41,8 @@ export default function ClassroomDiscovery() {
         state.selectedClassroom.id,
         {
           ...filters,
+          grade_level: filters.grade_level === 'any' ? '' : filters.grade_level,
+          school_type: filters.school_type === 'any' ? '' : filters.school_type,
           search: searchTerm || undefined
         }
       );
@@ -162,7 +164,7 @@ export default function ClassroomDiscovery() {
                   <SelectValue placeholder="Any grade level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any grade level</SelectItem>
+                  <SelectItem value="any">Any grade level</SelectItem>
                   <SelectItem value="K-2">K-2 (Ages 5-8)</SelectItem>
                   <SelectItem value="3-5">3-5 (Ages 8-11)</SelectItem>
                   <SelectItem value="6-8">6-8 (Ages 11-14)</SelectItem>
@@ -180,7 +182,7 @@ export default function ClassroomDiscovery() {
                   <SelectValue placeholder="Any school type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any school type</SelectItem>
+                  <SelectItem value="any">Any school type</SelectItem>
                   <SelectItem value="elementary">Elementary School</SelectItem>
                   <SelectItem value="middle">Middle School</SelectItem>
                   <SelectItem value="high">High School</SelectItem>
