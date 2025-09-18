@@ -64,7 +64,7 @@ BEGIN
             'description', grams || 'g - ' || COALESCE(notes, 'No notes')
         )
     ), '[]'::json) INTO waste_data
-    FROM waste 
+    FROM waste_logs 
     WHERE tower_id = tower_uuid;
     
     -- Get pest data
@@ -155,7 +155,7 @@ CREATE TRIGGER update_sources_on_harvests_change
     FOR EACH ROW EXECUTE FUNCTION update_tower_sources();
 
 CREATE TRIGGER update_sources_on_waste_change
-    AFTER INSERT OR UPDATE OR DELETE ON waste
+    AFTER INSERT OR UPDATE OR DELETE ON waste_logs
     FOR EACH ROW EXECUTE FUNCTION update_tower_sources();
 
 CREATE TRIGGER update_sources_on_pest_logs_change
