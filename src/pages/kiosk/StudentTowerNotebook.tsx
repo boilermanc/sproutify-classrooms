@@ -1,7 +1,8 @@
 // src/pages/kiosk/StudentTowerNotebook.tsx - NotebookLM-style Tower Interface
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,9 @@ import {
   MoreHorizontal,
   Edit,
   ArrowLeft,
-  Building2
+  Building2,
+  Bot,
+  User
 } from "lucide-react";
 
 // Types
@@ -265,12 +268,122 @@ function SourcesPanel({ towerId }: { towerId: string }) {
 // Center Panel - Chat Component
 function ChatPanel({ towerName, selectedSources }: { towerName: string; selectedSources: string[] }) {
   const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: string}>>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [studentName, setStudentName] = useState<string>('');
+  const [gradeLevel, setGradeLevel] = useState<string>('3-5');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
     "How is my tower performing overall?",
     "What should I focus on this week?",
     "Are there any issues I should be aware of?"
   ];
+
+  // Initialize student info
+  useEffect(() => {
+    const storedStudentName = localStorage.getItem('student_name');
+    const storedClassroomId = localStorage.getItem('student_classroom_id');
+    
+    if (storedStudentName) {
+      setStudentName(storedStudentName);
+    }
+
+    // Get grade level
+    const getGradeLevel = async () => {
+      if (storedClassroomId) {
+        try {
+          const { data: classroom } = await anonymousSupabase
+            .from('classrooms')
+            .select('grade_level')
+            .eq('id', storedClassroomId)
+            .single();
+          
+          if (classroom?.grade_level) {
+            setGradeLevel(classroom.grade_level);
+          }
+        } catch (error) {
+          console.error('Failed to get grade level:', error);
+        }
+      }
+    };
+    
+    getGradeLevel();
+  }, []);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || isLoading) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: chatInput,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsLoading(true);
+
+    try {
+      // Get tower ID from URL params
+      const towerId = window.location.pathname.split('/').pop();
+      
+      const response = await fetch(`http://127.0.0.1:54321/functions/v1/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0`
+        },
+        body: JSON.stringify({
+          message: chatInput,
+          towerId: towerId,
+          studentName: studentName,
+          selectedSources: selectedSources,
+          gradeLevel: gradeLevel
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get AI response');
+      }
+
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: data.response,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: "Sorry, I'm having trouble connecting right now. Please try again later.",
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   return (
     <div className="flex-1 bg-background flex flex-col">
@@ -318,12 +431,64 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
           </Button>
         </div>
 
-        {/* Chat Interface Placeholder */}
-        <div className="border border-border rounded-lg p-4 bg-muted/20">
-          <p className="text-sm text-muted-foreground mb-2">Chat functionality coming soon...</p>
-          <p className="text-xs text-muted-foreground">
-            This will allow students to ask questions about their tower data and get AI-powered insights.
-          </p>
+        {/* Chat Messages */}
+        <div className="space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Ask me anything about your tower data!</p>
+              <p className="text-sm">I can help you understand patterns, predict harvests, and learn about hydroponics.</p>
+            </div>
+          )}
+          
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div className={`flex gap-3 max-w-[80%] ${
+                message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.role === 'user' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted'
+                }`}>
+                  {message.role === 'user' ? (
+                    <User className="h-4 w-4" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                </div>
+                
+                <div className={`rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="bg-muted rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600" />
+                  <span>Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -345,12 +510,18 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
         
         <div className="flex gap-2">
           <Input
-            placeholder="Start typing..."
+            placeholder="Ask about your tower data..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={handleKeyPress}
             className="flex-1"
+            disabled={isLoading}
           />
-          <Button size="sm" disabled>
+          <Button 
+            size="sm" 
+            onClick={sendMessage}
+            disabled={isLoading || !chatInput.trim()}
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -533,12 +704,6 @@ export default function StudentTowerNotebook() {
         </div>
         
         <div className="flex items-center space-x-2">
-          <Button variant="default" size="sm" asChild>
-            <Link to={`/student/tower/${towerId}/research`}>
-              <BookOpen className="h-4 w-4 mr-2" />
-              Research Mode
-            </Link>
-          </Button>
           <Button variant="ghost" size="sm">
             <Share2 className="h-4 w-4" />
           </Button>
