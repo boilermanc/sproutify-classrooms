@@ -40,10 +40,10 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
         // Fetch active plantings
         const { data: plantings } = await supabase
           .from('plantings')
-          .select('id, planted_at, harvest_date')
+          .select('id, planted_at, expected_harvest_date, status')
           .eq('tower_id', towerId)
           .eq('teacher_id', teacherId)
-          .is('harvest_date', null);
+          .eq('status', 'active');
 
         // Fetch recent vitals (pH and EC)
         const { data: vitals } = await supabase
@@ -54,23 +54,23 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           .order('created_at', { ascending: false })
           .limit(1);
 
-        // Fetch pest issues from scouting
+        // Fetch pest issues from pest_logs
         const { data: pestData } = await supabase
-          .from('scouting')
+          .from('pest_logs')
           .select('id')
           .eq('tower_id', towerId)
           .eq('teacher_id', teacherId)
-          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days
+          .gte('observed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days
 
         // Fetch next harvest
         const { data: nextHarvestData } = await supabase
           .from('plantings')
-          .select('harvest_date')
+          .select('expected_harvest_date')
           .eq('tower_id', towerId)
           .eq('teacher_id', teacherId)
-          .not('harvest_date', 'is', null)
-          .gte('harvest_date', new Date().toISOString())
-          .order('harvest_date', { ascending: true })
+          .not('expected_harvest_date', 'is', null)
+          .gte('expected_harvest_date', new Date().toISOString())
+          .order('expected_harvest_date', { ascending: true })
           .limit(1);
 
         // Fetch total harvests
@@ -84,7 +84,7 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
         const recentPh = vitals?.[0]?.ph || null;
         const recentEc = vitals?.[0]?.ec || null;
         const pestIssues = pestData?.length || 0;
-        const nextHarvest = nextHarvestData?.[0]?.harvest_date || null;
+        const nextHarvest = nextHarvestData?.[0]?.expected_harvest_date || null;
         const lastVitalsDate = vitals?.[0]?.created_at || null;
         const totalHarvests = harvests?.length || 0;
 
