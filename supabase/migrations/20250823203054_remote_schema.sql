@@ -1,17 +1,7 @@
 create type "public"."app_role" as enum ('admin', 'teacher', 'student');
 
 
-  create table "public"."classrooms" (
-    "id" uuid not null default gen_random_uuid(),
-    "teacher_id" uuid not null,
-    "name" text not null,
-    "kiosk_pin" text not null,
-    "created_at" timestamp with time zone not null default now(),
-    "updated_at" timestamp with time zone not null default now()
-      );
-
-
-alter table "public"."classrooms" enable row level security;
+  -- Classrooms table already created in earlier migration 20250131000000_create_classrooms_table.sql
 
 
   create table "public"."harvests" (
@@ -78,26 +68,7 @@ alter table "public"."pest_logs" enable row level security;
 alter table "public"."plant_catalog" enable row level security;
 
 
-  create table "public"."plantings" (
-    "id" uuid not null default gen_random_uuid(),
-    "teacher_id" uuid not null,
-    "tower_id" uuid not null,
-    "port_number" integer,
-    "catalog_id" uuid,
-    "name" text not null,
-    "quantity" integer not null default 1,
-    "seeded_at" date,
-    "planted_at" date,
-    "growth_rate" text,
-    "expected_harvest_date" date,
-    "outcome" text,
-    "status" text not null default 'active'::text,
-    "created_at" timestamp with time zone not null default now(),
-    "updated_at" timestamp with time zone not null default now()
-      );
-
-
-alter table "public"."plantings" enable row level security;
+  -- Plantings table already created in earlier migration 20250131000011_create_plantings_table.sql
 
 
   create table "public"."profiles" (
@@ -119,15 +90,7 @@ alter table "public"."plantings" enable row level security;
 
 
 
-  create table "public"."schools" (
-    "id" uuid not null default gen_random_uuid(),
-    "name" text not null,
-    "district" text,
-    "timezone" text,
-    "image_url" text,
-    "created_at" timestamp with time zone default now(),
-    "updated_at" timestamp with time zone default now()
-      );
+  -- Schools table already created in earlier migration 20250131000001_create_schools_table.sql
 
 
 
@@ -173,17 +136,7 @@ alter table "public"."tower_photos" enable row level security;
 alter table "public"."tower_vitals" enable row level security;
 
 
-  create table "public"."towers" (
-    "id" uuid not null default gen_random_uuid(),
-    "teacher_id" uuid not null,
-    "name" text not null,
-    "ports" integer not null,
-    "created_at" timestamp with time zone not null default now(),
-    "updated_at" timestamp with time zone not null default now()
-      );
-
-
-alter table "public"."towers" enable row level security;
+  -- Towers table already created in earlier migration 20250131000012_create_towers_table.sql
 
 
   create table "public"."user_roles" (

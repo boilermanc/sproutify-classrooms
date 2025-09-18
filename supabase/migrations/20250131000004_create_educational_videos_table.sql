@@ -31,46 +31,64 @@ GRANT ALL ON TABLE public.educational_videos TO authenticated;
 GRANT ALL ON TABLE public.educational_videos TO service_role;
 
 -- Create RLS policies
--- Super admins and staff can manage all videos
-CREATE POLICY "Super admins and staff can manage all videos"
-ON public.educational_videos
-FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = auth.uid() 
-    AND ur.role IN ('super_admin', 'staff')
-  )
-);
+-- Super admins and staff can manage all videos (only if user_roles table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_roles' AND table_schema = 'public') THEN
+    DROP POLICY IF EXISTS "Super admins and staff can manage all videos" ON public.educational_videos;
+    CREATE POLICY "Super admins and staff can manage all videos"
+    ON public.educational_videos
+    FOR ALL
+    TO authenticated
+    USING (
+      EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid() 
+        AND ur.role IN ('super_admin', 'staff')
+      )
+    );
+  END IF;
+END $$;
 
--- Teachers can view published videos
-CREATE POLICY "Teachers can view published videos"
-ON public.educational_videos
-FOR SELECT
-TO authenticated
-USING (
-  is_published = true
-  AND EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = auth.uid() 
-    AND ur.role = 'teacher'
-  )
-);
+-- Teachers can view published videos (only if user_roles table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_roles' AND table_schema = 'public') THEN
+    DROP POLICY IF EXISTS "Teachers can view published videos" ON public.educational_videos;
+    CREATE POLICY "Teachers can view published videos"
+    ON public.educational_videos
+    FOR SELECT
+    TO authenticated
+    USING (
+      is_published = true
+      AND EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid() 
+        AND ur.role = 'teacher'
+      )
+    );
+  END IF;
+END $$;
 
--- Students can view published videos
-CREATE POLICY "Students can view published videos"
-ON public.educational_videos
-FOR SELECT
-TO authenticated
-USING (
-  is_published = true
-  AND EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = auth.uid() 
-    AND ur.role = 'student'
-  )
-);
+-- Students can view published videos (only if user_roles table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_roles' AND table_schema = 'public') THEN
+    DROP POLICY IF EXISTS "Students can view published videos" ON public.educational_videos;
+    CREATE POLICY "Students can view published videos"
+    ON public.educational_videos
+    FOR SELECT
+    TO authenticated
+    USING (
+      is_published = true
+      AND EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid() 
+        AND ur.role = 'student'
+      )
+    );
+  END IF;
+END $$;
 
 -- Create videos storage bucket (this would typically be done in Supabase dashboard)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('videos', 'videos', true);

@@ -4,7 +4,7 @@
 -- Create pest_catalog table for pest identification data
 CREATE TABLE IF NOT EXISTS public.pest_catalog (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  name text NOT NULL,
+  name text NOT NULL UNIQUE,
   scientific_name text,
   type text NOT NULL CHECK (type IN ('pest', 'disease', 'nutrient', 'environmental')),
   description text NOT NULL,

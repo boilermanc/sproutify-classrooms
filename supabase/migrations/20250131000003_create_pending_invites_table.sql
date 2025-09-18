@@ -15,6 +15,7 @@ create table if not exists public.pending_invites (
 alter table public.pending_invites enable row level security;
 
 -- School admins can view invites for their school
+drop policy if exists "School admins can view invites for their school" on public.pending_invites;
 create policy "School admins can view invites for their school" on public.pending_invites
   for select using (
     school_id in (
@@ -25,6 +26,7 @@ create policy "School admins can view invites for their school" on public.pendin
   );
 
 -- School admins can create invites for their school
+drop policy if exists "School admins can create invites for their school" on public.pending_invites;
 create policy "School admins can create invites for their school" on public.pending_invites
   for insert with check (
     school_id in (
@@ -35,6 +37,7 @@ create policy "School admins can create invites for their school" on public.pend
   );
 
 -- District admins can view invites for their district
+drop policy if exists "District admins can view invites for their district" on public.pending_invites;
 create policy "District admins can view invites for their district" on public.pending_invites
   for select using (
     district_id in (
@@ -45,6 +48,7 @@ create policy "District admins can view invites for their district" on public.pe
   );
 
 -- District admins can create invites for their district
+drop policy if exists "District admins can create invites for their district" on public.pending_invites;
 create policy "District admins can create invites for their district" on public.pending_invites
   for insert with check (
     district_id in (
