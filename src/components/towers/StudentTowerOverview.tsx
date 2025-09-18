@@ -48,6 +48,14 @@ interface OverviewData {
     observed_at: string;
   }>;
   nextHarvestPlant: string | null;
+  recentActivities: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    date: string;
+    icon: string;
+  }>;
 }
 
 export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
@@ -116,6 +124,57 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           .eq('tower_id', towerId)
           .eq('teacher_id', teacherId);
 
+        // Fetch recent activities
+        const recentActivities: Array<{
+          id: string;
+          type: string;
+          title: string;
+          description: string;
+          date: string;
+          icon: string;
+        }> = [];
+
+        // Add recent vitals
+        if (vitals?.[0]) {
+          recentActivities.push({
+            id: `vitals-${vitals[0].created_at}`,
+            type: 'vitals',
+            title: 'Vitals Recorded',
+            description: `pH: ${vitals[0].ph?.toFixed(1) || '--'}, EC: ${vitals[0].ec?.toFixed(1) || '--'}`,
+            date: vitals[0].created_at,
+            icon: '💧'
+          });
+        }
+
+        // Add recent plantings
+        const recentPlantings = plantings?.slice(0, 3) || [];
+        recentPlantings.forEach(planting => {
+          recentActivities.push({
+            id: `planting-${planting.id}`,
+            type: 'planting',
+            title: 'Plant Added',
+            description: planting.name,
+            date: planting.planted_at || planting.id,
+            icon: '🌱'
+          });
+        });
+
+        // Add recent pests
+        const recentPests = pestData?.slice(0, 2) || [];
+        recentPests.forEach(pest => {
+          recentActivities.push({
+            id: `pest-${pest.id}`,
+            type: 'pest',
+            title: 'Pest Observed',
+            description: pest.pest,
+            date: pest.observed_at,
+            icon: '🐛'
+          });
+        });
+
+        // Sort activities by date
+        recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
         const activePlants = plantings?.length || 0;
         const recentPh = vitals?.[0]?.ph || null;
         const recentEc = vitals?.[0]?.ec || null;
@@ -134,7 +193,8 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           totalHarvests,
           plantings: plantings || [],
           pests: pestData || [],
-          nextHarvestPlant: nextHarvestData?.[0]?.name || null
+          nextHarvestPlant: nextHarvestData?.[0]?.name || null,
+          recentActivities: recentActivities.slice(0, 5)
         });
       } catch (error) {
         console.error('Error fetching overview data:', error);
@@ -434,6 +494,54 @@ export function StudentTowerOverview({ towerId }: StudentTowerOverviewProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent Activity Section */}
+      {overviewData.recentActivities.length > 0 && (
+        <Card 
+          className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-blue-200"
+          onClick={() => toggleExpanded('recent')}
+        >
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Recent Activity</div>
+                  <div className="text-xs text-muted-foreground">
+                    {overviewData.recentActivities.length} recent items
+                  </div>
+                </div>
+              </div>
+              {expandedBox === 'recent' ? (
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              )}
+            </div>
+            
+            {expandedBox === 'recent' && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="space-y-2">
+                  {overviewData.recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-2 text-xs">
+                      <span className="text-sm">{activity.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{activity.title}</div>
+                        <div className="text-muted-foreground truncate">{activity.description}</div>
+                        <div className="text-muted-foreground">
+                          {new Date(activity.date).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
