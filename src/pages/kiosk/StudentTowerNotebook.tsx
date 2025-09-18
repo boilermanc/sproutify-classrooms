@@ -72,9 +72,12 @@ type GeneratedOutput = {
 };
 
 // Left Panel - Sources Component
-function SourcesPanel({ towerId }: { towerId: string }) {
+function SourcesPanel({ towerId, selectedSources, setSelectedSources }: { 
+  towerId: string; 
+  selectedSources: string[]; 
+  setSelectedSources: (sources: string[]) => void;
+}) {
   const [sources, setSources] = useState<SourceItem[]>([]);
-  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,23 +88,121 @@ function SourcesPanel({ towerId }: { towerId: string }) {
         const teacherId = localStorage.getItem("teacher_id_for_tower");
         if (!teacherId) return;
 
-        // Use the new get_tower_resources function
-        const { data: towerResources, error } = await supabase
-          .rpc('get_tower_resources', { p_tower_id: towerId });
+        // Fetch sources from individual tables as fallback
+        const sources: SourceItem[] = [];
 
-        if (error) {
-          console.error('Error fetching tower resources:', error);
-          setLoading(false);
-          return;
+        // Fetch plantings
+        const { data: plantings } = await supabase
+          .from('plantings')
+          .select('id, name, created_at, port_number')
+          .eq('tower_id', towerId);
+
+        if (plantings) {
+          plantings.forEach(planting => {
+            sources.push({
+              id: `plant-${planting.id}`,
+              type: 'plant',
+              title: planting.name,
+              date: new Date(planting.created_at).toLocaleDateString(),
+              description: planting.port_number ? `Port ${planting.port_number}` : undefined
+            });
+          });
         }
 
-        if (towerResources && towerResources.sources) {
-          // The sources are already formatted by the database function
-          setSources(towerResources.sources);
-        } else {
-          setSources([]);
+        // Fetch vitals
+        const { data: vitals } = await supabase
+          .from('tower_vitals')
+          .select('id, ph, ec, created_at')
+          .eq('tower_id', towerId);
+
+        if (vitals) {
+          vitals.forEach(vital => {
+            sources.push({
+              id: `vital-${vital.id}`,
+              type: 'vitals',
+              title: 'pH & EC Reading',
+              date: new Date(vital.created_at).toLocaleDateString(),
+              description: `pH: ${vital.ph}, EC: ${vital.ec}`
+            });
+          });
         }
+
+        // Fetch harvests
+        const { data: harvests } = await supabase
+          .from('harvests')
+          .select('id, plant_name, weight_grams, destination, created_at')
+          .eq('tower_id', towerId);
+
+        if (harvests) {
+          harvests.forEach(harvest => {
+            sources.push({
+              id: `harvest-${harvest.id}`,
+              type: 'harvest',
+              title: `${harvest.plant_name || 'Plant'} Harvest`,
+              date: new Date(harvest.created_at).toLocaleDateString(),
+              description: `${harvest.weight_grams}g${harvest.destination ? ` → ${harvest.destination}` : ''}`
+            });
+          });
+        }
+
+        // Fetch waste logs
+        const { data: wasteLogs } = await supabase
+          .from('waste_logs')
+          .select('id, plant_name, grams, notes, created_at')
+          .eq('tower_id', towerId);
+
+        if (wasteLogs) {
+          wasteLogs.forEach(waste => {
+            sources.push({
+              id: `waste-${waste.id}`,
+              type: 'waste',
+              title: `${waste.plant_name || 'Plant'} Waste`,
+              date: new Date(waste.created_at).toLocaleDateString(),
+              description: `${waste.grams}g - ${waste.notes || 'No notes'}`
+            });
+          });
+        }
+
+        // Fetch pest logs
+        const { data: pestLogs } = await supabase
+          .from('pest_logs')
+          .select('id, pest, created_at')
+          .eq('tower_id', towerId);
+
+        if (pestLogs) {
+          pestLogs.forEach(pest => {
+            sources.push({
+              id: `pest-${pest.id}`,
+              type: 'pest',
+              title: 'Pest Observation',
+              date: new Date(pest.created_at).toLocaleDateString(),
+              description: pest.pest.length > 50 ? `${pest.pest.substring(0, 50)}...` : pest.pest
+            });
+          });
+        }
+
+        // Fetch photos
+        const { data: photos } = await supabase
+          .from('tower_photos')
+          .select('id, caption, created_at')
+          .eq('tower_id', towerId);
+
+        if (photos) {
+          photos.forEach(photo => {
+            sources.push({
+              id: `photo-${photo.id}`,
+              type: 'photo',
+              title: 'Tower Photo',
+              date: new Date(photo.created_at).toLocaleDateString(),
+              description: photo.caption || 'No description'
+            });
+          });
+        }
+
+        // Sort by date (newest first)
+        sources.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
+        setSources(sources);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching sources:', err);
@@ -718,7 +819,11 @@ export default function StudentTowerNotebook() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        <SourcesPanel towerId={towerId} />
+        <SourcesPanel 
+          towerId={towerId} 
+          selectedSources={selectedSources} 
+          setSelectedSources={setSelectedSources} 
+        />
         <ChatPanel towerName={towerName} selectedSources={selectedSources} />
         <CreatePanel towerId={towerId} />
       </div>
