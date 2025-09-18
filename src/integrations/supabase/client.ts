@@ -12,24 +12,29 @@ const DEFAULT_SCHEMA = (import.meta as any)?.env?.VITE_DB_SCHEMA || 'public';
 // Singleton pattern to prevent multiple client instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
-export const supabase = supabaseInstance || createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-    storageKey: 'sb-main-auth-token', // Use a specific storage key
-    debug: false // Disable debug logging to reduce noise
-  },
-  db: {
-    schema: DEFAULT_SCHEMA,
-  },
-  // Enable realtime for the main client
-  realtime: {
-    enabled: true
+function createSupabaseClient() {
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
-});
-
-// Store the instance to prevent recreation
-if (!supabaseInstance) {
-  supabaseInstance = supabase;
+  
+  supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey: 'sb-main-auth-token', // Use a specific storage key
+      debug: false // Disable debug logging to reduce noise
+    },
+    db: {
+      schema: DEFAULT_SCHEMA,
+    },
+    // Enable realtime for the main client
+    realtime: {
+      enabled: true
+    }
+  });
+  
+  return supabaseInstance;
 }
+
+export const supabase = createSupabaseClient();
