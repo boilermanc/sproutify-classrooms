@@ -40,6 +40,7 @@ import StudentVitalsForm from "@/pages/kiosk/StudentVitalsForm";
 import StudentHarvestForm from "@/pages/kiosk/StudentHarvestForm";
 import StudentWasteForm from "@/pages/kiosk/StudentWasteForm";
 import StudentPestForm from "@/pages/kiosk/StudentPestForm";
+import StudentPestDiseaseForm from "@/pages/kiosk/StudentPestDiseaseForm";
 import StudentPlantForm from "@/pages/kiosk/StudentPlantForm";
 import StudentPhotoForm from "@/pages/kiosk/StudentPhotoForm";
 import StudentDocumentForm from "@/pages/kiosk/StudentDocumentForm";
@@ -196,6 +197,7 @@ const App = () => (
             <Route path="harvest" element={<StudentHarvestForm />} />
             <Route path="waste" element={<StudentWasteForm />} />
             <Route path="pests" element={<StudentPestForm />} />
+            <Route path="pest-disease" element={<StudentPestDiseaseForm />} />
             <Route path="add-plant" element={<StudentPlantForm />} />
             <Route path="photos" element={<StudentPhotoForm />} />
             <Route path="documents" element={<StudentDocumentForm />} />

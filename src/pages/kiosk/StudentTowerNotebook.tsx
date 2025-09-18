@@ -269,9 +269,9 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to={`/student/pests?towerId=${towerId}`}>
+                <Link to={`/student/pest-disease?towerId=${towerId}`}>
                   <Bug className="h-4 w-4 mr-2" />
-                  Log Pest
+                  Pest and Disease
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
