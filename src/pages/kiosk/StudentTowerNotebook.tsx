@@ -71,6 +71,8 @@ type GeneratedOutput = {
   date: string;
   status: 'completed' | 'generating';
   content?: string;
+  documentType?: string;
+  milestoneType?: string;
 };
 
 // Left Panel - Sources Component
@@ -844,10 +846,14 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
         // RLS policy allows anonymous users (students) to view tower documents
         const { data: documents, error } = await supabase
           .from('tower_documents')
-          .select('id, title, description, created_at, file_type, content')
+          .select('id, title, description, created_at, file_type, content, document_type, milestone_type')
           .eq('tower_id', towerId)
           .order('created_at', { ascending: false })
           .limit(10);
+
+        console.log('Debug - Tower ID:', towerId);
+        console.log('Debug - Documents found:', documents);
+        console.log('Debug - Error:', error);
 
         if (error) {
           console.error('Error fetching documents:', error);
@@ -855,15 +861,32 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
         }
 
         // Transform documents to GeneratedOutput format
-        const documentOutputs: GeneratedOutput[] = documents?.map(doc => ({
-          id: doc.id,
-          type: doc.file_type === 'text/plain' && doc.title.includes('Chat Notes') ? 'study-guide' : 'study-guide',
-          title: doc.title,
-          date: new Date(doc.created_at).toLocaleDateString(),
-          status: 'completed' as const,
-          content: doc.content
-        })) || [];
+        const documentOutputs: GeneratedOutput[] = documents?.map(doc => {
+          // Determine the type based on document_type and milestone_type
+          let outputType: GeneratedOutput['type'] = 'study-guide';
+          
+          if (doc.document_type === 'milestone') {
+            // Milestones should show as documents, not study guides
+            outputType = 'report'; // Use report type for milestones to show document icon
+          } else if (doc.file_type === 'text/plain' && doc.title.includes('Chat Notes')) {
+            outputType = 'study-guide';
+          } else if (doc.title.toLowerCase().includes('briefing') || doc.title.toLowerCase().includes('data-driven')) {
+            outputType = 'report'; // Briefing documents should show as reports
+          }
 
+          return {
+            id: doc.id,
+            type: outputType,
+            title: doc.title,
+            date: new Date(doc.created_at).toLocaleDateString(),
+            status: 'completed' as const,
+            content: doc.content,
+            documentType: doc.document_type,
+            milestoneType: doc.milestone_type
+          };
+        }) || [];
+
+        console.log('Debug - Transformed outputs:', documentOutputs);
         setOutputs(documentOutputs);
       } catch (error) {
         console.error('Error fetching outputs:', error);
@@ -1038,7 +1061,12 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
                         handleOutputClick(output);
                       }}
                     >
-                      <Play className="h-3 w-3" />
+                      {/* Show document icon for milestones and reports, play button for others */}
+                      {output.type === 'report' || output.documentType === 'milestone' ? (
+                        <FileText className="h-3 w-3" />
+                      ) : (
+                        <Play className="h-3 w-3" />
+                      )}
                     </Button>
                   )}
                   <Button 
