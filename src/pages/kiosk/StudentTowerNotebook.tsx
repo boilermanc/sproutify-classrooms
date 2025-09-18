@@ -70,6 +70,7 @@ type GeneratedOutput = {
   title: string;
   date: string;
   status: 'completed' | 'generating';
+  content?: string;
 };
 
 // Left Panel - Sources Component
@@ -368,11 +369,12 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
 }
 
 // Center Panel - Chat Component
-function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: { 
+function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNoteSaved }: { 
   towerName: string; 
   selectedSources: string[]; 
   towerId: string;
   selectedOutput?: GeneratedOutput | null;
+  onNoteSaved?: () => void;
 }) {
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: string}>>([]);
@@ -549,6 +551,9 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
         description: "Chat conversation saved to your documents",
       });
       
+      // Trigger refresh of the Recent list
+      onNoteSaved?.();
+      
     } catch (error) {
       toast({
         title: "Error",
@@ -634,7 +639,15 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
                     </div>
                   </div>
                 )}
-                {selectedOutput.type === 'study-guide' && (
+                {selectedOutput.type === 'study-guide' && selectedOutput.title.includes('Chat Notes') && selectedOutput.content && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Saved Chat Conversation</h4>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <pre className="whitespace-pre-wrap text-sm font-mono">{selectedOutput.content}</pre>
+                    </div>
+                  </div>
+                )}
+                {selectedOutput.type === 'study-guide' && !selectedOutput.title.includes('Chat Notes') && (
                   <div className="space-y-4">
                     <h4 className="font-semibold">Study Guide</h4>
                     <div className="prose prose-sm max-w-none">
@@ -704,12 +717,14 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mb-6">
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Add note
-          </Button>
-        </div>
+        {messages.length > 0 && (
+          <div className="flex gap-3 mb-6">
+            <Button variant="outline" onClick={handleSaveToNote}>
+              <FileText className="h-4 w-4 mr-2" />
+              Save Chat
+            </Button>
+          </div>
+        )}
 
         {/* Chat Messages */}
         <div className="space-y-4">
@@ -811,31 +826,55 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput }: {
 }
 
 // Right Panel - Create Component
-function CreatePanel({ towerId, onOutputSelected }: { towerId: string; onOutputSelected?: (output: GeneratedOutput) => void }) {
+function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: { 
+  towerId: string; 
+  onOutputSelected?: (output: GeneratedOutput) => void;
+  refreshTrigger?: number;
+}) {
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [selectedOutput, setSelectedOutput] = useState<GeneratedOutput | null>(null);
 
   useEffect(() => {
-    // Mock data for generated outputs
-    const mockOutputs: GeneratedOutput[] = [
-      {
-        id: '1',
-        type: 'study-guide',
-        title: 'Tower Care Basics',
-        date: '2d ago',
-        status: 'completed'
-      },
-      {
-        id: '2',
-        type: 'timeline',
-        title: 'Growth Timeline',
-        date: '1w ago',
-        status: 'completed'
+    const fetchOutputs = async () => {
+      try {
+        if (!towerId) return;
+        
+        const teacherId = localStorage.getItem("teacher_id_for_tower");
+        if (!teacherId) return;
+
+        // Fetch documents from tower_documents table
+        const { data: documents, error } = await supabase
+          .from('tower_documents')
+          .select('id, title, description, created_at, file_type, content')
+          .eq('tower_id', towerId)
+          .eq('teacher_id', teacherId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching documents:', error);
+          return;
+        }
+
+        // Transform documents to GeneratedOutput format
+        const documentOutputs: GeneratedOutput[] = documents?.map(doc => ({
+          id: doc.id,
+          type: doc.file_type === 'text/plain' && doc.title.includes('Chat Notes') ? 'study-guide' : 'study-guide',
+          title: doc.title,
+          date: new Date(doc.created_at).toLocaleDateString(),
+          status: 'completed' as const,
+          content: doc.content
+        })) || [];
+
+        setOutputs(documentOutputs);
+      } catch (error) {
+        console.error('Error fetching outputs:', error);
       }
-    ];
-    setOutputs(mockOutputs);
-  }, [towerId]);
+    };
+
+    fetchOutputs();
+  }, [towerId, refreshTrigger]);
 
   const handleCreateOutput = async (type: GeneratedOutput['type']) => {
     setIsGenerating(type);
@@ -1040,6 +1079,7 @@ export default function StudentTowerNotebook() {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOutput, setSelectedOutput] = useState<GeneratedOutput | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchTowerName = async () => {
@@ -1121,10 +1161,12 @@ export default function StudentTowerNotebook() {
           selectedSources={selectedSources} 
           towerId={towerId} 
           selectedOutput={selectedOutput}
+          onNoteSaved={() => setRefreshTrigger(prev => prev + 1)}
         />
         <CreatePanel 
           towerId={towerId} 
           onOutputSelected={setSelectedOutput}
+          refreshTrigger={refreshTrigger}
         />
       </div>
     </div>
