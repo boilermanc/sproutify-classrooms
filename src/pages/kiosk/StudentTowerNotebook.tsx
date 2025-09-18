@@ -189,16 +189,20 @@ function SourcesPanel({ towerId }: { towerId: string }) {
                   Add Photo
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FileText className="h-4 w-4 mr-2" />
-                Add Document
+              <DropdownMenuItem asChild>
+                <Link to={`/student/documents?towerId=${towerId}`}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Add Document
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Button variant="outline" size="sm" className="flex-1">
-            <BookOpen className="h-4 w-4 mr-2" />
-            Learning Guide
+          <Button variant="outline" size="sm" className="flex-1" asChild>
+            <Link to="/student/pest-disease-guide">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Learning Guide
+            </Link>
           </Button>
         </div>
 
@@ -520,7 +524,7 @@ export default function StudentTowerNotebook() {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/student/dashboard">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Classrooms
+              Back to Dashboard
             </Link>
           </Button>
           <div className="flex items-center space-x-3">
