@@ -44,18 +44,110 @@ Deno.serve(async (req) => {
       throw new Error("Message, tower ID, and student name are required.")
     }
 
-    // Create Supabase client
+    // Create Supabase client with fresh configuration
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+        db: {
+          schema: 'public'
+        }
+      }
     )
 
-    // Get tower context using existing function
-    const { data: towerData, error: towerError } = await supabase
-      .rpc('get_tower_resources', { p_tower_id: towerId })
+    // Get tower context using multiple fallback methods
+    console.log('Attempting to call get_tower_resources...')
+    
+    let towerData: any = null
+    let towerError: any = null
+    
+    // Method 1: Positional parameter (often works when named parameters fail)
+    try {
+      const result1 = await supabase.rpc('get_tower_resources', towerId)
+      if (!result1.error) {
+        towerData = result1.data
+        console.log('Method 1 (positional) succeeded')
+      } else {
+        console.log('Method 1 failed:', result1.error.message)
+        towerError = result1.error
+      }
+    } catch (err) {
+      console.log('Method 1 exception:', err.message)
+      towerError = err
+    }
+    
+    // Method 2: Named parameter (original method)
+    if (!towerData && towerError) {
+      try {
+        const result2 = await supabase.rpc('get_tower_resources', { p_tower_id: towerId })
+        if (!result2.error) {
+          towerData = result2.data
+          console.log('Method 2 (named) succeeded')
+        } else {
+          console.log('Method 2 failed:', result2.error.message)
+          towerError = result2.error
+        }
+      } catch (err) {
+        console.log('Method 2 exception:', err.message)
+        towerError = err
+      }
+    }
+    
+    // Method 3: Direct SQL query as last resort
+    if (!towerData && towerError) {
+      try {
+        console.log('Trying Method 3 (direct SQL)...')
+        const { data: sqlData, error: sqlError } = await supabase
+          .from('towers')
+          .select(`
+            id,
+            name,
+            created_at,
+            ports,
+            harvests(*),
+            pest_logs(*),
+            plantings(*),
+            tower_documents(*),
+            tower_photos(*),
+            tower_vitals(*),
+            waste_logs(*)
+          `)
+          .eq('id', towerId)
+          .single()
+        
+        if (!sqlError && sqlData) {
+          // Transform the data to match the function's output format
+          towerData = {
+            tower_id: sqlData.id,
+            tower_name: sqlData.name,
+            created_at: sqlData.created_at,
+            ports: sqlData.ports,
+            harvests: sqlData.harvests || [],
+            pest_logs: sqlData.pest_logs || [],
+            plantings: sqlData.plantings || [],
+            tower_documents: sqlData.tower_documents || [],
+            tower_photos: sqlData.tower_photos || [],
+            tower_vitals: sqlData.tower_vitals || [],
+            waste_logs: sqlData.waste_logs || [],
+            sources: [] // We'll build this manually if needed
+          }
+          console.log('Method 3 (direct SQL) succeeded')
+        } else {
+          console.log('Method 3 failed:', sqlError?.message)
+          towerError = sqlError
+        }
+      } catch (err) {
+        console.log('Method 3 exception:', err.message)
+        towerError = err
+      }
+    }
 
-    if (towerError) {
-      throw new Error(`Failed to fetch tower data: ${towerError.message}`)
+    if (!towerData) {
+      throw new Error(`Failed to fetch tower data with all methods. Last error: ${towerError?.message || 'Unknown error'}`)
     }
 
     // Build context from selected sources
