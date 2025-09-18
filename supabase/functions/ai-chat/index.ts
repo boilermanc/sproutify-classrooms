@@ -209,7 +209,7 @@ function buildContextFromSources(towerData: any, selectedSources: string[]): Tow
       selectedSources.includes(`vital-${v.id}`)
     ) || [],
     plantings: towerData.plantings?.filter((p: any) => 
-      selectedSources.includes(`planting-${p.id}`)
+      selectedSources.includes(`plant-${p.id}`)
     ) || [],
     harvests: towerData.harvests?.filter((h: any) => 
       selectedSources.includes(`harvest-${h.id}`)
