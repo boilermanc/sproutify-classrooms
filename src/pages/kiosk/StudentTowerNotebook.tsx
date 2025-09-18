@@ -231,7 +231,7 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
   };
 
   return (
-    <div className="w-80 bg-background border-r border-border h-full flex flex-col">
+    <div className="w-80 min-w-80 bg-background border-r border-border h-full flex flex-col">
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold mb-4">Sources</h2>
         
@@ -565,7 +565,7 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, onNote
   };
 
   return (
-    <div className="flex-1 bg-background flex flex-col">
+    <div className="flex-1 bg-background flex flex-col min-w-0">
       <div className="flex-1 p-6 overflow-y-auto">
         {/* Tower Dashboard */}
         <div className="mb-6">
@@ -840,15 +840,12 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
       try {
         if (!towerId) return;
         
-        const teacherId = localStorage.getItem("teacher_id_for_tower");
-        if (!teacherId) return;
-
         // Fetch documents from tower_documents table
+        // RLS policy allows anonymous users (students) to view tower documents
         const { data: documents, error } = await supabase
           .from('tower_documents')
           .select('id, title, description, created_at, file_type, content')
           .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
           .order('created_at', { ascending: false })
           .limit(10);
 
@@ -972,7 +969,6 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
   const handleOutputClick = (output: GeneratedOutput) => {
     setSelectedOutput(output);
     onOutputSelected?.(output);
-    console.log('Opening output:', output);
   };
 
   const getOutputIcon = (type: GeneratedOutput['type']) => {
@@ -987,7 +983,7 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
   };
 
   return (
-    <div className="w-80 bg-background border-l border-border h-full flex flex-col">
+    <div className="w-80 min-w-80 bg-background border-l border-border h-full flex flex-col">
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold mb-4">Create</h2>
         
@@ -1150,7 +1146,7 @@ export default function StudentTowerNotebook() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-w-0">
         <SourcesPanel 
           towerId={towerId} 
           selectedSources={selectedSources} 
