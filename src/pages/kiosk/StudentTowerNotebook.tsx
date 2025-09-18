@@ -1,7 +1,8 @@
 // src/pages/kiosk/StudentTowerNotebook.tsx - NotebookLM-style Tower Interface
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,11 @@ import {
   FileText,
   Play,
   MoreHorizontal,
-  Edit
+  Edit,
+  ArrowLeft,
+  Building2,
+  Bot,
+  User
 } from "lucide-react";
 
 // Types
@@ -67,42 +72,140 @@ type GeneratedOutput = {
 };
 
 // Left Panel - Sources Component
-function SourcesPanel({ towerId }: { towerId: string }) {
+function SourcesPanel({ towerId, selectedSources, setSelectedSources }: { 
+  towerId: string; 
+  selectedSources: string[]; 
+  setSelectedSources: (sources: string[]) => void;
+}) {
   const [sources, setSources] = useState<SourceItem[]>([]);
-  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        // Mock data for now - replace with actual data fetching
-        const mockSources: SourceItem[] = [
-          {
-            id: '1',
-            type: 'plant',
-            title: 'Lettuce Planted',
-            date: '2024-01-15',
-            description: 'Romaine lettuce in port 3'
-          },
-          {
-            id: '2',
-            type: 'vitals',
-            title: 'pH Reading',
-            date: '2024-01-16',
-            description: 'pH: 6.2, EC: 1.8'
-          },
-          {
-            id: '3',
-            type: 'pest',
-            title: 'Aphid Observation',
-            date: '2024-01-17',
-            description: 'Small green aphids on leaves'
-          }
-        ];
-        setSources(mockSources);
-      } catch (error) {
-        console.error('Error fetching sources:', error);
-      } finally {
+        if (!towerId) return;
+        
+        const teacherId = localStorage.getItem("teacher_id_for_tower");
+        if (!teacherId) return;
+
+        // Fetch sources from individual tables
+        const sources: SourceItem[] = [];
+
+        // Fetch plantings
+        const { data: plantings } = await supabase
+          .from('plantings')
+          .select('id, name, created_at, port_number')
+          .eq('tower_id', towerId);
+
+        if (plantings) {
+          plantings.forEach(planting => {
+            sources.push({
+              id: `plant-${planting.id}`,
+              type: 'plant',
+              title: planting.name,
+              date: new Date(planting.created_at).toLocaleDateString(),
+              description: planting.port_number ? `Port ${planting.port_number}` : undefined
+            });
+          });
+        }
+
+        // Fetch vitals
+        const { data: vitals } = await supabase
+          .from('tower_vitals')
+          .select('id, ph, ec, created_at')
+          .eq('tower_id', towerId);
+
+        if (vitals) {
+          vitals.forEach(vital => {
+            sources.push({
+              id: `vital-${vital.id}`,
+              type: 'vitals',
+              title: 'pH & EC Reading',
+              date: new Date(vital.created_at).toLocaleDateString(),
+              description: `pH: ${vital.ph}, EC: ${vital.ec}`
+            });
+          });
+        }
+
+        // Fetch harvests
+        const { data: harvests } = await supabase
+          .from('harvests')
+          .select('id, plant_name, weight_grams, destination, created_at')
+          .eq('tower_id', towerId);
+
+        if (harvests) {
+          harvests.forEach(harvest => {
+            sources.push({
+              id: `harvest-${harvest.id}`,
+              type: 'harvest',
+              title: `${harvest.plant_name || 'Plant'} Harvest`,
+              date: new Date(harvest.created_at).toLocaleDateString(),
+              description: `${harvest.weight_grams}g${harvest.destination ? ` → ${harvest.destination}` : ''}`
+            });
+          });
+        }
+
+        // Fetch waste logs
+        const { data: wasteLogs } = await supabase
+          .from('waste_logs')
+          .select('id, plant_name, grams, notes, created_at')
+          .eq('tower_id', towerId);
+
+        if (wasteLogs) {
+          wasteLogs.forEach(waste => {
+            sources.push({
+              id: `waste-${waste.id}`,
+              type: 'waste',
+              title: `${waste.plant_name || 'Plant'} Waste`,
+              date: new Date(waste.created_at).toLocaleDateString(),
+              description: `${waste.grams}g - ${waste.notes || 'No notes'}`
+            });
+          });
+        }
+
+        // Fetch pest logs
+        const { data: pestLogs } = await supabase
+          .from('pest_logs')
+          .select('id, pest, created_at')
+          .eq('tower_id', towerId);
+
+        if (pestLogs) {
+          pestLogs.forEach(pest => {
+            sources.push({
+              id: `pest-${pest.id}`,
+              type: 'pest',
+              title: 'Pest Observation',
+              date: new Date(pest.created_at).toLocaleDateString(),
+              description: pest.pest.length > 50 ? `${pest.pest.substring(0, 50)}...` : pest.pest
+            });
+          });
+        }
+
+        // Fetch photos
+        const { data: photos } = await supabase
+          .from('tower_photos')
+          .select('id, caption, created_at')
+          .eq('tower_id', towerId);
+
+        if (photos) {
+          photos.forEach(photo => {
+            sources.push({
+              id: `photo-${photo.id}`,
+              type: 'photo',
+              title: 'Tower Photo',
+              date: new Date(photo.created_at).toLocaleDateString(),
+              description: photo.caption || 'No description'
+            });
+          });
+        }
+
+        // Sort by date (newest first)
+        sources.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        setSources(sources);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching sources:', err);
         setLoading(false);
       }
     };
@@ -258,12 +361,122 @@ function SourcesPanel({ towerId }: { towerId: string }) {
 // Center Panel - Chat Component
 function ChatPanel({ towerName, selectedSources }: { towerName: string; selectedSources: string[] }) {
   const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: string}>>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [studentName, setStudentName] = useState<string>('');
+  const [gradeLevel, setGradeLevel] = useState<string>('3-5');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
     "How is my tower performing overall?",
     "What should I focus on this week?",
     "Are there any issues I should be aware of?"
   ];
+
+  // Initialize student info
+  useEffect(() => {
+    const storedStudentName = localStorage.getItem('student_name');
+    const storedClassroomId = localStorage.getItem('student_classroom_id');
+    
+    if (storedStudentName) {
+      setStudentName(storedStudentName);
+    }
+
+    // Get grade level
+    const getGradeLevel = async () => {
+      if (storedClassroomId) {
+        try {
+          const { data: classroom } = await anonymousSupabase
+            .from('classrooms')
+            .select('grade_level')
+            .eq('id', storedClassroomId)
+            .single();
+          
+          if (classroom?.grade_level) {
+            setGradeLevel(classroom.grade_level);
+          }
+        } catch (error) {
+          console.error('Failed to get grade level:', error);
+        }
+      }
+    };
+    
+    getGradeLevel();
+  }, []);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || isLoading) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: chatInput,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setIsLoading(true);
+
+    try {
+      // Get tower ID from URL params
+      const towerId = window.location.pathname.split('/').pop();
+      
+      const response = await fetch(`http://127.0.0.1:54321/functions/v1/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0`
+        },
+        body: JSON.stringify({
+          message: chatInput,
+          towerId: towerId,
+          studentName: studentName,
+          selectedSources: selectedSources,
+          gradeLevel: gradeLevel
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get AI response');
+      }
+
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: data.response,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: "Sorry, I'm having trouble connecting right now. Please try again later.",
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   return (
     <div className="flex-1 bg-background flex flex-col">
@@ -318,12 +531,64 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
           </Button>
         </div>
 
-        {/* Chat Interface Placeholder */}
-        <div className="border border-border rounded-lg p-4 bg-muted/20">
-          <p className="text-sm text-muted-foreground mb-2">Chat functionality coming soon...</p>
-          <p className="text-xs text-muted-foreground">
-            This will allow students to ask questions about their tower data and get AI-powered insights.
-          </p>
+        {/* Chat Messages */}
+        <div className="space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Ask me anything about your tower data!</p>
+              <p className="text-sm">I can help you understand patterns, predict harvests, and learn about hydroponics.</p>
+            </div>
+          )}
+          
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div className={`flex gap-3 max-w-[80%] ${
+                message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.role === 'user' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted'
+                }`}>
+                  {message.role === 'user' ? (
+                    <User className="h-4 w-4" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                </div>
+                
+                <div className={`rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="bg-muted rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600" />
+                  <span>Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -345,12 +610,18 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
         
         <div className="flex gap-2">
           <Input
-            placeholder="Start typing..."
+            placeholder="Ask about your tower data..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={handleKeyPress}
             className="flex-1"
+            disabled={isLoading}
           />
-          <Button size="sm" disabled>
+          <Button 
+            size="sm" 
+            onClick={sendMessage}
+            disabled={isLoading || !chatInput.trim()}
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -518,7 +789,18 @@ export default function StudentTowerNotebook() {
       {/* Top Bar */}
       <div className="h-16 border-b border-border bg-background flex items-center justify-between px-6">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-semibold">{towerName || "Tower"}</h1>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/student/dashboard">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-green-600" />
+            </div>
+            <h1 className="text-xl font-semibold">{towerName || "Tower"}</h1>
+          </div>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -536,7 +818,11 @@ export default function StudentTowerNotebook() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        <SourcesPanel towerId={towerId} />
+        <SourcesPanel 
+          towerId={towerId} 
+          selectedSources={selectedSources} 
+          setSelectedSources={setSelectedSources} 
+        />
         <ChatPanel towerName={towerName} selectedSources={selectedSources} />
         <CreatePanel towerId={towerId} />
       </div>
