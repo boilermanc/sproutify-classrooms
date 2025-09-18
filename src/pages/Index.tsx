@@ -471,7 +471,7 @@ const Index = () => {
             stripe_subscription_id: null,
             subscription_ends_at: null,
             // Set default avatar
-            avatar_url: "https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
+            avatar_url: "https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
           },
           { onConflict: "id" }
         );
@@ -563,7 +563,7 @@ const Index = () => {
             stripe_subscription_id: null,
             subscription_ends_at: null,
             // Set default avatar
-            avatar_url: "https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
+            avatar_url: "https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/avatars/3ed72cee-a334-4c41-ba1d-49437aa1144f/BCO.52a99b16-ea69-4a75-93cd-dbdd2eda7c65.png"
           },
           { onConflict: "id" }
         );
@@ -870,10 +870,10 @@ const Index = () => {
               playsInline
               preload="metadata"
               controls
-              poster="https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/site-videos/hero-poster.jpg"
+              poster="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-poster.jpg"
             >
-              <source src="https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/site-videos/hero-1080p.mp4" type="video/mp4" />
-              <source src="https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/site-videos/hero-720p.mp4" type="video/mp4" />
+              <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-1080p.mp4" type="video/mp4" />
+              <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-720p.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
