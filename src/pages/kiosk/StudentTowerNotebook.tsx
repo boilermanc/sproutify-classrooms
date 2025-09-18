@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -842,9 +843,9 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
       try {
         if (!towerId) return;
         
-        // Fetch documents from tower_documents table
+        // Fetch documents from tower_documents table using anonymous client
         // RLS policy allows anonymous users (students) to view tower documents
-        const { data: documents, error } = await supabase
+        const { data: documents, error } = await anonymousSupabase
           .from('tower_documents')
           .select('id, title, description, created_at, file_type, content, document_type, milestone_type')
           .eq('tower_id', towerId)
@@ -854,6 +855,15 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
         console.log('Debug - Tower ID:', towerId);
         console.log('Debug - Documents found:', documents);
         console.log('Debug - Error:', error);
+        console.log('Debug - Documents length:', documents?.length || 0);
+        
+        // Also check if there are any documents at all in the table
+        const { data: allDocs, error: allDocsError } = await anonymousSupabase
+          .from('tower_documents')
+          .select('id, title, tower_id, created_at')
+          .limit(5);
+        console.log('Debug - All documents in table:', allDocs);
+        console.log('Debug - All docs error:', allDocsError);
 
         if (error) {
           console.error('Error fetching documents:', error);
