@@ -216,22 +216,6 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
     fetchSources();
   }, [towerId]);
 
-  const handleSourceToggle = (sourceId: string) => {
-    setSelectedSources(prev => 
-      prev.includes(sourceId) 
-        ? prev.filter(id => id !== sourceId)
-        : [...prev, sourceId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedSources.length === sources.length) {
-      setSelectedSources([]);
-    } else {
-      setSelectedSources(sources.map(s => s.id));
-    }
-  };
-
   const getSourceIcon = (type: SourceItem['type']) => {
     switch (type) {
       case 'plant': return <Leaf className="h-4 w-4" />;
@@ -314,7 +298,13 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
           <Checkbox 
             id="select-all"
             checked={selectedSources.length === sources.length && sources.length > 0}
-            onCheckedChange={handleSelectAll}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setSelectedSources(sources.map(s => s.id));
+              } else {
+                setSelectedSources([]);
+              }
+            }}
           />
           <label htmlFor="select-all" className="text-sm font-medium">
             Select all sources
@@ -342,7 +332,13 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
               <div key={source.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50">
                 <Checkbox 
                   checked={selectedSources.includes(source.id)}
-                  onCheckedChange={() => handleSourceToggle(source.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedSources(prev => [...prev, source.id]);
+                    } else {
+                      setSelectedSources(prev => prev.filter(id => id !== source.id));
+                    }
+                  }}
                 />
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
                   {getSourceIcon(source.type)}
