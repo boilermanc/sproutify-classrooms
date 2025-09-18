@@ -31,6 +31,26 @@ export default function StudentHarvestForm() {
     // Fetch available plants from classroom catalog
     const { activePlants, isLoading: plantsLoading, error: plantsError } = useActiveClassroomPlants(teacherId);
 
+    // Early return if no towerId or teacherId
+    if (!towerId || !teacherId) {
+        return (
+            <div className="container py-8">
+                <SEO title="Log Harvest | Sproutify School" />
+                <Card className="max-w-2xl mx-auto">
+                    <CardHeader><CardTitle>Log a Harvest</CardTitle></CardHeader>
+                    <CardContent>
+                        <div className="text-red-500 text-center py-8">
+                            Missing tower or teacher information. Please go back and try again.
+                        </div>
+                        <Button variant="outline" asChild>
+                            <Link to="/student/dashboard">Back to Dashboard</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     const handleSave = async () => {
         if (!towerId || !teacherId || !weight_grams || weight_grams <= 0) {
             toast({ title: "Error", description: "A harvest weight greater than 0 is required.", variant: "destructive" });
@@ -39,7 +59,7 @@ export default function StudentHarvestForm() {
         setLoading(true);
 
         // Get the selected plant name
-        const selectedPlant = activePlants.find(plant => plant.id === selectedPlantId);
+        const selectedPlant = activePlants?.find(plant => plant.id === selectedPlantId);
         const plant_name = selectedPlant?.name || "";
 
         // Call the Edge Function we created in the previous step
@@ -73,7 +93,7 @@ export default function StudentHarvestForm() {
                             <div className="text-red-500 text-sm">
                                 Error loading plants. Please try again.
                             </div>
-                        ) : activePlants.length === 0 ? (
+                        ) : !activePlants || activePlants.length === 0 ? (
                             <div className="text-muted-foreground text-sm">
                                 No plants available in your classroom catalog. Ask your teacher to add some plants.
                             </div>
@@ -83,8 +103,8 @@ export default function StudentHarvestForm() {
                                     <SelectValue placeholder="Choose a plant from your classroom catalog (optional)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">No specific plant</SelectItem>
-                                    {activePlants.map((plant) => (
+                                    <SelectItem value="none">No specific plant</SelectItem>
+                                    {activePlants?.map((plant) => (
                                         <SelectItem key={plant.id} value={plant.id}>
                                             {plant.name}
                                             {plant.category && (
@@ -116,7 +136,11 @@ export default function StudentHarvestForm() {
                         <Button onClick={handleSave} disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Harvest"}
                         </Button>
-                        <Button variant="outline" asChild><Link to="/student/dashboard">Back</Link></Button>
+                        <Button variant="outline" asChild>
+                            <Link to={towerId ? `/student/tower/${towerId}` : "/student/dashboard"}>
+                                Back
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

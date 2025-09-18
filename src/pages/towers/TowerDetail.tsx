@@ -28,6 +28,7 @@ import { TowerHarvestForm } from "@/components/towers/TowerHarvestForm";
 import { TowerWasteForm } from "@/components/towers/TowerWasteForm";
 import { TowerPhotosTab } from "@/components/towers/TowerPhotosTab";
 import { TowerHistory } from "@/components/towers/TowerHistory";
+import { TowerOverview } from "@/components/towers/TowerOverview";
 
 /* =========================
    Types
@@ -403,8 +404,9 @@ export default function TowerDetail() {
             <div className="text-sm text-muted-foreground">{tower.ports} ports</div>
           </div>
         </div>
-        <Tabs defaultValue={initialTab}>
+        <Tabs defaultValue="overview">
           <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="vitals">Vitals</TabsTrigger>
             <TabsTrigger value="plants">Plants</TabsTrigger>
@@ -413,6 +415,7 @@ export default function TowerDetail() {
             <TabsTrigger value="waste">Waste</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
           </TabsList>
+          <TabsContent value="overview" className="mt-4"><TowerOverview towerId={tower.id} teacherId={teacherId} /></TabsContent>
           <TabsContent value="history" className="mt-4"><TowerHistory towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>
           <TabsContent value="vitals" className="mt-4"><TowerVitalsForm towerId={tower.id} teacherId={teacherId} onVitalsSaved={refreshData} /></TabsContent>
           <TabsContent value="plants" className="mt-4"><PlantsTab towerId={tower.id} teacherId={teacherId} refreshKey={refreshKey} /></TabsContent>

@@ -1,6 +1,7 @@
 // src/pages/guides/StudentPestDiseaseGuide.tsx - COMPLETE STUDENT VERSION
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   BookOpen, Users, TrendingUp, Download, Share2, CheckCircle, Bug, PlayCircle, ArrowRight,
   ClipboardList, Search, Microscope, Droplets, Sun, Loader2, AlertTriangle, Eye, Shield,
-  Target, Video as VideoIcon, GraduationCap, Leaf, Lightbulb, Camera, Award
+  Target, Video as VideoIcon, GraduationCap, Leaf, Lightbulb, Camera, Award, Plus
 } from "lucide-react";
 
 /* =========================
@@ -83,9 +84,10 @@ interface PestIdentificationModalProps {
   onClose: () => void;
   onSelect: (pest: PestCatalogItem | null) => void;
   towerLocation?: string;
+  returnUrl?: string;
 }
 
-function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "classroom" }: PestIdentificationModalProps) {
+function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "classroom", returnUrl }: PestIdentificationModalProps) {
     const getTypeIcon = (type: string) => {
       switch (type) {
         case 'pest': return <Bug className="h-4 w-4" />;
@@ -239,7 +241,23 @@ function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "c
                   </Tabs>
                   <div className="flex justify-between pt-4 border-t">
                     <Button variant="outline" onClick={() => setActiveTab('browse')}>Back to Browse</Button>
-                    <div className="space-x-2"><Button variant="outline" onClick={onClose}>Close</Button></div>
+                    <div className="space-x-2">
+                      {returnUrl && (
+                        <Button 
+                          onClick={() => {
+                            const url = new URL(returnUrl);
+                            url.searchParams.set('selectedPestId', selectedPest.id);
+                            url.searchParams.set('selectedPestName', selectedPest.name);
+                            window.location.href = url.toString();
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add to Form
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={onClose}>Close</Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -254,7 +272,11 @@ function PestIdentificationModal({ isOpen, onClose, onSelect, towerLocation = "c
    Student-Focused Main Component
    ========================= */
 export default function StudentPestDiseaseGuide() {
+  const [searchParams] = useSearchParams();
   const [showGuideModal, setShowGuideModal] = useState(false);
+  
+  const returnUrl = searchParams.get('returnUrl');
+  const towerId = searchParams.get('towerId');
 
   const learningGoals = [
     {
@@ -506,6 +528,7 @@ export default function StudentPestDiseaseGuide() {
         onClose={() => setShowGuideModal(false)}
         onSelect={() => setShowGuideModal(false)}
         towerLocation="classroom"
+        returnUrl={returnUrl || undefined}
       />
     </div>
   );

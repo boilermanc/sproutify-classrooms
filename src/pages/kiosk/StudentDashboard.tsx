@@ -71,7 +71,7 @@ function RecentActivityWidget({
     const fetchRecentActivity = async () => {
       try {
         // Fetch recent activities from multiple tables
-        const [vitalsData, photosData, harvestsData, plantingsData, pestsData] = await Promise.all([
+        const [vitalsData, photosData, harvestsData, plantingsData, pestsData, milestonesData] = await Promise.all([
           supabase
             .from('tower_vitals')
             .select('recorded_at, ph, ec, towers(name)')
@@ -105,6 +105,14 @@ function RecentActivityWidget({
             .select('observed_at, pest, towers(name)')
             .eq('teacher_id', teacherId)
             .order('observed_at', { ascending: false })
+            .limit(5),
+          
+          supabase
+            .from('tower_documents')
+            .select('created_at, title, description, milestone_type, classrooms(name)')
+            .eq('teacher_id', teacherId)
+            .eq('document_type', 'milestone')
+            .order('created_at', { ascending: false })
             .limit(5)
         ]);
 
@@ -169,6 +177,28 @@ function RecentActivityWidget({
             title: 'Pest Observed',
             description: pest.pest,
             tower: pest.towers?.name || 'Unknown Tower'
+          });
+        });
+
+        // Process milestones
+        milestonesData.data?.forEach(milestone => {
+          const milestoneIcons: Record<string, string> = {
+            'planting': '🌱',
+            'harvest': '🥗',
+            'observation': '👁️',
+            'achievement': '🏆',
+            'learning': '📚',
+            'custom': '⭐'
+          };
+          
+          allActivities.push({
+            type: 'milestone',
+            date: milestone.created_at,
+            icon: milestoneIcons[milestone.milestone_type] || '⭐',
+            title: 'Milestone Created',
+            description: milestone.title,
+            tower: milestone.classrooms?.name || 'Classroom',
+            milestone_type: milestone.milestone_type
           });
         });
 

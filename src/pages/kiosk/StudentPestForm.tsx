@@ -40,7 +40,7 @@ export default function StudentPestForm() {
             toast({ title: "Save Failed", description: error.message, variant: "destructive" }); 
         } else { 
             toast({ title: "Success!", description: "Pest observation has been logged." }); 
-            navigate("/student/dashboard"); 
+            navigate(towerId ? `/student/tower/${towerId}` : "/student/dashboard"); 
         }
     };
 
@@ -66,7 +66,11 @@ export default function StudentPestForm() {
                         <Button onClick={handleSave} disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Observation"}
                         </Button>
-                        <Button variant="outline" asChild><Link to="/student/dashboard">Back</Link></Button>
+                        <Button variant="outline" asChild>
+                            <Link to={towerId ? `/student/tower/${towerId}` : "/student/dashboard"}>
+                                Back
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
