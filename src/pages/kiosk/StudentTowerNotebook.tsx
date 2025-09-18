@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SEO } from "@/components/SEO";
+import { StudentTowerOverview } from "@/components/towers/StudentTowerOverview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -366,7 +367,7 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
 }
 
 // Center Panel - Chat Component
-function ChatPanel({ towerName, selectedSources }: { towerName: string; selectedSources: string[] }) {
+function ChatPanel({ towerName, selectedSources, towerId }: { towerName: string; selectedSources: string[]; towerId: string }) {
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -500,17 +501,7 @@ function ChatPanel({ towerName, selectedSources }: { towerName: string; selected
             </div>
           </div>
           
-          <div className="prose max-w-none">
-            <p className="text-muted-foreground leading-relaxed">
-              <em className="text-xs text-muted-foreground">[AI-generated summary will appear here]</em><br/><br/>
-              Your tower is currently growing <strong>3 active plants</strong> with 
-              <strong> healthy growth patterns</strong>. Recent pH readings show 
-              <strong> optimal levels</strong> at 6.2, and EC measurements indicate 
-              <strong> good nutrient balance</strong>. No pest issues have been detected 
-              in the last week. Your next harvest is scheduled for 
-              <strong> February 15th</strong>.
-            </p>
-          </div>
+          <StudentTowerOverview towerId={towerId} />
 
           <div className="flex gap-2 mt-4">
             <Button variant="outline" size="sm">
@@ -823,7 +814,7 @@ export default function StudentTowerNotebook() {
           selectedSources={selectedSources} 
           setSelectedSources={setSelectedSources} 
         />
-        <ChatPanel towerName={towerName} selectedSources={selectedSources} />
+        <ChatPanel towerName={towerName} selectedSources={selectedSources} towerId={towerId} />
         <CreatePanel towerId={towerId} />
       </div>
     </div>
