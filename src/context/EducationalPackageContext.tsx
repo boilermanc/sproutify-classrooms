@@ -151,7 +151,7 @@ export function EducationalPackageProvider({
   const fetchClassroomPackage = async (id: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('classrooms')
         .select('educational_package')
         .eq('id', id)
@@ -171,7 +171,7 @@ export function EducationalPackageProvider({
 
   const updatePackage = async (newPackage: EducationalPackageType, id: string) => {
     try {
-      const { error } = await sb
+      const { error } = await supabase
         .from('classrooms')
         .update({ educational_package: newPackage })
         .eq('id', id);

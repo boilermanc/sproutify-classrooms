@@ -126,7 +126,7 @@ export default function Classrooms() {
           .from("classrooms")
           .select("id")
           .eq("kiosk_pin", newPin)
-          .single();
+          .maybeSingle();
           
         if (!existingClassroom) break;
         
@@ -379,7 +379,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
       // Toggle the selection: if currently selected, deselect it; if not selected, select it
       const newSelectionState = !isSelectedForNetwork;
       
-      const { error } = await sb
+      const { error } = await supabase
         .from('classrooms')
         .update({ is_selected_for_network: newSelectionState })
         .eq('id', classroom.id);
@@ -430,7 +430,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
   const loadStudents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from("students")
         .select(`
           id,
@@ -499,7 +499,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
           .select("id")
           .eq("kiosk_pin", newPin)
           .neq("id", classroom.id)
-          .single();
+          .maybeSingle();
           
         if (!existingClassroom) break;
         
@@ -572,7 +572,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
     }
 
     try {
-      const { error } = await sb
+      const { error } = await supabase
         .from("students")
         .insert({
           classroom_id: classroom.id,
@@ -626,7 +626,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
 
   const handleDeleteStudent = async (student: Student) => {
     try {
-      const { error } = await sb
+      const { error } = await supabase
         .from("students")
         .delete()
         .eq("id", student.id);
@@ -689,7 +689,7 @@ function ClassroomRow({ classroom, onReload, userId }: { classroom: Classroom; o
     }
 
     try {
-      const { error } = await sb
+      const { error } = await supabase
         .from("students")
         .update({
           display_name: name,

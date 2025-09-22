@@ -88,7 +88,7 @@ export default function NetworkDashboard() {
 
       // Fallback: query DB
       try {
-        const { data, error } = await sb
+        const { data, error } = await supabase
           .from('classrooms')
           .select('id, name, is_selected_for_network')
           .eq('teacher_id', userId)
