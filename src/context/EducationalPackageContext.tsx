@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { EducationalPackageType } from '@/integrations/supabase/types';
 
-const sb = supabase as any;
 
 export interface PackageFeatures {
   basic_tracking: boolean;

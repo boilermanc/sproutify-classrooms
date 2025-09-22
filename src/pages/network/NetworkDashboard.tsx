@@ -27,7 +27,6 @@ import { useAppStore } from '@/context/AppStore';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-const sb = supabase as any;
 
 interface NetworkStats {
   is_network_enabled: boolean;

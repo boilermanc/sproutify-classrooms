@@ -55,6 +55,7 @@ export default function Classrooms() {
 
   // Form state
   const [name, setName] = useState("");
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -109,6 +110,51 @@ export default function Classrooms() {
     }
   };
 
+  const generatePinForForm = async () => {
+    try {
+      // Generate a unique PIN
+      let newPin;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      do {
+        newPin = Math.floor(1000 + Math.random() * 9000).toString();
+        attempts++;
+        
+        // Check if this PIN already exists
+        const { data: existingClassroom } = await supabase
+          .from("classrooms")
+          .select("id")
+          .eq("kiosk_pin", newPin)
+          .single();
+          
+        if (!existingClassroom) break;
+        
+      } while (attempts < maxAttempts);
+      
+      if (attempts >= maxAttempts) {
+        toast({ 
+          title: "Error", 
+          description: "Could not generate unique PIN after multiple attempts", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      setGeneratedPin(newPin);
+      toast({ 
+        title: "PIN Generated!", 
+        description: `New PIN: ${newPin}` 
+      });
+    } catch (e) {
+      toast({ 
+        title: "Error", 
+        description: "Could not generate PIN", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const createClassroom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) {
@@ -119,13 +165,15 @@ export default function Classrooms() {
       toast({ title: "Missing info", description: "Enter a class name." });
       return;
     }
-    // Generate a temporary PIN - the database trigger should replace it with a unique one
-    const tempPin = Math.floor(1000 + Math.random() * 9000).toString();
+    if (!generatedPin) {
+      toast({ title: "Missing PIN", description: "Please generate a PIN first." });
+      return;
+    }
     
     const { data, error } = await supabase.from("classrooms").insert({
       name,
       teacher_id: userId,
-      kiosk_pin: tempPin, // Temporary value, database trigger should replace with unique PIN
+      kiosk_pin: generatedPin,
       educational_package: "base", // Default educational package
       is_selected_for_network: false, // Default to not selected for network
     }).select("kiosk_pin").single();
@@ -136,7 +184,8 @@ export default function Classrooms() {
     }
     
     setName("");
-    const finalPin = data?.kiosk_pin || tempPin;
+    setGeneratedPin(null);
+    const finalPin = data?.kiosk_pin || generatedPin;
     toast({ 
       title: "Classroom created!", 
       description: `PIN: ${finalPin}` 
@@ -179,16 +228,43 @@ export default function Classrooms() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pin">Kiosk PIN</Label>
-                <Input 
-                  id="pin" 
-                  value="Auto-generated" 
-                  disabled 
-                  className="bg-muted text-muted-foreground cursor-not-allowed"
-                  placeholder="Will be generated automatically"
-                />
-                <p className="text-xs text-muted-foreground">A unique PIN will be generated automatically for your classroom</p>
+                <div className="flex items-center space-x-2">
+                  <Input 
+                    id="pin" 
+                    value={generatedPin || ""} 
+                    disabled 
+                    className="bg-muted text-muted-foreground cursor-not-allowed font-mono"
+                    placeholder="Click 'Generate PIN' to create a unique PIN"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={generatePinForForm}
+                    disabled={!!generatedPin}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Generate PIN
+                  </Button>
+                  {generatedPin && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setGeneratedPin(null)}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {generatedPin 
+                    ? `PIN: ${generatedPin} - Ready to create classroom!` 
+                    : "Generate a unique PIN for your classroom"
+                  }
+                </p>
               </div>
-              <Button type="submit">Create</Button>
+              <Button type="submit" disabled={!generatedPin || !name}>
+                Create Classroom
+              </Button>
             </form>
           </CardContent>
         </Card>
