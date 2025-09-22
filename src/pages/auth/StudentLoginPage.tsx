@@ -126,11 +126,23 @@ export default function StudentLoginPage() {
       }
 
       // Success! Store student session data and redirect
+      console.log("StudentLoginPage - Setting localStorage data:");
+      console.log("  student_classroom_id:", classroom.id);
+      console.log("  student_classroom_name:", classroom.name);
+      console.log("  student_name:", name);
+      
       localStorage.setItem("student_classroom_id", classroom.id);
       localStorage.setItem("student_classroom_name", classroom.name);
       localStorage.setItem("student_name", name);
       
+      // Verify the data was set
+      console.log("StudentLoginPage - Verifying localStorage:");
+      console.log("  student_classroom_id:", localStorage.getItem("student_classroom_id"));
+      console.log("  student_classroom_name:", localStorage.getItem("student_classroom_name"));
+      console.log("  student_name:", localStorage.getItem("student_name"));
+      
       toast({ title: `Welcome, ${name}!` });
+      console.log("StudentLoginPage - Navigating to /student/dashboard");
       navigate("/student/dashboard");
     } catch (error) {
       console.error("Login error:", error);

@@ -9,15 +9,23 @@ export default function StudentLayout({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const [className, setClassName] = useState<string | null>(null);
 
+  console.log("StudentLayout component rendered");
+
   useEffect(() => {
+    console.log("StudentLayout useEffect running");
     // This is the "auth check" for the student portal
     const classroomId = localStorage.getItem("student_classroom_id");
     const classroomName = localStorage.getItem("student_classroom_name");
 
+    console.log("StudentLayout - classroomId:", classroomId);
+    console.log("StudentLayout - classroomName:", classroomName);
+
     if (!classroomId || !classroomName) {
+      console.log("StudentLayout - No classroom data found, redirecting to kiosk");
       // If not "logged in", redirect to the kiosk page
       navigate("/app/kiosk");
     } else {
+      console.log("StudentLayout - Classroom data found, setting className");
       setClassName(classroomName);
     }
   }, [navigate]);

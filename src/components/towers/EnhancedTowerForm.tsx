@@ -31,7 +31,6 @@ export function EnhancedTowerForm({
   onCancel 
 }: EnhancedTowerFormProps) {
   const { toast } = useToast();
-  const { user } = useAppStore();
   
   const [name, setName] = useState(editingTower?.name || "");
   const [ports, setPorts] = useState(editingTower?.ports?.toString() || "");
@@ -81,7 +80,10 @@ export function EnhancedTowerForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
       toast({
         title: "Authentication required",
         description: "Please log in to create a tower.",

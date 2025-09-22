@@ -8,6 +8,7 @@ export type Tower = {
   id: string;
   name: string;
   ports: TowerPortConfig;
+  location?: string;
   createdAt: string;
   vitals: {
     ph?: number;
@@ -63,7 +64,7 @@ type State = {
 
 // UPDATED ACTION TYPE TO INCLUDE CLASSROOM SELECTION
 type Action =
-  | { type: "ADD_TOWER"; payload: { name: string; ports: TowerPortConfig } }
+  | { type: "ADD_TOWER"; payload: { id: string; name: string; ports: TowerPortConfig; location?: string } }
   | { type: "UPDATE_VITALS"; payload: { id: string; ph?: number; ec?: number; lightHours?: number } }
   | { type: "ADD_PEST"; payload: { towerId: string; entry: PestLog } }
   | { type: "ADD_PLANT"; payload: { towerId: string; plant: Plant } }
@@ -82,9 +83,10 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "ADD_TOWER": {
       const t: Tower = {
-        id: nanoid(),
+        id: action.payload.id,
         name: action.payload.name,
         ports: action.payload.ports,
+        location: action.payload.location,
         createdAt: new Date().toISOString(),
         vitals: {},
         plants: [],

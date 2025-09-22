@@ -341,11 +341,24 @@ const Index = () => {
         throw new Error("Could not record your login. Please try again.");
       }
 
+      // Store student session data and redirect
+      console.log("Index.tsx - Setting localStorage data:");
+      console.log("  student_classroom_id:", classroom.id);
+      console.log("  student_classroom_name:", classroom.name);
+      console.log("  student_name:", studentName);
+      
       localStorage.setItem("student_classroom_id", classroom.id);
       localStorage.setItem("student_classroom_name", classroom.name);
       localStorage.setItem("student_name", studentName);
+      
+      // Verify the data was set
+      console.log("Index.tsx - Verifying localStorage:");
+      console.log("  student_classroom_id:", localStorage.getItem("student_classroom_id"));
+      console.log("  student_classroom_name:", localStorage.getItem("student_classroom_name"));
+      console.log("  student_name:", localStorage.getItem("student_name"));
 
       toast({ title: `Welcome, ${studentName}!` });
+      console.log("Index.tsx - Navigating to /student/dashboard");
       navigate("/student/dashboard");
     } catch (err: any) {
       toast({ title: "Login failed", description: err.message, variant: "destructive" });

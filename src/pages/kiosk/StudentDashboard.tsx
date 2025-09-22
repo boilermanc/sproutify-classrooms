@@ -558,7 +558,13 @@ export default function StudentDashboard() {
   const [teacherId, setTeacherId] = useState<string>("");
   const [studentName, setStudentName] = useState<string | null>(null);
 
-  console.log("StudentDashboard component rendered");
+  console.log("🚀 StudentDashboard component rendered!");
+  console.log("🚀 Current URL:", window.location.href);
+  console.log("🚀 localStorage check:", {
+    classroomId: localStorage.getItem("student_classroom_id"),
+    classroomName: localStorage.getItem("student_classroom_name"),
+    studentName: localStorage.getItem("student_name")
+  });
 
   useEffect(() => {
     const storedClassroomId = localStorage.getItem("student_classroom_id");
@@ -616,6 +622,14 @@ export default function StudentDashboard() {
   return (
     <div className="container py-8 space-y-8">
       <SEO title="Student Dashboard | Sproutify School" />
+      
+      {/* Emergency fallback - always show something */}
+      <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
+        <h2 className="text-lg font-bold text-red-800">🚨 DEBUG MODE ACTIVE 🚨</h2>
+        <p className="text-red-700">If you can see this, the StudentDashboard component IS rendering!</p>
+        <p className="text-red-700">Check the browser console for detailed logs.</p>
+      </div>
+      
       <div>
         <h1 className="text-3xl font-bold">
           {studentName ? `Welcome, ${studentName}!` : "Student Dashboard"}
