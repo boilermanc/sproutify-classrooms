@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea, Legend } from 'recharts';
 
 interface SourceDetailModalProps {
   isOpen: boolean;
@@ -443,6 +443,9 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
               {getSourceIcon(sourceData.type)}
               {sourceData.title}
             </DialogTitle>
+            <DialogDescription>
+              View detailed information about this logged source
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">

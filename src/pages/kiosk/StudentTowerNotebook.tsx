@@ -378,8 +378,8 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
                     className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Navigate to tower detail photos tab
-                      window.open(`/app/towers/${towerId}?tab=photos`, '_blank');
+                      // Navigate to student tower detail page
+                      window.open(`/student/tower/${towerId}`, '_blank');
                     }}
                   >
                     <Camera className="h-3 w-3 mr-1" />

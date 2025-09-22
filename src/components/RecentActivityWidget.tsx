@@ -297,8 +297,8 @@ export function RecentActivityWidget({
                     className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity mt-2"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Navigate to tower detail photos tab
-                      window.open(`/app/towers/${activity.towerId}?tab=photos`, '_blank');
+                      // Navigate to student tower detail page
+                      window.open(`/student/tower/${activity.towerId}`, '_blank');
                     }}
                   >
                     <Camera className="h-3 w-3 mr-1" />
