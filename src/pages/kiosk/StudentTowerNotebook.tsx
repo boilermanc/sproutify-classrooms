@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SEO } from "@/components/SEO";
 import { StudentTowerOverview } from "@/components/towers/StudentTowerOverview";
+import { SourceDetailModal } from "@/components/modals/SourceDetailModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +84,9 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
 }) {
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [selectedSourceType, setSelectedSourceType] = useState<string>('');
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -232,6 +236,12 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
     }
   };
 
+  const handleSourceClick = (source: SourceItem) => {
+    setSelectedSourceId(source.id);
+    setSelectedSourceType(source.type);
+    setShowDetailModal(true);
+  };
+
   return (
     <div className="w-80 min-w-80 bg-background border-r border-border h-full flex flex-col">
       <div className="p-4 border-b border-border">
@@ -334,7 +344,7 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
         ) : sources.length > 0 ? (
           <div className="space-y-3">
             {sources.map((source) => (
-              <div key={source.id} className={`flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50 ${selectedSources.includes(source.id) ? 'bg-green-50' : ''}`}>
+              <div key={source.id} className={`flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50 group ${selectedSources.includes(source.id) ? 'bg-green-50' : ''}`}>
                 <Checkbox 
                   checked={selectedSources.includes(source.id)}
                   onCheckedChange={(checked) => {
@@ -345,16 +355,37 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
                     }
                   }}
                 />
-                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                <div 
+                  className="flex items-center space-x-2 flex-1 min-w-0 cursor-pointer hover:bg-muted/30 rounded p-1 -m-1"
+                  onClick={() => handleSourceClick(source)}
+                >
                   {getSourceIcon(source.type)}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{source.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">{source.title}</p>
+                      <Eye className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                     <p className="text-xs text-muted-foreground">{source.date}</p>
                     {source.description && (
                       <p className="text-xs text-muted-foreground truncate">{source.description}</p>
                     )}
                   </div>
                 </div>
+                {source.type === 'photo' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Navigate to tower detail photos tab
+                      window.open(`/app/towers/${towerId}?tab=photos`, '_blank');
+                    }}
+                  >
+                    <Camera className="h-3 w-3 mr-1" />
+                    Gallery
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -366,6 +397,15 @@ function SourcesPanel({ towerId, selectedSources, setSelectedSources }: {
           </div>
         )}
       </div>
+      
+      {/* Source Detail Modal */}
+      <SourceDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        sourceId={selectedSourceId}
+        sourceType={selectedSourceType}
+        towerId={towerId}
+      />
     </div>
   );
 }

@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Eye, Camera } from 'lucide-react';
+import { SourceDetailModal } from '@/components/modals/SourceDetailModal';
 
 interface Activity {
   type: string;
@@ -12,6 +14,8 @@ interface Activity {
   description: string;
   tower?: string;
   student?: string;
+  sourceId?: string;
+  towerId?: string;
 }
 
 interface RecentActivityWidgetProps {
@@ -25,6 +29,10 @@ export function RecentActivityWidget({
 }: RecentActivityWidgetProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [selectedSourceType, setSelectedSourceType] = useState<string>('');
+  const [selectedTowerId, setSelectedTowerId] = useState<string>('');
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
@@ -79,12 +87,14 @@ export function RecentActivityWidget({
         // Process vitals
         vitalsData.data?.forEach(vital => {
           allActivities.push({
-            type: 'vital',
+            type: 'vitals',
             date: vital.recorded_at,
             icon: '📊',
             title: 'Vitals Recorded',
             description: `pH: ${vital.ph}, EC: ${vital.ec}`,
-            tower: vital.towers?.name || 'Unknown Tower'
+            tower: vital.towers?.name || 'Unknown Tower',
+            sourceId: `vital-${vital.id}`,
+            towerId: vital.tower_id
           });
         });
 
@@ -97,7 +107,9 @@ export function RecentActivityWidget({
             title: 'Photo Added',
             description: photo.caption || 'Tower photo',
             tower: photo.towers?.name || 'Unknown Tower',
-            student: photo.student_name
+            student: photo.student_name,
+            sourceId: `photo-${photo.id}`,
+            towerId: photo.tower_id
           });
         });
 
@@ -109,19 +121,23 @@ export function RecentActivityWidget({
             icon: '🥗',
             title: 'Harvest Completed',
             description: `${harvest.plant_name} (${harvest.weight_grams}g)`,
-            tower: harvest.towers?.name || 'Unknown Tower'
+            tower: harvest.towers?.name || 'Unknown Tower',
+            sourceId: `harvest-${harvest.id}`,
+            towerId: harvest.tower_id
           });
         });
 
         // Process plantings
         plantingsData.data?.forEach(planting => {
           allActivities.push({
-            type: 'planting',
+            type: 'plant',
             date: planting.planted_at,
             icon: '🌱',
             title: 'Plant Added',
             description: planting.name,
-            tower: planting.towers?.name || 'Unknown Tower'
+            tower: planting.towers?.name || 'Unknown Tower',
+            sourceId: `plant-${planting.id}`,
+            towerId: planting.tower_id
           });
         });
 
@@ -133,7 +149,9 @@ export function RecentActivityWidget({
             icon: '🐛',
             title: 'Pest Observed',
             description: pest.pest,
-            tower: pest.towers?.name || 'Unknown Tower'
+            tower: pest.towers?.name || 'Unknown Tower',
+            sourceId: `pest-${pest.id}`,
+            towerId: pest.tower_id
           });
         });
 
@@ -173,6 +191,15 @@ export function RecentActivityWidget({
       fetchRecentActivity();
     }
   }, [teacherId, maxItems]);
+
+  const handleActivityClick = (activity: Activity) => {
+    if (activity.sourceId && activity.towerId) {
+      setSelectedSourceId(activity.sourceId);
+      setSelectedSourceType(activity.type);
+      setSelectedTowerId(activity.towerId);
+      setShowDetailModal(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -233,14 +260,25 @@ export function RecentActivityWidget({
       <CardContent>
         <div className="space-y-3">
           {activities.map((activity, index) => (
-            <div key={index} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+            <div 
+              key={index} 
+              className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group ${
+                activity.sourceId ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/20' : ''
+              }`}
+              onClick={() => activity.sourceId && handleActivityClick(activity)}
+            >
               <span className="text-lg">{activity.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm">{activity.title}</h4>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(activity.date).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {activity.sourceId && (
+                      <Eye className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(activity.date).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
                 <div className="flex items-center gap-2 mt-1">
@@ -252,11 +290,35 @@ export function RecentActivityWidget({
                     </>
                   )}
                 </div>
+                {activity.type === 'photo' && activity.towerId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity mt-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Navigate to tower detail photos tab
+                      window.open(`/app/towers/${activity.towerId}?tab=photos`, '_blank');
+                    }}
+                  >
+                    <Camera className="h-3 w-3 mr-1" />
+                    View Gallery
+                  </Button>
+                )}
               </div>
             </div>
           ))}
         </div>
       </CardContent>
+      
+      {/* Source Detail Modal */}
+      <SourceDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        sourceId={selectedSourceId}
+        sourceType={selectedSourceType}
+        towerId={selectedTowerId}
+      />
     </Card>
   );
 }

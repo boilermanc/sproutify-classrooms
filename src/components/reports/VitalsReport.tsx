@@ -90,19 +90,71 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
             
             {/* pH History Report */}
             <AccordionItem value="item-1">
-                <AccordionTrigger className="text-lg font-semibold">pH History</AccordionTrigger>
+                <AccordionTrigger className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500"></div>
+                    pH History
+                </AccordionTrigger>
                 <AccordionContent>
                     {/* The original CardContent is now inside the AccordionContent */}
                     <CardDescription>Tracks the acidity of the water over the last 30 readings.</CardDescription>
                     <div className="h-80 mt-4">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={vitals} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <XAxis dataKey="recorded_at" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                <YAxis domain={[4.5, 7.5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
+                                <XAxis 
+                                    dataKey="recorded_at" 
+                                    stroke="#64748b" 
+                                    fontSize={12}
+                                    tickLine={{ stroke: '#64748b' }}
+                                    axisLine={{ stroke: '#64748b' }}
+                                />
+                                <YAxis 
+                                    domain={[4.5, 7.5]} 
+                                    stroke="#64748b" 
+                                    fontSize={12}
+                                    tickLine={{ stroke: '#64748b' }}
+                                    axisLine={{ stroke: '#64748b' }}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#1e293b', 
+                                        border: '1px solid #334155',
+                                        borderRadius: '8px',
+                                        color: '#f1f5f9'
+                                    }} 
+                                />
                                 <Legend />
-                                <ReferenceArea y1={5.2} y2={5.8} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} label={{ value: 'Ideal', position: 'insideTopRight', fill: 'hsl(var(--primary))', fontSize: 10 }}/>
-                                <Line type="monotone" dataKey="ph" name="pH" stroke="hsl(var(--primary))" connectNulls dot={false} strokeWidth={2} />
+                                <ReferenceArea 
+                                    y1={5.2} 
+                                    y2={5.8} 
+                                    fill="#22c55e" 
+                                    fillOpacity={0.15} 
+                                    stroke="#22c55e" 
+                                    strokeOpacity={0.4} 
+                                    strokeDasharray="5 5"
+                                    label={{ 
+                                        value: 'Ideal Range', 
+                                        position: 'insideTopRight', 
+                                        fill: '#22c55e', 
+                                        fontSize: 11,
+                                        fontWeight: 'bold'
+                                    }}
+                                />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="ph" 
+                                    name="pH Level" 
+                                    stroke="#3b82f6" 
+                                    connectNulls 
+                                    dot={{ 
+                                        fill: '#3b82f6', 
+                                        strokeWidth: 2, 
+                                        r: 4,
+                                        stroke: '#ffffff'
+                                    }} 
+                                    strokeWidth={3}
+                                    animationDuration={1500}
+                                    animationEasing="ease-out"
+                                />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -111,18 +163,70 @@ export default function VitalsReport({ towerId, teacherId }: VitalsReportProps) 
 
             {/* EC History Report */}
             <AccordionItem value="item-2">
-                <AccordionTrigger className="text-lg font-semibold">EC History (mS/cm)</AccordionTrigger>
+                <AccordionTrigger className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-200 via-blue-500 to-purple-500"></div>
+                    EC History (mS/cm)
+                </AccordionTrigger>
                 <AccordionContent>
                     <CardDescription>Tracks the nutrient concentration in the water.</CardDescription>
                     <div className="h-80 mt-4">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={vitals} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <XAxis dataKey="recorded_at" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                <YAxis domain={[0.5, 2.5]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
+                                <XAxis 
+                                    dataKey="recorded_at" 
+                                    stroke="#64748b" 
+                                    fontSize={12}
+                                    tickLine={{ stroke: '#64748b' }}
+                                    axisLine={{ stroke: '#64748b' }}
+                                />
+                                <YAxis 
+                                    domain={[0.5, 2.5]} 
+                                    stroke="#64748b" 
+                                    fontSize={12}
+                                    tickLine={{ stroke: '#64748b' }}
+                                    axisLine={{ stroke: '#64748b' }}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#1e293b', 
+                                        border: '1px solid #334155',
+                                        borderRadius: '8px',
+                                        color: '#f1f5f9'
+                                    }}
+                                />
                                 <Legend />
-                                <ReferenceArea y1={1.2} y2={2.0} fill="hsl(var(--primary))" fillOpacity={0.1} stroke="hsl(var(--primary))" strokeOpacity={0.3} label={{ value: 'Ideal', position: 'insideTopRight', fill: 'hsl(var(--primary))', fontSize: 10 }} />
-                                <Line type="monotone" dataKey="ec" name="EC" stroke="hsl(var(--primary))" connectNulls dot={false} strokeWidth={2} />
+                                <ReferenceArea 
+                                    y1={1.2} 
+                                    y2={2.0} 
+                                    fill="#22c55e" 
+                                    fillOpacity={0.15} 
+                                    stroke="#22c55e" 
+                                    strokeOpacity={0.4} 
+                                    strokeDasharray="5 5"
+                                    label={{ 
+                                        value: 'Ideal Range', 
+                                        position: 'insideTopRight', 
+                                        fill: '#22c55e', 
+                                        fontSize: 11,
+                                        fontWeight: 'bold'
+                                    }} 
+                                />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="ec" 
+                                    name="EC Level" 
+                                    stroke="#22c55e" 
+                                    connectNulls 
+                                    dot={{ 
+                                        fill: '#22c55e', 
+                                        strokeWidth: 2, 
+                                        r: 4,
+                                        stroke: '#ffffff'
+                                    }} 
+                                    strokeWidth={3}
+                                    animationDuration={1500}
+                                    animationEasing="ease-out"
+                                />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
