@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -569,24 +570,25 @@ export default function StudentDashboard() {
 
     const fetchTowersForClass = async () => {
       // First, get the teacher_id for the classroom
-      const { data: classroomData, error: classError } = await supabase
+      const { data: classroomData, error: classError } = await anonymousSupabase
         .from("classrooms")
         .select("teacher_id")
         .eq("id", storedClassroomId)
         .single();
       
       if (classError || !classroomData) {
-        console.error("Could not find classroom's teacher");
+        console.error("Could not find classroom's teacher:", classError);
         setLoading(false);
         return;
       }
 
       const currentTeacherId = classroomData.teacher_id;
+      console.log("Found teacher ID:", currentTeacherId);
       setTeacherId(currentTeacherId);
       localStorage.setItem("teacher_id_for_tower", currentTeacherId);
       
       // Now, fetch ALL towers belonging to that teacher
-      const { data: towerData, error: towerError } = await supabase
+      const { data: towerData, error: towerError } = await anonymousSupabase
         .from("towers")
         .select("id, name, ports") // Get all the info we need for the cards
         .eq("teacher_id", currentTeacherId);
@@ -594,6 +596,7 @@ export default function StudentDashboard() {
       if (towerError) {
         console.error("Could not find towers for this class:", towerError);
       } else {
+        console.log("Found towers:", towerData);
         setTowers(towerData || []);
       }
       setLoading(false);

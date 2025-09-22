@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 
 interface LeaderboardStats {
   totalWeight: number;
@@ -24,15 +25,21 @@ export default function Leaderboard() {
 
   const loadLeaderboardData = async () => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Get teacher ID from localStorage (set during student login)
+      const teacherId = localStorage.getItem("teacher_id_for_tower");
+      if (!teacherId) {
+        console.log("No teacher ID found in localStorage");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Loading leaderboard data for teacher:", teacherId);
 
       // Get harvest totals from database
-      const { data: harvestData, error: harvestError } = await supabase
+      const { data: harvestData, error: harvestError } = await anonymousSupabase
         .from('harvests')
         .select('weight_grams, plant_quantity')
-        .eq('teacher_id', user.id);
+        .eq('teacher_id', teacherId);
 
       if (harvestError) {
         console.error('Error loading harvest data:', harvestError);
@@ -40,10 +47,10 @@ export default function Leaderboard() {
       }
 
       // Get tower count from database
-      const { data: towerData, error: towerError } = await supabase
+      const { data: towerData, error: towerError } = await anonymousSupabase
         .from('towers')
         .select('id')
-        .eq('teacher_id', user.id);
+        .eq('teacher_id', teacherId);
 
       if (towerError) {
         console.error('Error loading tower data:', towerError);
@@ -54,6 +61,8 @@ export default function Leaderboard() {
       const totalWeight = harvestData?.reduce((sum, h) => sum + (h.weight_grams || 0), 0) || 0;
       const totalPlants = harvestData?.reduce((sum, h) => sum + (h.plant_quantity || 0), 0) || 0;
       const towerCount = towerData?.length || 0;
+
+      console.log("Leaderboard stats:", { totalWeight, totalPlants, towerCount });
 
       setStats({
         totalWeight,
