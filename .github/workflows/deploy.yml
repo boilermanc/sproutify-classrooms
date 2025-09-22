@@ -10,9 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+      VITE_DB_SCHEMA: ${{ secrets.VITE_DB_SCHEMA }}
       # (Feature flags: set defaults in code; avoid referencing missing vars/secrets here.)
 
     steps:
