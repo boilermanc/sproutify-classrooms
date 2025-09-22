@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function StudentLoginPage() {
   const navigate = useNavigate();
@@ -20,6 +20,8 @@ export default function StudentLoginPage() {
   const [studentPin, setStudentPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showKioskPin, setShowKioskPin] = useState(false);
+  const [showStudentPin, setShowStudentPin] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,9 +32,28 @@ export default function StudentLoginPage() {
     const classroomPin = kioskPin.trim();
     const pin = studentPin.trim();
 
-    // Validate student PIN format
+    // Validate all fields
+    if (!name) {
+      setError("Please enter your name.");
+      setLoading(false);
+      return;
+    }
+
+    if (!classroomPin) {
+      setError("Please enter the Classroom PIN.");
+      setLoading(false);
+      return;
+    }
+
     if (!pin) {
-      setError("Please enter your student PIN.");
+      setError("Please enter your Student PIN.");
+      setLoading(false);
+      return;
+    }
+
+    // Validate PIN formats
+    if (!/^\d{4}$/.test(classroomPin)) {
+      setError("Classroom PIN must be exactly 4 digits.");
       setLoading(false);
       return;
     }
@@ -145,25 +166,57 @@ export default function StudentLoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="kioskPin">Classroom PIN</Label>
-                <Input
-                  id="kioskPin"
-                  type="password"
-                  value={kioskPin}
-                  onChange={(e) => setKioskPin(e.target.value)}
-                  placeholder="4-digit PIN from your teacher"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="kioskPin"
+                    type={showKioskPin ? "text" : "password"}
+                    value={kioskPin}
+                    onChange={(e) => setKioskPin(e.target.value)}
+                    placeholder="4-digit PIN from your teacher"
+                    className="pr-10"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowKioskPin(!showKioskPin)}
+                  >
+                    {showKioskPin ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="studentPin">Your Student PIN</Label>
-                <Input
-                  id="studentPin"
-                  type="password"
-                  value={studentPin}
-                  onChange={(e) => setStudentPin(e.target.value)}
-                  placeholder="4-6 digit PIN assigned by your teacher"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="studentPin"
+                    type={showStudentPin ? "text" : "password"}
+                    value={studentPin}
+                    onChange={(e) => setStudentPin(e.target.value)}
+                    placeholder="4-6 digit PIN assigned by your teacher"
+                    className="pr-10"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowStudentPin(!showStudentPin)}
+                  >
+                    {showStudentPin ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={loading}>

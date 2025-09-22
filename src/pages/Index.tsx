@@ -205,6 +205,8 @@ const Index = () => {
     studentPin: "",
     loading: false,
   });
+  const [showStudentKioskPin, setShowStudentKioskPin] = useState(false);
+  const [showStudentStudentPin, setShowStudentStudentPin] = useState(false);
 
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -295,7 +297,9 @@ const Index = () => {
       const studentPin = studentForm.studentPin.trim();
       
       if (!studentName) throw new Error("Please enter your name");
+      if (!kioskPin) throw new Error("Please enter the Classroom PIN");
       if (!studentPin) throw new Error("Please enter your student PIN");
+      if (!/^\d{4}$/.test(kioskPin)) throw new Error("Classroom PIN must be exactly 4 digits");
       if (!/^\d{4,6}$/.test(studentPin)) throw new Error("Student PIN must be 4-6 digits");
 
       // Use direct fetch for kiosk login
@@ -791,25 +795,57 @@ const Index = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="kioskPinTop">Classroom PIN</Label>
-                      <Input
-                        id="kioskPinTop"
-                        type="password"
-                        required
-                        placeholder="4-digit PIN from your teacher"
-                        value={studentForm.kioskPin}
-                        onChange={(e) => setStudentForm((p) => ({ ...p, kioskPin: e.target.value }))}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="kioskPinTop"
+                          type={showStudentKioskPin ? "text" : "password"}
+                          required
+                          placeholder="4-digit PIN from your teacher"
+                          value={studentForm.kioskPin}
+                          onChange={(e) => setStudentForm((p) => ({ ...p, kioskPin: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowStudentKioskPin(!showStudentKioskPin)}
+                        >
+                          {showStudentKioskPin ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="studentPinTop">Your Student PIN</Label>
-                      <Input
-                        id="studentPinTop"
-                        type="password"
-                        required
-                        placeholder="4-6 digit PIN assigned by your teacher"
-                        value={studentForm.studentPin}
-                        onChange={(e) => setStudentForm((p) => ({ ...p, studentPin: e.target.value }))}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="studentPinTop"
+                          type={showStudentStudentPin ? "text" : "password"}
+                          required
+                          placeholder="4-6 digit PIN assigned by your teacher"
+                          value={studentForm.studentPin}
+                          onChange={(e) => setStudentForm((p) => ({ ...p, studentPin: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowStudentStudentPin(!showStudentStudentPin)}
+                        >
+                          {showStudentStudentPin ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <Button type="submit" disabled={studentForm.loading}>
