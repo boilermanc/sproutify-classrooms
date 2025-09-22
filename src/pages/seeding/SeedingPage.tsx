@@ -1,5 +1,6 @@
 // SeedingPage v2.0 - Fixed database schema issues
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,8 +27,9 @@ interface Student {
 }
 
 export default function SeedingPage() {
+  const { classroomId } = useParams<{ classroomId?: string }>();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [selectedClassroom, setSelectedClassroom] = useState<string>('');
+  const [selectedClassroom, setSelectedClassroom] = useState<string>(classroomId || '');
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [showExperienceSelector, setShowExperienceSelector] = useState(false);
@@ -37,6 +39,12 @@ export default function SeedingPage() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (classroomId) {
+      setSelectedClassroom(classroomId);
+    }
+  }, [classroomId]);
 
   useEffect(() => {
     if (selectedClassroom) {
@@ -64,7 +72,19 @@ export default function SeedingPage() {
         // User is a teacher
         setUserRole('teacher');
         setClassrooms(teacherClassrooms);
-        setSelectedClassroom(teacherClassrooms[0].id);
+        
+        // If a classroom ID is provided in the URL, validate it belongs to this teacher
+        if (classroomId) {
+          const validClassroom = teacherClassrooms.find(c => c.id === classroomId);
+          if (validClassroom) {
+            setSelectedClassroom(classroomId);
+          } else {
+            // Invalid classroom ID, use first available classroom
+            setSelectedClassroom(teacherClassrooms[0].id);
+          }
+        } else {
+          setSelectedClassroom(teacherClassrooms[0].id);
+        }
       } else {
         // Check if user is a student
         const { data: studentRecord, error: studentError } = await supabase

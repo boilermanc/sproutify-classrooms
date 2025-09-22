@@ -287,7 +287,7 @@ const App = () => (
             <Route path="settings" element={<AccountSettings />} />
             
             {/* Seeding routes */}
-            <Route path="seeding" element={
+            <Route path="seeding/:classroomId?" element={
               <Suspense fallback={<PageLoader />}>
                 <SeedingPage />
               </Suspense>
