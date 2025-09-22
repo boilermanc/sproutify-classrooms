@@ -101,7 +101,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
         case 'plant':
           const { data: plantData } = await supabase
             .from('plantings')
-            .select('*')
+            .select('*, plant_catalog (*)')
             .eq('id', sourceId.replace('plant-', ''))
             .single();
           data = plantData;
@@ -128,7 +128,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
         case 'pest':
           const { data: pestData } = await supabase
             .from('pest_logs')
-            .select('*')
+            .select('*, pest_catalog (*)')
             .eq('id', sourceId.replace('pest-', ''))
             .single();
           data = pestData;
@@ -169,10 +169,21 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
     switch (type) {
       case 'vitals': return `pH: ${data.ph}, EC: ${data.ec}`;
       case 'photo': return data.caption || 'No description';
-      case 'plant': return data.port_number ? `Port ${data.port_number}` : undefined;
+      case 'plant': {
+        const parts = [];
+        if (data.port_number) parts.push(`Port ${data.port_number}`);
+        if (data.quantity) parts.push(`Qty: ${data.quantity}`);
+        if (data.plant_catalog?.category) parts.push(data.plant_catalog.category);
+        return parts.length > 0 ? parts.join(' • ') : undefined;
+      }
       case 'harvest': return `${data.weight_grams}g${data.destination ? ` → ${data.destination}` : ''}`;
       case 'waste': return `${data.grams}g - ${data.notes || 'No notes'}`;
-      case 'pest': return data.pest;
+      case 'pest': {
+        const parts = [data.pest];
+        if (data.severity) parts.push(`Severity: ${data.severity}/10`);
+        if (data.location_on_tower) parts.push(`Location: ${data.location_on_tower}`);
+        return parts.join(' • ');
+      }
       default: return undefined;
     }
   };
@@ -493,6 +504,292 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
                           By {sourceData.data.student_name}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {sourceData.type === 'plant' && sourceData.data && (
+                    <div className="space-y-4">
+                      {/* Plant Catalog Information */}
+                      {sourceData.data.plant_catalog && (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-lg flex items-center gap-2">
+                            <Leaf className="h-5 w-5 text-green-600" />
+                            Plant Information
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {sourceData.data.plant_catalog.description && (
+                              <div className="p-3 rounded-lg bg-green-50">
+                                <div className="text-sm font-medium text-green-900">Description</div>
+                                <div className="text-sm text-green-700 mt-1">{sourceData.data.plant_catalog.description}</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.plant_catalog.category && (
+                              <div className="p-3 rounded-lg bg-blue-50">
+                                <div className="text-sm font-medium text-blue-900">Category</div>
+                                <div className="text-sm text-blue-700 mt-1">{sourceData.data.plant_catalog.category}</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.plant_catalog.germination_days && (
+                              <div className="p-3 rounded-lg bg-purple-50">
+                                <div className="text-sm font-medium text-purple-900">Germination Days</div>
+                                <div className="text-sm text-purple-700 mt-1">{sourceData.data.plant_catalog.germination_days} days</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.plant_catalog.harvest_days && (
+                              <div className="p-3 rounded-lg bg-orange-50">
+                                <div className="text-sm font-medium text-orange-900">Harvest Days</div>
+                                <div className="text-sm text-orange-700 mt-1">{sourceData.data.plant_catalog.harvest_days} days</div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {sourceData.data.plant_catalog.image_url && (
+                            <div className="p-3 rounded-lg bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900 mb-2">Plant Image</div>
+                              <img
+                                src={sourceData.data.plant_catalog.image_url}
+                                alt={sourceData.data.name}
+                                className="w-full max-h-48 object-contain rounded-lg"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Planting Details */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-blue-600" />
+                          Planting Details
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {sourceData.data.quantity && (
+                            <div className="p-3 rounded-lg bg-green-50">
+                              <div className="text-sm font-medium text-green-900">Quantity Planted</div>
+                              <div className="text-xl font-bold text-green-600">{sourceData.data.quantity}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.port_number && (
+                            <div className="p-3 rounded-lg bg-blue-50">
+                              <div className="text-sm font-medium text-blue-900">Port Number</div>
+                              <div className="text-xl font-bold text-blue-600">{sourceData.data.port_number}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.seeded_at && (
+                            <div className="p-3 rounded-lg bg-purple-50">
+                              <div className="text-sm font-medium text-purple-900">Seeded Date</div>
+                              <div className="text-sm text-purple-700 mt-1">{new Date(sourceData.data.seeded_at).toLocaleDateString()}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.planted_at && (
+                            <div className="p-3 rounded-lg bg-orange-50">
+                              <div className="text-sm font-medium text-orange-900">Planted Date</div>
+                              <div className="text-sm text-orange-700 mt-1">{new Date(sourceData.data.planted_at).toLocaleDateString()}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.expected_harvest_date && (
+                            <div className="p-3 rounded-lg bg-yellow-50">
+                              <div className="text-sm font-medium text-yellow-900">Expected Harvest</div>
+                              <div className="text-sm text-yellow-700 mt-1">{new Date(sourceData.data.expected_harvest_date).toLocaleDateString()}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.status && (
+                            <div className="p-3 rounded-lg bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900">Status</div>
+                              <Badge variant="outline" className="mt-1">
+                                {sourceData.data.status}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {sourceData.data.outcome && (
+                          <div className="p-3 rounded-lg bg-gray-50">
+                            <div className="text-sm font-medium text-gray-900">Outcome/Notes</div>
+                            <div className="text-sm text-gray-700 mt-1">{sourceData.data.outcome}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {sourceData.type === 'pest' && sourceData.data && (
+                    <div className="space-y-4">
+                      {/* Pest Catalog Information */}
+                      {sourceData.data.pest_catalog && (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-lg flex items-center gap-2">
+                            <Bug className="h-5 w-5 text-red-600" />
+                            Pest Information
+                          </h4>
+                          
+                          <div className="space-y-3">
+                            {sourceData.data.pest_catalog.description && (
+                              <div className="p-3 rounded-lg bg-red-50">
+                                <div className="text-sm font-medium text-red-900">Description</div>
+                                <div className="text-sm text-red-700 mt-1">{sourceData.data.pest_catalog.description}</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.pest_catalog.scientific_name && (
+                              <div className="p-3 rounded-lg bg-blue-50">
+                                <div className="text-sm font-medium text-blue-900">Scientific Name</div>
+                                <div className="text-sm text-blue-700 mt-1 italic">{sourceData.data.pest_catalog.scientific_name}</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.pest_catalog.appearance_details && (
+                              <div className="p-3 rounded-lg bg-purple-50">
+                                <div className="text-sm font-medium text-purple-900">Appearance</div>
+                                <div className="text-sm text-purple-700 mt-1">{sourceData.data.pest_catalog.appearance_details}</div>
+                              </div>
+                            )}
+                            
+                            {sourceData.data.pest_catalog.damage_caused && sourceData.data.pest_catalog.damage_caused.length > 0 && (
+                              <div className="p-3 rounded-lg bg-orange-50">
+                                <div className="text-sm font-medium text-orange-900">Damage Caused</div>
+                                <ul className="text-sm text-orange-700 mt-1 list-disc list-inside">
+                                  {sourceData.data.pest_catalog.damage_caused.map((damage: string, index: number) => (
+                                    <li key={index}>{damage}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Treatment and Management */}
+                      {sourceData.data.pest_catalog && (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-lg flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-green-600" />
+                            Treatment & Management
+                          </h4>
+                          
+                          {sourceData.data.pest_catalog.omri_remedies && sourceData.data.pest_catalog.omri_remedies.length > 0 && (
+                            <div className="p-3 rounded-lg bg-green-50">
+                              <div className="text-sm font-medium text-green-900">OMRI-Approved Remedies</div>
+                              <ul className="text-sm text-green-700 mt-1 list-disc list-inside">
+                                {sourceData.data.pest_catalog.omri_remedies.map((remedy: string, index: number) => (
+                                  <li key={index}>{remedy}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.pest_catalog.management_strategies && sourceData.data.pest_catalog.management_strategies.length > 0 && (
+                            <div className="p-3 rounded-lg bg-blue-50">
+                              <div className="text-sm font-medium text-blue-900">Management Strategies</div>
+                              <ul className="text-sm text-blue-700 mt-1 list-disc list-inside">
+                                {sourceData.data.pest_catalog.management_strategies.map((strategy: string, index: number) => (
+                                  <li key={index}>{strategy}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.pest_catalog.prevention_methods && sourceData.data.pest_catalog.prevention_methods.length > 0 && (
+                            <div className="p-3 rounded-lg bg-purple-50">
+                              <div className="text-sm font-medium text-purple-900">Prevention Methods</div>
+                              <ul className="text-sm text-purple-700 mt-1 list-disc list-inside">
+                                {sourceData.data.pest_catalog.prevention_methods.map((method: string, index: number) => (
+                                  <li key={index}>{method}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.pest_catalog.video_url && (
+                            <div className="p-3 rounded-lg bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900 mb-2">Educational Video</div>
+                              <div className="aspect-video rounded-lg overflow-hidden">
+                                <iframe
+                                  src={sourceData.data.pest_catalog.video_url}
+                                  title={`${sourceData.data.pest_catalog.name} treatment video`}
+                                  className="w-full h-full"
+                                  allowFullScreen
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Observation Details */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-blue-600" />
+                          Observation Details
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {sourceData.data.severity && (
+                            <div className="p-3 rounded-lg bg-yellow-50">
+                              <div className="text-sm font-medium text-yellow-900">Severity Level</div>
+                              <div className="text-xl font-bold text-yellow-600">{sourceData.data.severity}/10</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.location_on_tower && (
+                            <div className="p-3 rounded-lg bg-blue-50">
+                              <div className="text-sm font-medium text-blue-900">Location on Tower</div>
+                              <div className="text-sm text-blue-700 mt-1">{sourceData.data.location_on_tower}</div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.affected_plants && sourceData.data.affected_plants.length > 0 && (
+                            <div className="p-3 rounded-lg bg-green-50">
+                              <div className="text-sm font-medium text-green-900">Affected Plants</div>
+                              <div className="text-sm text-green-700 mt-1">
+                                {sourceData.data.affected_plants.join(', ')}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {sourceData.data.resolved !== null && (
+                            <div className="p-3 rounded-lg bg-gray-50">
+                              <div className="text-sm font-medium text-gray-900">Status</div>
+                              <Badge variant={sourceData.data.resolved ? "default" : "destructive"} className="mt-1">
+                                {sourceData.data.resolved ? "Resolved" : "Active"}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {sourceData.data.action && (
+                          <div className="p-3 rounded-lg bg-blue-50">
+                            <div className="text-sm font-medium text-blue-900">Action Taken</div>
+                            <div className="text-sm text-blue-700 mt-1">{sourceData.data.action}</div>
+                          </div>
+                        )}
+                        
+                        {sourceData.data.notes && (
+                          <div className="p-3 rounded-lg bg-gray-50">
+                            <div className="text-sm font-medium text-gray-900">Notes</div>
+                            <div className="text-sm text-gray-700 mt-1">{sourceData.data.notes}</div>
+                          </div>
+                        )}
+                        
+                        {sourceData.data.follow_up_needed && sourceData.data.follow_up_date && (
+                          <div className="p-3 rounded-lg bg-orange-50">
+                            <div className="text-sm font-medium text-orange-900">Follow-up Required</div>
+                            <div className="text-sm text-orange-700 mt-1">
+                              Scheduled for {new Date(sourceData.data.follow_up_date).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
