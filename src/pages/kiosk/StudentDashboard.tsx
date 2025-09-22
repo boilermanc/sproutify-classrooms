@@ -70,7 +70,6 @@ function RecentActivityWidget({
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
-      console.log("RecentActivityWidget - fetching data for teacherId:", teacherId);
       try {
         // Fetch recent activities from multiple tables
         const [vitalsData, photosData, harvestsData, plantingsData, pestsData, milestonesData] = await Promise.all([
@@ -316,7 +315,6 @@ function StudentHarvestWidget({
 
   useEffect(() => {
     const fetchHarvests = async () => {
-      console.log("StudentHarvestWidget - fetching data for teacherId:", teacherId);
       try {
         const { data, error } = await anonymousSupabase
           .from('plantings')
@@ -558,23 +556,11 @@ export default function StudentDashboard() {
   const [teacherId, setTeacherId] = useState<string>("");
   const [studentName, setStudentName] = useState<string | null>(null);
 
-  console.log("🚀 StudentDashboard component rendered!");
-  console.log("🚀 Current URL:", window.location.href);
-  console.log("🚀 localStorage check:", {
-    classroomId: localStorage.getItem("student_classroom_id"),
-    classroomName: localStorage.getItem("student_classroom_name"),
-    studentName: localStorage.getItem("student_name")
-  });
-
   useEffect(() => {
     const storedClassroomId = localStorage.getItem("student_classroom_id");
     const storedStudentName = localStorage.getItem("student_name");
     
-    console.log("StudentDashboard useEffect - storedClassroomId:", storedClassroomId);
-    console.log("StudentDashboard useEffect - storedStudentName:", storedStudentName);
-    
     if (!storedClassroomId) {
-      console.log("No classroom ID found in localStorage");
       setLoading(false);
       return;
     }
@@ -591,13 +577,11 @@ export default function StudentDashboard() {
         .single();
       
       if (classError || !classroomData) {
-        console.error("Could not find classroom's teacher:", classError);
         setLoading(false);
         return;
       }
 
       const currentTeacherId = classroomData.teacher_id;
-      console.log("Found teacher ID:", currentTeacherId);
       setTeacherId(currentTeacherId);
       localStorage.setItem("teacher_id_for_tower", currentTeacherId);
       
@@ -608,9 +592,8 @@ export default function StudentDashboard() {
         .eq("teacher_id", currentTeacherId);
       
       if (towerError) {
-        console.error("Could not find towers for this class:", towerError);
+        // Handle error silently
       } else {
-        console.log("Found towers:", towerData);
         setTowers(towerData || []);
       }
       setLoading(false);
@@ -623,28 +606,11 @@ export default function StudentDashboard() {
     <div className="container py-8 space-y-8">
       <SEO title="Student Dashboard | Sproutify School" />
       
-      {/* Emergency fallback - always show something */}
-      <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
-        <h2 className="text-lg font-bold text-red-800">🚨 DEBUG MODE ACTIVE 🚨</h2>
-        <p className="text-red-700">If you can see this, the StudentDashboard component IS rendering!</p>
-        <p className="text-red-700">Check the browser console for detailed logs.</p>
-      </div>
-      
       <div>
         <h1 className="text-3xl font-bold">
           {studentName ? `Welcome, ${studentName}!` : "Student Dashboard"}
         </h1>
         <p className="text-muted-foreground">Check harvest schedule and select a tower to log data.</p>
-        
-        {/* Debug info */}
-        <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm">
-          <p><strong>Debug Info:</strong></p>
-          <p>Loading: {loading ? 'true' : 'false'}</p>
-          <p>Classroom ID: {classroomId || 'Not set'}</p>
-          <p>Teacher ID: {teacherId || 'Not set'}</p>
-          <p>Student Name: {studentName || 'Not set'}</p>
-          <p>Towers Count: {towers.length}</p>
-        </div>
       </div>
 
       {/* Harvest Schedule and Recent Activity Section */}

@@ -914,18 +914,20 @@ const Index = () => {
           </p>
 
           {/* Hero Video */}
-          <div className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-lg">
-            <video
-              className="w-full h-auto"
-              playsInline
-              preload="metadata"
-              controls
-              poster="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-poster.jpg"
-            >
-              <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-1080p.mp4" type="video/mp4" />
-              <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-720p.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+          <div className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-lg bg-black">
+            <div className="aspect-video w-full">
+              <video
+                className="w-full h-full object-cover"
+                playsInline
+                preload="metadata"
+                controls
+                poster="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-poster.jpg"
+              >
+                <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-1080p.mp4" type="video/mp4" />
+                <source src="https://rsndonfydqhykowljuyn.supabase.co/storage/v1/object/public/site-videos/hero-720p.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
           </div>
         </section>
 

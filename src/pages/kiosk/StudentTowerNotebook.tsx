@@ -39,7 +39,6 @@ import {
   Eye,
   ChevronDown,
   Send,
-  Pin,
   FileText,
   Play,
   MoreHorizontal,
@@ -523,8 +522,8 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, setSel
         return;
       }
 
-      // Create a new document in the tower_documents table
-      const { error } = await supabase
+      // Create a new document in the tower_documents table using anonymous client
+      const { error } = await anonymousSupabase
         .from('tower_documents')
         .insert({
           tower_id: towerId,
@@ -575,18 +574,6 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, setSel
         <div className="mb-6">
           <StudentTowerOverview towerId={towerId} />
 
-          {/* Only show Save to note button if there are chat messages and no create item is selected */}
-          {messages.length > 0 && !selectedOutput && (
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" size="sm" onClick={handleSaveToNote}>
-                <Pin className="h-4 w-4 mr-2" />
-                Save to note
-              </Button>
-              <Button variant="outline" size="sm">
-                <FileText className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Selected Output Display */}
