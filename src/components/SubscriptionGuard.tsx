@@ -99,7 +99,8 @@ export const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({ children }
   };
 
   const handleContactSupport = () => {
-    window.open('mailto:support@sproutify.app?subject=Subscription Support', '_blank');
+    // Redirect to Sproutify contact page
+    window.open('https://www.sproutify.app/contact.html', '_blank');
   };
 
   const handleSignOut = async () => {
