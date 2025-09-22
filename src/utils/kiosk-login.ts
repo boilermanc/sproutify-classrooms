@@ -1,8 +1,8 @@
 // Direct fetch utility for kiosk login requests
 // This bypasses the Supabase client entirely to avoid any header issues
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://rsndonfydqhykowljuyn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbmRvbmZ5ZHFoeWtvd2xqdXlubiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzU0Njc1MzYwLCJleHAiOjIwNzAyNTEzNjB9.7dtJ6VOK_i_enstTjvzDuRAyUACNc78dlCldHjsxt58";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://cqrjesmpwaqvmssrdeoc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxcmplc21wd2Fxdm1zc3JkZW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NzUzNjAsImV4cCI6MjA3MDI1MTM2MH0.7dtJ6VOK_i_enstTjvzDuRAyUACNc78dlCldHjsxt58";
 
 export async function findClassroomByPin(kioskPin: string) {
   const url = `${SUPABASE_URL}/rest/v1/classrooms?select=id,name&kiosk_pin=eq.${encodeURIComponent(kioskPin)}`;

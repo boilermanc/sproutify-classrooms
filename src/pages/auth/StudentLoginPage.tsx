@@ -65,8 +65,14 @@ export default function StudentLoginPage() {
     }
 
     try {
+      console.log("Starting student login process...");
+      console.log("Student name:", name);
+      console.log("Classroom PIN:", classroomPin);
+      console.log("Student PIN:", pin);
+      
       // Step 1: Find classroom by PIN using direct fetch
       const { data: classroom, error: classroomErr } = await findClassroomByPin(classroomPin);
+      console.log("Classroom lookup result:", { classroom, classroomErr });
 
       if (classroomErr || !classroom) {
         console.error("Classroom lookup failed:", classroomErr);
@@ -82,6 +88,8 @@ export default function StudentLoginPage() {
         .eq("classroom_id", classroom.id)
         .eq("display_name", name)
         .single();
+      
+      console.log("Student lookup result:", { student, studentErr });
 
       if (studentErr || !student) {
         console.error("Student lookup failed:", studentErr);
