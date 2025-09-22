@@ -498,6 +498,21 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, setSel
     }
   };
 
+  // Unicode-safe base64 encoding function
+  const encodeToBase64 = (str: string): string => {
+    try {
+      // First encode to UTF-8 bytes, then to base64
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (error) {
+      console.error('Error encoding to base64:', error);
+      // Fallback: encode each character individually
+      return btoa(str.split('').map(char => {
+        const code = char.charCodeAt(0);
+        return code > 255 ? '?' : char;
+      }).join(''));
+    }
+  };
+
   const handleSaveToNote = async () => {
     if (messages.length === 0) return;
 
@@ -532,7 +547,7 @@ function ChatPanel({ towerName, selectedSources, towerId, selectedOutput, setSel
           description: `Chat conversation saved on ${new Date().toLocaleDateString()}`,
           file_name: `${conversationTitle}.txt`,
           file_path: `chat-notes/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
-          file_url: `data:text/plain;base64,${btoa(conversationText)}`, // Store content as data URL
+          file_url: `data:text/plain;base64,${encodeToBase64(conversationText)}`, // Store content as data URL
           file_size: conversationText.length,
           file_type: 'text/plain',
           content: conversationText // Store the actual conversation content
@@ -999,7 +1014,7 @@ function CreatePanel({ towerId, onOutputSelected, refreshTrigger }: {
         content: content,
         file_name: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`,
         file_path: `generated/${Date.now()}-${Math.random().toString(36).substring(2)}.txt`,
-        file_url: `data:text/plain;base64,${btoa(content)}`,
+        file_url: `data:text/plain;base64,${encodeToBase64(content)}`,
         file_size: content.length,
         file_type: 'text/plain'
       };
