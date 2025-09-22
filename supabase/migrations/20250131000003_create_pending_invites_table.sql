@@ -8,7 +8,12 @@ create table if not exists public.pending_invites (
   role text not null check (role in ('teacher','school_admin')),
   school_id uuid references public.schools(id) on delete set null,
   district_id uuid references public.districts(id) on delete set null,
-  created_at timestamptz not null default now()
+  expires_at timestamptz default (now() + interval '7 days'),
+  claimed_at timestamptz,
+  claimed_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  -- Ensure unique invites per context
+  unique(email, role, school_id, district_id)
 );
 
 -- Add RLS policies
@@ -23,6 +28,11 @@ create policy "School admins can view invites for their school" on public.pendin
       where id = auth.uid() 
       and school_id is not null
     )
+    and exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid()
+      and ur.role = 'school_admin'
+    )
   );
 
 -- School admins can create invites for their school
@@ -33,6 +43,11 @@ create policy "School admins can create invites for their school" on public.pend
       select school_id from public.profiles 
       where id = auth.uid() 
       and school_id is not null
+    )
+    and exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid()
+      and ur.role = 'school_admin'
     )
   );
 
@@ -45,6 +60,11 @@ create policy "District admins can view invites for their district" on public.pe
       where id = auth.uid() 
       and district_id is not null
     )
+    and exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid()
+      and ur.role = 'district_admin'
+    )
   );
 
 -- District admins can create invites for their district
@@ -55,6 +75,11 @@ create policy "District admins can create invites for their district" on public.
       select district_id from public.profiles 
       where id = auth.uid() 
       and district_id is not null
+    )
+    and exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid()
+      and ur.role = 'district_admin'
     )
   );
 

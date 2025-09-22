@@ -173,16 +173,16 @@ class DatabaseSafetyGuard {
      * List recent backups
      */
     listBackups(limit = 10) {
-        if (!fs.existsSync(this.config.backupDir)) {
+        if (!fsSync.existsSync(this.config.backupDir)) {
             console.log('No backup directory found');
             return [];
         }
 
-        const files = fs.readdirSync(this.config.backupDir)
+        const files = fsSync.readdirSync(this.config.backupDir)
             .filter(file => file.endsWith('.sql'))
             .map(file => {
                 const filePath = path.join(this.config.backupDir, file);
-                const stats = fs.statSync(filePath);
+                const stats = fsSync.statSync(filePath);
                 return {
                     file: file,
                     path: filePath,

@@ -5,9 +5,9 @@
 Make sure you've added these secrets in your GitHub repository:
 **Settings → Secrets and variables → Actions → Repository secrets**
 
-1. **VITE_SUPABASE_URL** = `https://cqrjesmpwaqvmssrdeoc.supabase.co`
-2. **VITE_SUPABASE_ANON_KEY** = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxcmplc21wd2Fxdm1zc3JkZW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NzUzNjAsImV4cCI6MjA3MDI1MTM2MH0.7dtJ6VOK_i_enstTjvzDuRAyUACNc78dlCldHjsxt58`
-3. **VITE_STRIPE_PUBLISHABLE_KEY** = `pk_live_51S3MeIKHJbtiKAzVI14oowL7YgmglEAxxMuQp52at4NXG6qGBqWimdJfMZAk4ZkoOxeUu5JsDloY470cIdB5V2xR003YZG41dC`
+1. **VITE_SUPABASE_URL** = `https://your-project-ref.supabase.co`
+2. **VITE_SUPABASE_ANON_KEY** = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+3. **VITE_STRIPE_PUBLISHABLE_KEY** = `pk_live_your_stripe_publishable_key`
 4. **VITE_DB_SCHEMA** = `public`
 
 ## 🚀 Next Steps

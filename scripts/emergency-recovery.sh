@@ -102,7 +102,20 @@ emergency_recovery() {
     if [[ "$selected_backup" == *.gz ]]; then
         restore_file="${selected_backup%.gz}"
         log "Decompressing backup..."
-        gunzip -c "$selected_backup" > "$restore_file"
+        
+        # Create temporary file for decompression
+        local temp_file=$(mktemp)
+        
+        # Decompress with error checking
+        if ! gunzip -c "$selected_backup" > "$temp_file"; then
+            error "Failed to decompress backup file"
+            rm -f "$temp_file"
+            return 1
+        fi
+        
+        # Move temp file to final location
+        mv "$temp_file" "$restore_file"
+        log "Backup decompressed successfully"
     fi
     
     # Restore database
@@ -174,7 +187,16 @@ check_integrity() {
     local missing_tables=()
     
     for table in "${critical_tables[@]}"; do
-        if ! supabase db query "SELECT 1 FROM $table LIMIT 1;" &>/dev/null; then
+        # Validate table name to prevent SQL injection
+        if [[ ! "$table" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+            echo "Warning: Invalid table name '$table', skipping"
+            continue
+        fi
+        
+        # Escape table name for SQL
+        local escaped_table="\"$table\""
+        
+        if ! supabase db query "SELECT 1 FROM $escaped_table LIMIT 1;" &>/dev/null; then
             missing_tables+=("$table")
         fi
     done
@@ -222,8 +244,8 @@ EOF
 main() {
     local command=${1:-"help"}
     
-    # Create emergency log
-    echo "Emergency Recovery Log - $(date)" > "$EMERGENCY_LOG"
+    # Create emergency log (append mode)
+    echo "Emergency Recovery Log - $(date)" >> "$EMERGENCY_LOG"
     
     case $command in
         recover)

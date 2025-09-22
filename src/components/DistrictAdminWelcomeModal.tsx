@@ -55,8 +55,9 @@ const DistrictAdminWelcomeModal: React.FC<DistrictAdminWelcomeModalProps> = ({ i
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateOnboardingStatus = async () => {
+    if (isUpdating) return; // Prevent concurrent calls
+    
     if (dontShowAgain) {
-      console.log('Updating onboarding status for district admin:', userProfile.id);
       setIsUpdating(true);
       try {
         // Update the user's profile to mark onboarding as completed
@@ -67,16 +68,22 @@ const DistrictAdminWelcomeModal: React.FC<DistrictAdminWelcomeModalProps> = ({ i
 
         if (error) {
           console.error('Error updating onboarding status:', error);
-        } else {
-          console.log('Onboarding status updated successfully');
+          toast({
+            title: "Error",
+            description: "Failed to update onboarding status. Please try again.",
+            variant: "destructive"
+          });
         }
       } catch (error) {
         console.error('Error updating onboarding status:', error);
+        toast({
+          title: "Error", 
+          description: "Failed to update onboarding status. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setIsUpdating(false);
       }
-    } else {
-      console.log('Don\'t show again not checked, skipping database update');
     }
   };
 

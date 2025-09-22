@@ -46,11 +46,25 @@ BEGIN
   END IF;
 END $$;
 
+-- Add updated_at trigger
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_districts_updated_at
+    BEFORE UPDATE ON public.districts
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
+
 -- Enable RLS on districts table
 ALTER TABLE public.districts ENABLE ROW LEVEL SECURITY;
 
--- Grant permissions
-GRANT ALL ON TABLE public.districts TO anon;
+-- Grant permissions (restrictive for anon)
+GRANT SELECT ON TABLE public.districts TO anon;
 GRANT ALL ON TABLE public.districts TO authenticated;
 GRANT ALL ON TABLE public.districts TO service_role;
 

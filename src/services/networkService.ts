@@ -5,9 +5,10 @@ import {
   NetworkChallenge,
   ChallengeParticipation
 } from '@/integrations/supabase/types';
+import { envConfig } from '@/utils/envValidation';
 
 // ----- Schema-aware client wrapper -------------------------------------------
-const SCHEMA = (import.meta as any)?.env?.VITE_DB_SCHEMA || 'public';
+const SCHEMA = envConfig.VITE_DB_SCHEMA || 'public';
 const db = SCHEMA && SCHEMA !== 'public' ? supabase.schema(SCHEMA) : supabase;
 
 function ensureNo406(status?: number | null) {

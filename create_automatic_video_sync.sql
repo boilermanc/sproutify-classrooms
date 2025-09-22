@@ -1,6 +1,22 @@
 -- Automatic sync system between media_assets and pest_catalog
 -- This creates triggers and functions to automatically update pest_catalog when videos are uploaded
 
+-- 0. Create pest_name_mappings table for precise matching
+CREATE TABLE IF NOT EXISTS public.pest_name_mappings (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug text NOT NULL,
+    pest_catalog_names text[] NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+-- Insert initial mappings
+INSERT INTO public.pest_name_mappings (slug, pest_catalog_names) VALUES
+    ('whiteflies', ARRAY['Whiteflies', 'Whitefly']),
+    ('spider-mites', ARRAY['Spider Mites', 'Spider Mite', 'Two-spotted Spider Mite']),
+    ('aphids', ARRAY['Aphids', 'Aphid', 'Green Aphid', 'Black Aphid'])
+ON CONFLICT (slug) DO NOTHING;
+
 -- 1. Create a function to sync video URLs from media_assets to pest_catalog
 CREATE OR REPLACE FUNCTION sync_video_to_pest_catalog()
 RETURNS TRIGGER AS $$
@@ -33,27 +49,38 @@ BEGIN
                 RETURN NEW;
         END;
         
-        -- Construct the video URL
-        video_url := CONCAT(
-            'https://cqrjesmpwaqvmssrdeoc.supabase.co/storage/v1/object/public/',
-            NEW.bucket,
-            '/',
-            NEW.object_path
-        );
+        -- Construct the video URL using configurable base URL
+        DECLARE
+            storage_base_url text;
+        BEGIN
+            -- Try to get storage base URL from configuration
+            BEGIN
+                SELECT current_setting('app.storage_base_url', true) INTO storage_base_url;
+                IF storage_base_url IS NULL OR storage_base_url = '' THEN
+                    -- Fallback to environment-specific URL construction
+                    storage_base_url := CONCAT(
+                        COALESCE(current_setting('app.supabase_url', true), 'https://your-project-ref.supabase.co'),
+                        '/storage/v1/object/public'
+                    );
+                END IF;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE WARNING 'Could not read storage_base_url config, using fallback';
+                    storage_base_url := 'https://your-project-ref.supabase.co/storage/v1/object/public';
+            END;
+            
+            video_url := CONCAT(storage_base_url, '/', NEW.bucket, '/', NEW.object_path);
+        END;
         
-        -- Update the pest_catalog entry if it exists
+        -- Update the pest_catalog entry using precise mapping
         BEGIN
             UPDATE public.pest_catalog 
             SET video_url = video_url,
                 updated_at = now()
-            WHERE (
-                name ILIKE '%' || pest_name || '%' OR
-                name ILIKE '%' || REPLACE(pest_name, '-', ' ') || '%' OR
-                name ILIKE '%' || REPLACE(pest_name, '-', '') || '%' OR
-                -- Handle specific mappings
-                (pest_name = 'whiteflies' AND name ILIKE '%white%') OR
-                (pest_name = 'spider-mites' AND name ILIKE '%spider%') OR
-                (pest_name = 'aphids' AND name ILIKE '%aphid%')
+            WHERE EXISTS (
+                SELECT 1 FROM public.pest_name_mappings pnm
+                WHERE pnm.slug = pest_name
+                AND pest_catalog.name = ANY(pnm.pest_catalog_names)
             );
             
             GET DIAGNOSTICS rows_updated = ROW_COUNT;

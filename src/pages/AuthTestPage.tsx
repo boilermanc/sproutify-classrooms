@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthTestPage() {
-  const [email, setEmail] = useState("bob8@yopmail.com");
+  const [email, setEmail] = useState(import.meta.env.DEV ? "test@example.com" : "");
   const [password, setPassword] = useState("");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -50,7 +50,7 @@ export default function AuthTestPage() {
 
   const testSupabaseConnection = async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('count').limit(1);
+      const { data, error } = await supabase.from('profiles').select('*').limit(1);
       setResult({
         success: !error,
         connectionTest: true,

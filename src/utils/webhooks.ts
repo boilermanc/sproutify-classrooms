@@ -1,6 +1,8 @@
 // src/utils/webhooks.ts
 // Utility function to send registration data to n8n webhook
 
+import { envConfig } from '@/utils/envValidation';
+
 interface WebhookData {
   event: 'user_registered' | 'payment_success' | 'trial_ending' | 'user_cancelled' | 'signup' | 'registration' | 'new_user' | 'purchase_completed';
   user: {
@@ -31,12 +33,12 @@ interface WebhookData {
     referrer?: string;
     userAgent?: string;
     timestamp?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
 // Environment variable for n8n webhook URL
-const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL;
+const N8N_WEBHOOK_URL = envConfig.VITE_N8N_WEBHOOK_URL;
 
 export async function sendToN8nWebhook(data: WebhookData): Promise<boolean> {
   if (!N8N_WEBHOOK_URL) {

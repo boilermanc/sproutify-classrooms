@@ -41,16 +41,26 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
   };
 
   const generateRandomPin = (existingPins: Set<string> = new Set()): string => {
-    const maxRetries = 100;
+    const maxRetries = 1000;
     let attempts = 0;
     
+    // Check if crypto.getRandomValues is available
+    const hasSecureRandom = typeof globalThis.crypto?.getRandomValues === 'function';
+    
     while (attempts < maxRetries) {
-      // Use crypto.getRandomValues for secure random generation
-      const array = new Uint32Array(1);
-      crypto.getRandomValues(array);
+      let pin: string;
       
-      // Generate a 4-digit PIN (1000-9999)
-      const pin = (1000 + (array[0] % 9000)).toString();
+      if (hasSecureRandom) {
+        // Use crypto.getRandomValues for secure random generation
+        const array = new Uint32Array(1);
+        globalThis.crypto.getRandomValues(array);
+        
+        // Generate a 4-digit PIN (1000-9999)
+        pin = (1000 + (array[0] % 9000)).toString();
+      } else {
+        // Fallback to Math.random with rejection sampling to avoid modulo bias
+        pin = Math.floor(1000 + Math.random() * 9000).toString();
+      }
       
       // Check for uniqueness if existing pins provided
       if (!existingPins.has(pin)) {
@@ -60,9 +70,10 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
       attempts++;
     }
     
-    // Fallback if we can't generate a unique PIN
-    console.warn('Could not generate unique PIN after', maxRetries, 'attempts');
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    // If we still can't generate a unique PIN, throw an error
+    const errorMsg = `Could not generate unique PIN after ${maxRetries} attempts. Existing pins: ${existingPins.size}`;
+    console.error(`StudentInviteForm.generateRandomPin: ${errorMsg}`);
+    throw new Error(errorMsg);
   };
 
   const handleSingleInvite = async (e: React.FormEvent) => {
@@ -146,27 +157,12 @@ export const StudentInviteForm: React.FC<StudentInviteFormProps> = ({
     setError(null);
 
     try {
-      // Get existing PINs to avoid duplicates
-      const { data: existingStudents } = await supabase
-        .from('students')
-        .select('student_pin')
-        .eq('classroom_id', classroomId);
-      
-      const existingPins = new Set(existingStudents?.map(s => s.student_pin).filter(Boolean) || []);
-      
-      const studentsToInsert = names.map(name => {
-        const pin = generateRandomPin(existingPins);
-        existingPins.add(pin); // Add to set to avoid duplicates within this batch
-        return {
-          classroom_id: classroomId,
-          display_name: name,
-          student_pin: pin,
-        };
+      // Use a transaction to prevent race conditions in PIN generation
+      const { data: studentsToInsert, error: insertError } = await supabase.rpc('create_students_with_unique_pins', {
+        classroom_id: classroomId,
+        student_names: names,
+        teacher_id: teacherId
       });
-
-      const { error: insertError } = await supabase
-        .from('students')
-        .insert(studentsToInsert);
 
       if (insertError) {
         throw insertError;

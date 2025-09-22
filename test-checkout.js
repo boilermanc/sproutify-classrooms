@@ -3,7 +3,34 @@
 // Simple test script for the checkout function
 // Run with: node test-checkout.js
 
-const BASE_URL = 'https://your-project.supabase.co/functions/v1'; // Replace with your actual Supabase URL
+const BASE_URL = process.env.SUPABASE_FUNCTIONS_URL || process.env.SUPABASE_URL + '/functions/v1';
+
+if (!BASE_URL || BASE_URL.includes('your-project')) {
+  console.error('Error: SUPABASE_FUNCTIONS_URL or SUPABASE_URL environment variable must be set');
+  console.error('Example: SUPABASE_URL=https://your-project-ref.supabase.co');
+  process.exit(1);
+}
+
+// Helper function to create fetch with timeout
+async function fetchWithTimeout(url, options, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
 
 const testCases = [
   // Test 1: Direct price ID
@@ -64,7 +91,7 @@ async function testDebugEndpoint(testCase) {
     console.log(`\n🧪 Testing: ${testCase.name}`);
     console.log(`📤 Request:`, JSON.stringify(testCase.body, null, 2));
     
-    const response = await fetch(`${BASE_URL}/debug-checkout`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/debug-checkout`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -107,7 +134,7 @@ async function testCheckoutEndpoint(testCase) {
   try {
     console.log(`\n🛒 Testing Checkout: ${testCase.name}`);
     
-    const response = await fetch(`${BASE_URL}/create-checkout-session`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/create-checkout-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,7 +165,7 @@ async function testCheckoutEndpoint(testCase) {
 
 async function runTests() {
   console.log('🚀 Starting Checkout Function Tests');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   
   // Test debug endpoint first
   console.log('\n📊 Testing Debug Endpoint...');

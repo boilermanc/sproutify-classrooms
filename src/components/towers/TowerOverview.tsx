@@ -38,56 +38,71 @@ export function TowerOverview({ towerId, teacherId }: TowerOverviewProps) {
   useEffect(() => {
     const fetchOverviewData = async () => {
       try {
-        // Fetch active plantings
-        const { data: plantings } = await supabase
-          .from('plantings')
-          .select('id, planted_at, expected_harvest_date, status')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
-          .eq('status', 'active');
+        // Execute all queries in parallel to avoid N+1 pattern
+        const [
+          plantingsResult,
+          vitalsResult,
+          pestDataResult,
+          nextHarvestResult,
+          harvestsResult
+        ] = await Promise.all([
+          // Fetch active plantings
+          supabase
+            .from('plantings')
+            .select('id, planted_at, expected_harvest_date, status')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .eq('status', 'active'),
+          
+          // Fetch recent vitals (pH and EC)
+          supabase
+            .from('tower_vitals')
+            .select('ph, ec, created_at')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false })
+            .limit(1),
+          
+          // Fetch pest issues from pest_logs
+          supabase
+            .from('pest_logs')
+            .select('id')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .gte('observed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()), // Last 7 days
+          
+          // Fetch next harvest
+          supabase
+            .from('plantings')
+            .select('expected_harvest_date')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+            .not('expected_harvest_date', 'is', null)
+            .gte('expected_harvest_date', new Date().toISOString())
+            .order('expected_harvest_date', { ascending: true })
+            .limit(1),
+          
+          // Fetch total harvests
+          supabase
+            .from('harvests')
+            .select('id')
+            .eq('tower_id', towerId)
+            .eq('teacher_id', teacherId)
+        ]);
 
-        // Fetch recent vitals (pH and EC)
-        const { data: vitals } = await supabase
-          .from('tower_vitals')
-          .select('ph, ec, created_at')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
-          .order('created_at', { ascending: false })
-          .limit(1);
+        const plantings = plantingsResult.data || [];
+        const vitals = vitalsResult.data || [];
+        const pestData = pestDataResult.data || [];
+        const nextHarvestData = nextHarvestResult.data || [];
+        const harvests = harvestsResult.data || [];
 
-        // Fetch pest issues from pest_logs
-        const { data: pestData } = await supabase
-          .from('pest_logs')
-          .select('id')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
-          .gte('observed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days
-
-        // Fetch next harvest
-        const { data: nextHarvestData } = await supabase
-          .from('plantings')
-          .select('expected_harvest_date')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId)
-          .not('expected_harvest_date', 'is', null)
-          .gte('expected_harvest_date', new Date().toISOString())
-          .order('expected_harvest_date', { ascending: true })
-          .limit(1);
-
-        // Fetch total harvests
-        const { data: harvests } = await supabase
-          .from('harvests')
-          .select('id')
-          .eq('tower_id', towerId)
-          .eq('teacher_id', teacherId);
-
-        const activePlants = plantings?.length || 0;
-        const recentPh = vitals?.[0]?.ph || null;
-        const recentEc = vitals?.[0]?.ec || null;
-        const pestIssues = pestData?.length || 0;
-        const nextHarvest = nextHarvestData?.[0]?.expected_harvest_date || null;
-        const lastVitalsDate = vitals?.[0]?.created_at || null;
-        const totalHarvests = harvests?.length || 0;
+        const activePlants = plantings.length;
+        const recentPh = vitals[0]?.ph || null;
+        const recentEc = vitals[0]?.ec || null;
+        const pestIssues = pestData.length;
+        const nextHarvest = nextHarvestData[0]?.expected_harvest_date || null;
+        const lastVitalsDate = vitals[0]?.created_at || null;
+        const totalHarvests = harvests.length;
 
         // Calculate average growth rate (simplified)
         const avgGrowthRate = activePlants > 0 ? "Healthy" : "No active plants";

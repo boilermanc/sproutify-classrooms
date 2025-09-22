@@ -61,10 +61,10 @@ ALTER TABLE public.content_section ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
 
 -- 7. Grant permissions
-GRANT ALL ON TABLE public.content_section TO anon;
+GRANT SELECT ON TABLE public.content_section TO anon;
 GRANT ALL ON TABLE public.content_section TO authenticated;
 GRANT ALL ON TABLE public.content_section TO service_role;
-GRANT ALL ON TABLE public.media_assets TO anon;
+GRANT SELECT ON TABLE public.media_assets TO anon;
 GRANT ALL ON TABLE public.media_assets TO authenticated;
 GRANT ALL ON TABLE public.media_assets TO service_role;
 

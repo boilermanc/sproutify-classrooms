@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2025-08-27.basil',
+  apiVersion: '2024-06-20',
 })
 
 const supabase = createClient(
@@ -23,9 +23,15 @@ async function loadPriceMappings(): Promise<void> {
     // Try to load from environment variable first
     const mappingsEnv = Deno.env.get('STRIPE_PRICE_MAPPINGS');
     if (mappingsEnv) {
-      PLAN_PRICE_MAP = JSON.parse(mappingsEnv);
-      console.log('Loaded price mappings from environment variable');
-      return;
+      try {
+        PLAN_PRICE_MAP = JSON.parse(mappingsEnv);
+        console.log('Loaded price mappings from environment variable');
+        return;
+      } catch (parseError) {
+        console.error('Failed to parse STRIPE_PRICE_MAPPINGS:', parseError);
+        console.error('Invalid JSON string:', mappingsEnv);
+        // Fall through to database fallback
+      }
     }
     
     // Fallback to database table

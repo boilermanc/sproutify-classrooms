@@ -18,5 +18,5 @@ export const SCHOOL_PRICING: PricingConfig = {
   monthlyPrice: 4999, // $49.99
   annualPrice: 108000, // $1,080
   originalMonthlyPrice: 9999, // $99.99
-  originalAnnualPrice: 108000, // $1,080
+  originalAnnualPrice: 119988, // $1,199.88 ($99.99 × 12)
 };

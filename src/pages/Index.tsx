@@ -1391,7 +1391,7 @@ const Index = () => {
                 <Badge className="mb-4 bg-secondary text-secondary-foreground">Back to School Special</Badge>
                 <h3 className="text-2xl font-bold mb-2">50% Off First 3 Months</h3>
                 <p className="text-muted-foreground mb-4">
-                  Start your classroom gar den journey with our special back-to-school pricing. Valid through September 2025.
+                  Start your classroom garden journey with our special back-to-school pricing. Valid through September 2025.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   7-day free trial, then 50% off your chosen plan for the first 3 months

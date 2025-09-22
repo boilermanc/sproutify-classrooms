@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AdminSetup() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -26,14 +28,21 @@ export default function AdminSetup() {
 
     setIsLoading(true);
     try {
-      // First, find the user by email
-      const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-      
-      if (userError) {
-        throw new Error(`Failed to fetch users: ${userError.message}`);
+      // Call server-side endpoint instead of client-side admin call
+      const response = await fetch('/api/admin/find-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to find user');
       }
 
-      const user = users.users.find(u => u.email === email);
+      const { user } = await response.json();
       if (!user) {
         throw new Error("User not found with that email address");
       }
@@ -56,11 +65,12 @@ export default function AdminSetup() {
         title: "Success",
         description: "Team member added successfully! You can now access the admin panel.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding team member:", error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: error.message || "Failed to add team member",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -83,7 +93,7 @@ export default function AdminSetup() {
               You have been successfully added as a super admin. You can now access the admin panel.
             </p>
             <Button 
-              onClick={() => window.location.href = "/admin"}
+              onClick={() => navigate("/admin")}
               className="w-full"
             >
               Go to Admin Panel

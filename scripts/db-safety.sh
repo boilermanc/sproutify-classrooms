@@ -82,18 +82,24 @@ create_backup() {
             success "Backup compressed: $backup_file"
         fi
         
-        # Store backup metadata
-        cat > "${backup_file}.meta" << EOF
-{
-    "timestamp": "$TIMESTAMP",
-    "backup_file": "$backup_file",
-    "project_id": "$PROJECT_ID",
-    "created_by": "$(whoami)",
-    "hostname": "$(hostname)",
-    "git_branch": "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')",
-    "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
-}
-EOF
+        # Store backup metadata using jq for proper JSON generation
+        jq -n \
+            --arg TIMESTAMP "$TIMESTAMP" \
+            --arg backup_file "$backup_file" \
+            --arg PROJECT_ID "$PROJECT_ID" \
+            --arg created_by "$(whoami)" \
+            --arg hostname "$(hostname)" \
+            --arg git_branch "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')" \
+            --arg git_commit "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')" \
+            '{
+                timestamp: $TIMESTAMP,
+                backup_file: $backup_file,
+                project_id: $PROJECT_ID,
+                created_by: $created_by,
+                hostname: $hostname,
+                git_branch: $git_branch,
+                git_commit: $git_commit
+            }' > "${backup_file}.meta"
         success "Backup metadata saved: ${backup_file}.meta"
         
         return 0
@@ -117,12 +123,41 @@ list_backups() {
 restore_backup() {
     local backup_file="$1"
     
-    if [[ ! -f "$backup_file" ]]; then
-        error "Backup file not found: $backup_file"
+    # Validate and canonicalize the backup file path
+    if [[ -z "$backup_file" ]]; then
+        error "No backup file specified"
         return 1
     fi
     
-    warn "You are about to RESTORE the database from backup: $backup_file"
+    # Canonicalize the path to prevent directory traversal
+    local canonical_path
+    canonical_path=$(realpath "$backup_file" 2>/dev/null)
+    if [[ $? -ne 0 ]]; then
+        error "Invalid backup file path: $backup_file"
+        return 1
+    fi
+    
+    # Check if path is within allowed directories
+    local allowed_dirs=("$BACKUP_DIR" "/var/backups" "/tmp")
+    local path_allowed=false
+    for dir in "${allowed_dirs[@]}"; do
+        if [[ "$canonical_path" == "$dir"* ]]; then
+            path_allowed=true
+            break
+        fi
+    done
+    
+    if [[ "$path_allowed" == false ]]; then
+        error "Backup file path not in allowed directories: $canonical_path"
+        return 1
+    fi
+    
+    if [[ ! -f "$canonical_path" ]]; then
+        error "Backup file not found: $canonical_path"
+        return 1
+    fi
+    
+    warn "You are about to RESTORE the database from backup: $canonical_path"
     warn "This will OVERWRITE the current database!"
     
     if [[ "$REQUIRE_CONFIRMATION" == "true" ]]; then
@@ -135,6 +170,9 @@ restore_backup() {
     fi
     
     log "Restoring database from backup..."
+    
+    # Use canonical_path for the rest of the function
+    backup_file="$canonical_path"
     
     # Decompress if needed
     local restore_file="$backup_file"

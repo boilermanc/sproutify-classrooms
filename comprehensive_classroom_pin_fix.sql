@@ -84,7 +84,7 @@ BEGIN
     ) THEN
         ALTER TABLE public.classrooms 
         ADD CONSTRAINT classrooms_kiosk_pin_unique 
-        UNIQUE (kiosk_pin);
+        UNIQUE (kiosk_pin) DEFERRABLE INITIALLY DEFERRED;
         
         RAISE NOTICE 'Added unique constraint on kiosk_pin';
     ELSE

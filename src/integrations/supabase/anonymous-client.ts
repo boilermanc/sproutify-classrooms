@@ -3,10 +3,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { envConfig } from '@/utils/envValidation';
 
-// Use production Supabase URL
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://cqrjesmpwaqvmssrdeoc.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxcmplc21wd2Fxdm1zc3JkZW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NzUzNjAsImV4cCI6MjA3MDI1MTM2MH0.7dtJ6VOK_i_enstTjvzDuRAyUACNc78dlCldHjsxt58";
+// Use validated environment configuration
+const SUPABASE_URL = envConfig.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = envConfig.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+}
 
 // Singleton pattern to prevent multiple client instances
 let anonymousSupabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -34,8 +39,7 @@ function createAnonymousSupabaseClient() {
     },
     global: {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        'Accept': 'application/json'
       }
     },
     // Disable realtime to avoid unnecessary connections

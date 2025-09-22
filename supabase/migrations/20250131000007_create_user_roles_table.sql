@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  role text NOT NULL CHECK (role IN ('teacher', 'student', 'school_admin', 'district_admin')),
+  role text NOT NULL CHECK (role IN ('teacher', 'student', 'school_admin', 'district_admin', 'super_admin', 'staff')),
   school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
   district_id uuid REFERENCES public.districts(id) ON DELETE CASCADE,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -19,8 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_district_id ON public.user_roles(distr
 -- Enable RLS
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
--- Grant permissions
-GRANT ALL ON TABLE public.user_roles TO anon;
+-- Grant permissions (restrictive for anon)
+GRANT SELECT ON TABLE public.user_roles TO anon;
 GRANT ALL ON TABLE public.user_roles TO authenticated;
 GRANT ALL ON TABLE public.user_roles TO service_role;
 

@@ -35,13 +35,78 @@ interface SourceData {
   title: string;
   date: string;
   description?: string;
-  data?: any;
+  data?: TowerVitals | TowerPhoto | Planting | Harvest | WasteLog | PestLog;
+}
+
+// Type definitions for better type safety
+interface TowerVitals {
+  id: string;
+  ph: number;
+  ec: number;
+  recorded_at: string;
+  tower_id: string;
+  teacher_id: string;
+  created_at: string;
+}
+
+interface TowerPhoto {
+  id: string;
+  caption?: string;
+  taken_at: string;
+  tower_id: string;
+  student_name?: string;
+  created_at: string;
+}
+
+interface Planting {
+  id: string;
+  name: string;
+  planted_at: string;
+  expected_harvest_date?: string;
+  status: string;
+  tower_id: string;
+  plant_catalog?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+}
+
+interface Harvest {
+  id: string;
+  plant_name: string;
+  harvested_at: string;
+  weight_grams: number;
+  plant_quantity: number;
+  tower_id: string;
+}
+
+interface WasteLog {
+  id: string;
+  waste_type: string;
+  quantity: number;
+  created_at: string;
+  tower_id: string;
+}
+
+interface PestLog {
+  id: string;
+  pest: string;
+  severity: number;
+  observed_at: string;
+  tower_id: string;
+  pest_catalog?: {
+    id: string;
+    name: string;
+    description?: string;
+    treatment?: string;
+  };
 }
 
 export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, towerId }: SourceDetailModalProps) {
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [relatedData, setRelatedData] = useState<any[]>([]);
+  const [relatedData, setRelatedData] = useState<(TowerVitals | TowerPhoto)[]>([]);
   const [showImageLightbox, setShowImageLightbox] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -57,45 +122,47 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
       const teacherId = localStorage.getItem("teacher_id_for_tower");
       if (!teacherId) return;
 
-      let data: any = null;
-      let related: any[] = [];
+      let data: TowerVitals | TowerPhoto | Planting | Harvest | WasteLog | PestLog | null = null;
+      let related: (TowerVitals | TowerPhoto)[] = [];
 
       switch (sourceType) {
         case 'vitals':
-          const { data: vitalData } = await supabase
-            .from('tower_vitals')
-            .select('*')
-            .eq('id', sourceId.replace('vital-', ''))
-            .single();
-          
-          // Get historical vitals for chart
-          const { data: historicalVitals } = await supabase
-            .from('tower_vitals')
-            .select('ph, ec, recorded_at')
-            .eq('tower_id', towerId)
-            .order('recorded_at', { ascending: true })
-            .limit(20);
+          // Execute both queries in parallel
+          const [vitalResult, historicalResult] = await Promise.all([
+            supabase
+              .from('tower_vitals')
+              .select('*')
+              .eq('id', sourceId.replace('vital-', ''))
+              .single(),
+            supabase
+              .from('tower_vitals')
+              .select('ph, ec, recorded_at')
+              .eq('tower_id', towerId)
+              .order('recorded_at', { ascending: true })
+              .limit(20)
+          ]);
 
-          data = vitalData;
-          related = historicalVitals || [];
+          data = vitalResult.data as TowerVitals;
+          related = historicalResult.data as TowerVitals[] || [];
           break;
 
         case 'photo':
-          const { data: photoData } = await supabase
-            .from('tower_photos')
-            .select('*')
-            .eq('id', sourceId.replace('photo-', ''))
-            .single();
-          
-          // Get all photos for lightbox navigation
-          const { data: allPhotos } = await supabase
-            .from('tower_photos')
-            .select('*')
-            .eq('tower_id', towerId)
-            .order('taken_at', { ascending: false });
+          // Execute both queries in parallel
+          const [photoResult, allPhotosResult] = await Promise.all([
+            supabase
+              .from('tower_photos')
+              .select('*')
+              .eq('id', sourceId.replace('photo-', ''))
+              .single(),
+            supabase
+              .from('tower_photos')
+              .select('*')
+              .eq('tower_id', towerId)
+              .order('taken_at', { ascending: false })
+          ]);
 
-          data = photoData;
-          related = allPhotos || [];
+          data = photoResult.data as TowerPhoto;
+          related = allPhotosResult.data as TowerPhoto[] || [];
           break;
 
         case 'plant':
@@ -104,7 +171,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
             .select('*, plant_catalog (*)')
             .eq('id', sourceId.replace('plant-', ''))
             .single();
-          data = plantData;
+          data = plantData as Planting;
           break;
 
         case 'harvest':
@@ -113,7 +180,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
             .select('*')
             .eq('id', sourceId.replace('harvest-', ''))
             .single();
-          data = harvestData;
+          data = harvestData as Harvest;
           break;
 
         case 'waste':
@@ -122,7 +189,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
             .select('*')
             .eq('id', sourceId.replace('waste-', ''))
             .single();
-          data = wasteData;
+          data = wasteData as WasteLog;
           break;
 
         case 'pest':
@@ -131,7 +198,7 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
             .select('*, pest_catalog (*)')
             .eq('id', sourceId.replace('pest-', ''))
             .single();
-          data = pestData;
+          data = pestData as PestLog;
           break;
       }
 
@@ -153,35 +220,43 @@ export function SourceDetailModal({ isOpen, onClose, sourceId, sourceType, tower
     }
   };
 
-  const getSourceTitle = (type: string, data: any) => {
+  const getSourceTitle = (type: string, data: TowerVitals | TowerPhoto | Planting | Harvest | WasteLog | PestLog): string => {
     switch (type) {
       case 'vitals': return 'pH & EC Reading';
       case 'photo': return 'Tower Photo';
-      case 'plant': return data.name || 'Plant';
-      case 'harvest': return `${data.plant_name || 'Plant'} Harvest`;
-      case 'waste': return `${data.plant_name || 'Plant'} Waste`;
+      case 'plant': return (data as Planting).name || 'Plant';
+      case 'harvest': return `${(data as Harvest).plant_name || 'Plant'} Harvest`;
+      case 'waste': return `${(data as WasteLog).waste_type || 'Plant'} Waste`;
       case 'pest': return 'Pest Observation';
       default: return 'Source';
     }
   };
 
-  const getSourceDescription = (type: string, data: any) => {
+  const getSourceDescription = (type: string, data: TowerVitals | TowerPhoto | Planting | Harvest | WasteLog | PestLog): string | undefined => {
     switch (type) {
-      case 'vitals': return `pH: ${data.ph}, EC: ${data.ec}`;
-      case 'photo': return data.caption || 'No description';
+      case 'vitals': return `pH: ${(data as TowerVitals).ph}, EC: ${(data as TowerVitals).ec}`;
+      case 'photo': return (data as TowerPhoto).caption || 'No description';
       case 'plant': {
+        const plant = data as Planting;
         const parts = [];
-        if (data.port_number) parts.push(`Port ${data.port_number}`);
-        if (data.quantity) parts.push(`Qty: ${data.quantity}`);
-        if (data.plant_catalog?.category) parts.push(data.plant_catalog.category);
+        if (plant.port_number) parts.push(`Port ${plant.port_number}`);
+        if (plant.quantity) parts.push(`Qty: ${plant.quantity}`);
+        if (plant.plant_catalog?.category) parts.push(plant.plant_catalog.category);
         return parts.length > 0 ? parts.join(' • ') : undefined;
       }
-      case 'harvest': return `${data.weight_grams}g${data.destination ? ` → ${data.destination}` : ''}`;
-      case 'waste': return `${data.grams}g - ${data.notes || 'No notes'}`;
+      case 'harvest': {
+        const harvest = data as Harvest;
+        return `${harvest.weight_grams}g${harvest.destination ? ` → ${harvest.destination}` : ''}`;
+      }
+      case 'waste': {
+        const waste = data as WasteLog;
+        return `${waste.quantity}g - ${waste.notes || 'No notes'}`;
+      }
       case 'pest': {
-        const parts = [data.pest];
-        if (data.severity) parts.push(`Severity: ${data.severity}/10`);
-        if (data.location_on_tower) parts.push(`Location: ${data.location_on_tower}`);
+        const pest = data as PestLog;
+        const parts = [pest.pest];
+        if (pest.severity) parts.push(`Severity: ${pest.severity}/10`);
+        if (pest.location_on_tower) parts.push(`Location: ${pest.location_on_tower}`);
         return parts.join(' • ');
       }
       default: return undefined;

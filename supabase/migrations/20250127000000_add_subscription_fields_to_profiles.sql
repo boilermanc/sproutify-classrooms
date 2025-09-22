@@ -2,15 +2,20 @@
 DO $$
 BEGIN
   IF to_regclass('public.profiles') IS NULL THEN
-    -- Minimal shape so downstream FKs/policies have a target.
-    -- (We add constraints/extra columns later in other migrations.)
+    -- Create profiles table with proper constraints matching the canonical schema
     CREATE TABLE public.profiles (
-      id uuid PRIMARY KEY,
-      email text,
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email text UNIQUE,
       full_name text,
       avatar_url text,
-      created_at timestamptz DEFAULT now()
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz DEFAULT now()
     );
+    
+    -- Add foreign key constraint to auth.users
+    ALTER TABLE public.profiles 
+    ADD CONSTRAINT profiles_id_fkey 
+    FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
   END IF;
 END
 $$;

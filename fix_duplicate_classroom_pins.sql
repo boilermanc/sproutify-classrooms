@@ -28,12 +28,15 @@ BEGIN;
 LOCK TABLE public.classrooms IN SHARE ROW EXCLUSIVE MODE;
 
 -- Create a sequence for generating unique PINs if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'classroom_pin_sequence') THEN
-        CREATE SEQUENCE classroom_pin_sequence START WITH GREATEST(1001, (SELECT COALESCE(MAX(kiosk_pin::int) + 1, 1001) FROM public.classrooms WHERE kiosk_pin ~ '^[0-9]{4}$'));
-    END IF;
-END $$;
+CREATE SEQUENCE IF NOT EXISTS classroom_pin_sequence;
+
+-- Set the sequence to the correct starting value atomically
+SELECT setval('classroom_pin_sequence', 
+    GREATEST(
+        currval('classroom_pin_sequence'), 
+        COALESCE((SELECT MAX(kiosk_pin::int) + 1 FROM public.classrooms WHERE kiosk_pin ~ '^[0-9]{4}$'), 1001)
+    )
+);
 
 WITH duplicate_pins AS (
     SELECT kiosk_pin

@@ -73,30 +73,61 @@ export function DistrictSidebar() {
       });
       
       // Race between signOut and timeout
-      await Promise.race([
+      const result = await Promise.race([
         supabase.auth.signOut(),
         timeoutPromise
       ]);
       
+      // Check if signOut actually succeeded
+      if (result?.error) {
+        throw new Error(result.error.message);
+      }
+      
       console.log('✅ Supabase logout successful');
+      
+      // Clear only auth-related storage
+      try {
+        // Clear Supabase auth tokens specifically
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('supabase') || key.includes('auth'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Clear session storage auth tokens
+        const sessionKeysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.includes('supabase') || key.includes('auth'))) {
+            sessionKeysToRemove.push(key);
+          }
+        }
+        sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+        
+        console.log('🧹 Auth storage cleared');
+      } catch (error) {
+        console.log('⚠️ Failed to clear auth storage:', error);
+      }
+      
+      // Show success feedback
+      toast({ 
+        title: "Signed out successfully",
+        description: "You have been logged out"
+      });
+      
     } catch (error) {
       console.log('⚠️ Supabase logout failed or timed out:', error);
+      
+      // Show failure feedback
+      toast({
+        title: "Logout failed",
+        description: "There was an issue signing out. Redirecting anyway.",
+        variant: "destructive"
+      });
     }
-    
-    // Clear all local storage
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      console.log('🧹 Storage cleared');
-    } catch (error) {
-      console.log('⚠️ Failed to clear storage:', error);
-    }
-    
-    // Show feedback
-    toast({ 
-      title: "Signed out successfully",
-      description: "You have been logged out"
-    });
     
     // Always redirect, even if signOut failed
     console.log('🔄 Redirecting to login...');

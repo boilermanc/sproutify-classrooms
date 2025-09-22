@@ -32,10 +32,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
 import { useState, useEffect } from "react";
+import { isFeatureEnabled } from "@/utils/envValidation";
 
 // Feature flag for Garden Network
 const FEATURE_FLAGS = {
-  GARDEN_NETWORK: process.env.NODE_ENV === 'development' || import.meta.env.VITE_FEATURE_GARDEN_NETWORK === 'true',
+  GARDEN_NETWORK: isFeatureEnabled('VITE_FEATURE_GARDEN_NETWORK'),
 };
 
 const coreItems = [
@@ -96,11 +97,15 @@ export function AppSidebar() {
 
   // Check user roles on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const checkUserRoles = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setIsLoadingRoles(false);
+          if (isMounted) {
+            setIsLoadingRoles(false);
+          }
           return;
         }
 
@@ -109,15 +114,23 @@ export function AppSidebar() {
           .select("role")
           .eq("user_id", user.id);
 
-        setUserRoles(roles?.map(r => r.role) || []);
+        if (isMounted) {
+          setUserRoles(roles?.map(r => r.role) || []);
+        }
       } catch (error) {
         console.error("Error fetching user roles:", error);
       } finally {
-        setIsLoadingRoles(false);
+        if (isMounted) {
+          setIsLoadingRoles(false);
+        }
       }
     };
 
     checkUserRoles();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Check if current path matches the item URL

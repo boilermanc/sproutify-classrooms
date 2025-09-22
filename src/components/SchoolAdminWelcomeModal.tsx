@@ -50,7 +50,6 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
 
   const updateOnboardingStatus = async () => {
     if (dontShowAgain) {
-      console.log('Updating onboarding status for school admin:', userProfile.id);
       setIsUpdating(true);
       try {
         // Update the user's profile to mark onboarding as completed
@@ -61,16 +60,12 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
 
         if (error) {
           console.error('Error updating onboarding status:', error);
-        } else {
-          console.log('Onboarding status updated successfully');
         }
       } catch (error) {
         console.error('Error updating onboarding status:', error);
       } finally {
         setIsUpdating(false);
       }
-    } else {
-      console.log('Don\'t show again not checked, skipping database update');
     }
   };
 
@@ -256,7 +251,7 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
             <CardContent className="pt-6">
               <div className="text-center">
                 <h3 className="font-semibold text-blue-900 mb-2">
-                  School: {userProfile.schools.name}
+                  School: {userProfile.schools?.name || "Unknown"}
                 </h3>
                 <p className="text-sm text-blue-700">
                   As School Administrator, you can manage all teachers, classrooms, and garden activities across your school.
@@ -268,14 +263,11 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
           {/* Footer Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
             <div className="flex items-center gap-2">
-              <Checkbox 
-                id="dont-show-again"
-                checked={dontShowAgain}
-                onCheckedChange={(checked) => {
-                  console.log('Checkbox changed to:', checked);
-                  setDontShowAgain(checked);
-                }}
-              />
+                <Checkbox
+                  id="dont-show-again"
+                  checked={dontShowAgain}
+                  onCheckedChange={setDontShowAgain}
+                />
               <label 
                 htmlFor="dont-show-again" 
                 className="text-sm text-muted-foreground cursor-pointer flex items-center gap-2"
