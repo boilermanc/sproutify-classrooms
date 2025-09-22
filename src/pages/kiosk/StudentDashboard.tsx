@@ -70,45 +70,46 @@ function RecentActivityWidget({
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
+      console.log("RecentActivityWidget - fetching data for teacherId:", teacherId);
       try {
         // Fetch recent activities from multiple tables
         const [vitalsData, photosData, harvestsData, plantingsData, pestsData, milestonesData] = await Promise.all([
-          supabase
+          anonymousSupabase
             .from('tower_vitals')
             .select('recorded_at, ph, ec, towers(name)')
             .eq('teacher_id', teacherId)
             .order('recorded_at', { ascending: false })
             .limit(5),
           
-          supabase
+          anonymousSupabase
             .from('tower_photos')
             .select('taken_at, caption, student_name, towers(name)')
             .eq('teacher_id', teacherId)
             .order('taken_at', { ascending: false })
             .limit(5),
           
-          supabase
+          anonymousSupabase
             .from('harvests')
             .select('harvested_at, plant_name, plant_quantity, weight_grams, tower_id, towers(name)')
             .eq('teacher_id', teacherId)
             .order('harvested_at', { ascending: false })
             .limit(5),
           
-          supabase
+          anonymousSupabase
             .from('plantings')
             .select('planted_at, name, towers(name)')
             .eq('teacher_id', teacherId)
             .order('planted_at', { ascending: false })
             .limit(5),
           
-          supabase
+          anonymousSupabase
             .from('pest_logs')
             .select('observed_at, pest, towers(name)')
             .eq('teacher_id', teacherId)
             .order('observed_at', { ascending: false })
             .limit(5),
           
-          supabase
+          anonymousSupabase
             .from('tower_documents')
             .select('created_at, title, description, milestone_type, classrooms(name)')
             .eq('teacher_id', teacherId)
@@ -315,8 +316,9 @@ function StudentHarvestWidget({
 
   useEffect(() => {
     const fetchHarvests = async () => {
+      console.log("StudentHarvestWidget - fetching data for teacherId:", teacherId);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await anonymousSupabase
           .from('plantings')
           .select(`
             id,
@@ -556,11 +558,17 @@ export default function StudentDashboard() {
   const [teacherId, setTeacherId] = useState<string>("");
   const [studentName, setStudentName] = useState<string | null>(null);
 
+  console.log("StudentDashboard component rendered");
+
   useEffect(() => {
     const storedClassroomId = localStorage.getItem("student_classroom_id");
     const storedStudentName = localStorage.getItem("student_name");
     
+    console.log("StudentDashboard useEffect - storedClassroomId:", storedClassroomId);
+    console.log("StudentDashboard useEffect - storedStudentName:", storedStudentName);
+    
     if (!storedClassroomId) {
+      console.log("No classroom ID found in localStorage");
       setLoading(false);
       return;
     }
@@ -613,6 +621,16 @@ export default function StudentDashboard() {
           {studentName ? `Welcome, ${studentName}!` : "Student Dashboard"}
         </h1>
         <p className="text-muted-foreground">Check harvest schedule and select a tower to log data.</p>
+        
+        {/* Debug info */}
+        <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm">
+          <p><strong>Debug Info:</strong></p>
+          <p>Loading: {loading ? 'true' : 'false'}</p>
+          <p>Classroom ID: {classroomId || 'Not set'}</p>
+          <p>Teacher ID: {teacherId || 'Not set'}</p>
+          <p>Student Name: {studentName || 'Not set'}</p>
+          <p>Towers Count: {towers.length}</p>
+        </div>
       </div>
 
       {/* Harvest Schedule and Recent Activity Section */}
@@ -648,7 +666,12 @@ export default function StudentDashboard() {
             // Map over the towers and display a card for each
             towers.map(tower => <TowerCard key={tower.id} tower={tower} />)
           ) : (
-            <p className="text-muted-foreground col-span-full">No towers have been added for this class yet.</p>
+            <Card className="col-span-full">
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">No towers have been added for this class yet.</p>
+                <p className="text-sm text-muted-foreground mt-2">Ask your teacher to add towers to get started!</p>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
