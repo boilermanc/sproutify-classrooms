@@ -36,7 +36,17 @@ export default function SchoolClassrooms() {
 
   const create = useMutation({
     mutationFn: async (payload: { name: string; grade_level?: string | null }) => {
-      const { error } = await supabase.from("classrooms").insert([{ ...payload, school_id: schoolId }]);
+      // Generate a temporary PIN - the database trigger should replace it with a unique one
+      const tempPin = Math.floor(1000 + Math.random() * 9000).toString();
+      
+      const { error } = await supabase.from("classrooms").insert([{ 
+        ...payload, 
+        school_id: schoolId,
+        kiosk_pin: tempPin, // Temporary value, database trigger should replace with unique PIN
+        educational_package: "base", // Default educational package
+        is_selected_for_network: false, // Default to not selected for network
+        teacher_id: schoolId // Use school_id as teacher_id for school-created classrooms
+      }]);
       if (error) throw error;
     },
     onSuccess: async () => {
