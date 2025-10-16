@@ -85,21 +85,18 @@ export default function RegisterTeacher() {
         console.error('Supabase signup error:', signUpError);
         throw new Error(signUpError.message ?? "Sign up failed");
       }
-      
-      // Check if user needs email confirmation
-      if (signUpData.user && !signUpData.user.email_confirmed_at) {
-        toast({ 
-          title: "Check your email", 
-          description: "We've sent you a confirmation link. Please check your email and click the link to activate your account." 
-        });
-        navigate("/auth/login");
-        return;
-      }
-      
+
       if (!signUpData?.user) {
         throw new Error("Sign up failed - no user created");
       }
       const userId = signUpData.user.id;
+
+      // Soft email confirmation - allow user to continue but notify them
+      const emailConfirmed = signUpData.user.email_confirmed_at;
+      if (!emailConfirmed) {
+        console.log('Email confirmation pending for user:', userId);
+        // User can continue, but we'll notify them to check their email
+      }
 
       // 2) Handle district lookup if join code provided
       let districtId: string | null = null;
@@ -216,11 +213,11 @@ export default function RegisterTeacher() {
       if (selectedPlan) {
         const planName = getPlanDisplayName(selectedPlan);
         const period = billingPeriod === "annual" ? "Annual" : "Monthly";
-        toast({ 
-          title: "Account created!", 
-          description: `Welcome to Sproutify School ${planName} ${period} plan. Please check your email to confirm your account, then complete your subscription.` 
+        toast({
+          title: "Account created!",
+          description: `Welcome to Sproutify School ${planName} ${period} plan. ${!emailConfirmed ? 'Check your email for a confirmation link. ' : ''}Let's complete your subscription.`
         });
-        
+
         // Wait a moment for the toast to show, then navigate
         setTimeout(() => {
           // Build the pricing URL with plan and promo code
@@ -231,15 +228,15 @@ export default function RegisterTeacher() {
           }
           // Add a flag to indicate they just registered
           pricingUrl.searchParams.set('registered', 'true');
-          
+
           window.location.href = pricingUrl.toString();
         }, 2000);
       } else {
-        toast({ 
-          title: "Account created!", 
-          description: "Check your email to confirm your account, then sign in to get started." 
+        toast({
+          title: "Account created!",
+          description: !emailConfirmed ? "Welcome! Check your email for a confirmation link. You can start using your account now." : "Welcome! You're all set to get started."
         });
-        navigate("/auth/login");
+        navigate("/app/classrooms");
       }
       
     } catch (err: any) {
