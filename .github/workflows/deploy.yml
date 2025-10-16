@@ -1,34 +1,27 @@
 name: Build and Deploy Sproutify Classrooms
-
 on:
   push:
     branches: [main]         # prod only
   workflow_dispatch: {}       # allow manual runs
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
       VITE_DB_SCHEMA: ${{ secrets.VITE_DB_SCHEMA }}
       # (Feature flags: set defaults in code; avoid referencing missing vars/secrets here.)
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - name: Install
         run: npm ci
-
       - name: Build
         shell: bash
         run: |
@@ -71,7 +64,6 @@ jobs:
             '  RewriteRule . /index.html [L]' \
             '</IfModule>' \
             > dist/.htaccess
-
       - name: Deploy via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.0.0
         with:
@@ -81,6 +73,7 @@ jobs:
           TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
           SOURCE: dist/
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
+          SSH_CMD_ARGS: "-p ${{ secrets.IONOS_PORT }}"
           SCRIPT_AFTER: |
             set -e
             cd "${{ secrets.IONOS_SCHOOL_PATH }}"
