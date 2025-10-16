@@ -73,7 +73,7 @@ jobs:
           TARGET: ${{ secrets.IONOS_SCHOOL_PATH }}
           SOURCE: dist/
           ARGS: "-avz --delete --human-readable --progress --exclude='.well-known/*'"
-          SSH_CMD_ARGS: "-p ${{ secrets.IONOS_PORT }}"
+          SSH_CMD_ARGS: "-p 2222"
           SCRIPT_AFTER: |
             set -e
             cd "${{ secrets.IONOS_SCHOOL_PATH }}"
