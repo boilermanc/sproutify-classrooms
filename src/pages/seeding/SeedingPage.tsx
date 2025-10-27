@@ -35,6 +35,7 @@ export default function SeedingPage() {
   const [showExperienceSelector, setShowExperienceSelector] = useState(false);
   const [userRole, setUserRole] = useState<'teacher' | 'student' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   useEffect(() => {
     fetchInitialData();
@@ -265,7 +266,7 @@ export default function SeedingPage() {
         {/* Main Content */}
         {userRole === 'teacher' ? (
           // Teacher View
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -282,21 +283,29 @@ export default function SeedingPage() {
             </TabsList>
             
             <TabsContent value="overview">
-              <ClassSeedingOverview 
-                classroomId={selectedClassroom} 
+              <ClassSeedingOverview
+                classroomId={selectedClassroom}
                 onActionClick={(action) => {
+                  // Ensure we have students before switching tabs
+                  if (students.length === 0) {
+                    return;
+                  }
+
+                  // Set selected student if none is selected
+                  if (!selectedStudent) {
+                    setSelectedStudent(students[0].id);
+                  }
+
+                  // Switch to appropriate tab
                   switch (action) {
                     case 'start-seeding':
-                      // Switch to student seeding tab
-                      setSelectedStudent(students[0]?.id || '');
+                      setActiveTab('student-seeding');
                       break;
                     case 'check-germination':
-                      // Switch to student list tab to review germination
-                      setSelectedStudent(students[0]?.id || '');
+                      setActiveTab('student-list');
                       break;
                     case 'transfer-towers':
-                      // Switch to student list tab to transfer seedlings
-                      setSelectedStudent(students[0]?.id || '');
+                      setActiveTab('student-list');
                       break;
                   }
                 }}

@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BookOpen, Users, TrendingUp, Download, Share2, CheckCircle, Bug, PlayCircle, ArrowRight,
+import {
+  BookOpen, Users, TrendingUp, Share2, CheckCircle, Bug, PlayCircle, ArrowRight,
   ClipboardList, Search, Microscope, Droplets, Sun, Loader2, AlertTriangle, Eye, Shield,
   Target, Video as VideoIcon
 } from "lucide-react";
@@ -380,53 +380,28 @@ export default function TeacherPestDiseaseGuide() {
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Download className="h-5 w-5" />
-              <span>Downloadable Resources</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full justify-start">
-              <Download className="mr-2 h-4 w-4" />
-              Pest Identification Worksheet (PDF)
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Download className="mr-2 h-4 w-4" />
-              OMRI Approved Treatment Guide (PDF)
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Download className="mr-2 h-4 w-4" />
-              Seasonal Pest Calendar (PDF)
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Share2 className="h-5 w-5" />
-              <span>Share with Students</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-medium mb-2">Student Guide Link</h4>
-              <div className="text-sm text-muted-foreground mb-3">
-                Students can access the learning guide directly from their dashboard:
-              </div>
-              <div className="flex items-center space-x-2">
-                <code className="flex-1 p-2 bg-background rounded text-xs">
-                  https://school.sproutify.app/student/pest-disease-guide
-                </code>
-                <Button size="sm" variant="outline">Copy</Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Share2 className="h-5 w-5" />
+            <span>Share with Students</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-muted/50 rounded-lg">
+            <h4 className="font-medium mb-2">Student Guide Link</h4>
+            <div className="text-sm text-muted-foreground mb-3">
+              Students can access the learning guide directly from their dashboard:
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex items-center space-x-2">
+              <code className="flex-1 p-2 bg-background rounded text-xs">
+                https://school.sproutify.app/student/pest-disease-guide
+              </code>
+              <Button size="sm" variant="outline">Copy</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <PestIdentificationModal
         isOpen={showGuideModal}
