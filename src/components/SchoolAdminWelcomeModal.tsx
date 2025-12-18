@@ -152,7 +152,7 @@ const SchoolAdminWelcomeModal: React.FC<SchoolAdminWelcomeModalProps> = ({ isOpe
           <div className="flex items-center justify-center mb-4">
             <div className="relative">
               <img 
-                src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
+                src="/images/logo.png" 
                 alt="Sproutify School Logo" 
                 className="h-20 w-auto object-contain"
               />

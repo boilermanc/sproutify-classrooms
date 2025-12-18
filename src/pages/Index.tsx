@@ -902,7 +902,7 @@ const Index = () => {
         {/* Hero Section */}
         <section className="text-center mb-16 sm:mb-20">
           <img
-            src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png"
+            src="/images/logo.png"
             alt="Sproutify School Logo"
             className="h-20 sm:h-24 object-contain mb-6 mx-auto"
           />

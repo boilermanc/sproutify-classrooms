@@ -3,7 +3,14 @@
     "allow": [
       "Bash(git add .env)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

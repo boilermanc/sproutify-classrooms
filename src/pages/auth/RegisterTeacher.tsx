@@ -253,7 +253,7 @@ export default function RegisterTeacher() {
         <div className="text-center mb-8">
           <Link to="/">
             <img 
-              src="/lovable-uploads/689a7eca-ef5f-4820-8baa-d048f50e2773.png" 
+              src="/images/logo.png" 
               alt="Sproutify School Logo" 
               className="h-16 inline-block" 
             />
