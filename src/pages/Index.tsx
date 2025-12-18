@@ -236,13 +236,11 @@ const Index = () => {
     }
     
     try {
-      console.log('Attempting login with email:', loginForm.email);
       const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email: loginForm.email.trim(),
         password: loginForm.password,
       });
       if (error) {
-        console.error('Supabase auth error:', error);
         throw new Error(error.message);
       }
       
@@ -342,23 +340,11 @@ const Index = () => {
       }
 
       // Store student session data and redirect
-      console.log("Index.tsx - Setting localStorage data:");
-      console.log("  student_classroom_id:", classroom.id);
-      console.log("  student_classroom_name:", classroom.name);
-      console.log("  student_name:", studentName);
-      
       localStorage.setItem("student_classroom_id", classroom.id);
       localStorage.setItem("student_classroom_name", classroom.name);
       localStorage.setItem("student_name", studentName);
-      
-      // Verify the data was set
-      console.log("Index.tsx - Verifying localStorage:");
-      console.log("  student_classroom_id:", localStorage.getItem("student_classroom_id"));
-      console.log("  student_classroom_name:", localStorage.getItem("student_classroom_name"));
-      console.log("  student_name:", localStorage.getItem("student_name"));
 
       toast({ title: `Welcome, ${studentName}!` });
-      console.log("Index.tsx - Navigating to /student/dashboard");
       navigate("/student/dashboard");
     } catch (err: any) {
       toast({ title: "Login failed", description: err.message, variant: "destructive" });
@@ -424,7 +410,6 @@ const Index = () => {
         }
       });
       if (signUpError) {
-        console.error('Supabase signup error:', signUpError);
         throw new Error(signUpError.message ?? "Sign up failed");
       }
       
@@ -539,11 +524,10 @@ const Index = () => {
           
           // If school exists but doesn't have district_id and we have one, update it
           if (districtId && !existingSchools[0].district_id) {
-            const { error: updateError } = await supabase
+            await supabase
               .from("schools")
               .update({ district_id: districtId })
               .eq("id", schoolId);
-            if (updateError) console.warn("Failed to link school to district:", updateError);
           }
         } else {
           const { data: newSchool, error: schoolInsertError } = await supabase
@@ -603,7 +587,7 @@ const Index = () => {
         });
       }
       
-      // Send registration webhook to n8n
+      // Send registration webhook to n8n (don't fail registration if webhook fails)
       try {
         await sendRegistrationWebhook({
           id: userId,
@@ -614,9 +598,8 @@ const Index = () => {
           plan: selectedPlan as 'basic' | 'professional' | 'school' | 'district',
           trialEndsAt: trialEndsAt.toISOString(),
         });
-      } catch (webhookError) {
-        console.error('Failed to send registration webhook:', webhookError);
-        // Don't fail the registration if webhook fails
+      } catch {
+        // Webhook failure is non-critical
       }
       
       navigate("/app");

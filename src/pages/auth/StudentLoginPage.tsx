@@ -65,17 +65,10 @@ export default function StudentLoginPage() {
     }
 
     try {
-      console.log("Starting student login process...");
-      console.log("Student name:", name);
-      console.log("Classroom PIN:", classroomPin);
-      console.log("Student PIN:", pin);
-      
       // Step 1: Find classroom by PIN using direct fetch
       const { data: classroom, error: classroomErr } = await findClassroomByPin(classroomPin);
-      console.log("Classroom lookup result:", { classroom, classroomErr });
 
       if (classroomErr || !classroom) {
-        console.error("Classroom lookup failed:", classroomErr);
         setError("Invalid Classroom PIN. Please check with your teacher.");
         setLoading(false);
         return;
@@ -88,11 +81,8 @@ export default function StudentLoginPage() {
         .eq("classroom_id", classroom.id)
         .eq("display_name", name)
         .single();
-      
-      console.log("Student lookup result:", { student, studentErr });
 
       if (studentErr || !student) {
-        console.error("Student lookup failed:", studentErr);
         setError(`We couldn't find a student named "${name}" in ${classroom.name}. Please check your name spelling, or ask your teacher for help.`);
         setLoading(false);
         return;
@@ -108,44 +98,30 @@ export default function StudentLoginPage() {
       // Step 3: Update login tracking
       const isFirstLogin = !student.has_logged_in;
       const now = new Date().toISOString();
-      
+
       const { error: updateErr } = await anonymousSupabase
         .from("students")
         .update({
           has_logged_in: true,
-          first_login_at: isFirstLogin ? now : undefined, // Only set on first login
+          first_login_at: isFirstLogin ? now : undefined,
           last_login_at: now
         })
         .eq("id", student.id);
 
       if (updateErr) {
-        console.error("Login tracking update failed:", updateErr);
         setError("Could not record your login. Please try again.");
         setLoading(false);
         return;
       }
 
       // Success! Store student session data and redirect
-      console.log("StudentLoginPage - Setting localStorage data:");
-      console.log("  student_classroom_id:", classroom.id);
-      console.log("  student_classroom_name:", classroom.name);
-      console.log("  student_name:", name);
-      
       localStorage.setItem("student_classroom_id", classroom.id);
       localStorage.setItem("student_classroom_name", classroom.name);
       localStorage.setItem("student_name", name);
-      
-      // Verify the data was set
-      console.log("StudentLoginPage - Verifying localStorage:");
-      console.log("  student_classroom_id:", localStorage.getItem("student_classroom_id"));
-      console.log("  student_classroom_name:", localStorage.getItem("student_classroom_name"));
-      console.log("  student_name:", localStorage.getItem("student_name"));
-      
+
       toast({ title: `Welcome, ${name}!` });
-      console.log("StudentLoginPage - Navigating to /student/dashboard");
       navigate("/student/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
     }

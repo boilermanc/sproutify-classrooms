@@ -519,40 +519,67 @@ export class NetworkService {
       ? await this.getConnectedClassroomIds(classroomId)
       : [];
 
+    // Filter classrooms first if connected_only is set
+    const filteredClassrooms = filters.connected_only
+      ? (networkClassrooms as any[]).filter(c => connectedIds.includes(c.classroom_id))
+      : (networkClassrooms as any[]);
+
+    // Extract all unique teacher IDs for batch queries
+    const teacherIds = [...new Set(
+      filteredClassrooms
+        .map(c => c.classroom?.teacher_id)
+        .filter((id): id is string => !!id)
+    )];
+
+    if (teacherIds.length === 0) return [];
+
+    // Batch fetch all harvests and towers in parallel (2 queries instead of N*2)
+    const [harvestsResult, towersResult] = await Promise.all([
+      db
+        .from('harvests')
+        .select('teacher_id, weight_grams, plant_quantity')
+        .in('teacher_id', teacherIds),
+      db
+        .from('towers')
+        .select('teacher_id')
+        .in('teacher_id', teacherIds)
+    ]);
+
+    ensureNo406(harvestsResult.status);
+    ensureNo406(towersResult.status);
+
+    // Aggregate harvests by teacher_id
+    const harvestsByTeacher = new Map<string, { totalWeight: number; totalPlants: number }>();
+    for (const harvest of (harvestsResult.data || [])) {
+      const existing = harvestsByTeacher.get(harvest.teacher_id) || { totalWeight: 0, totalPlants: 0 };
+      existing.totalWeight += harvest.weight_grams || 0;
+      existing.totalPlants += harvest.plant_quantity || 0;
+      harvestsByTeacher.set(harvest.teacher_id, existing);
+    }
+
+    // Count towers by teacher_id
+    const towerCountByTeacher = new Map<string, number>();
+    for (const tower of (towersResult.data || [])) {
+      towerCountByTeacher.set(tower.teacher_id, (towerCountByTeacher.get(tower.teacher_id) || 0) + 1);
+    }
+
+    // Build leaderboard entries
     const leaderboardEntries: NetworkLeaderboardEntry[] = [];
 
-    for (const classroom of networkClassrooms as any[]) {
+    for (const classroom of filteredClassrooms) {
       const cls = classroom.classroom as any;
       if (!cls) continue;
 
-      if (filters.connected_only && !connectedIds.includes(classroom.classroom_id)) continue;
-
-      // Harvest totals (simplified; ideally via RPC)
-      const { data: harvests, status: sH } = await db
-        .from('harvests')
-        .select('weight_grams, plant_quantity')
-        .eq('teacher_id', cls.teacher_id);
-
-      ensureNo406(sH);
-
-      const totalWeight = (harvests || []).reduce((sum: number, h: any) => sum + (h.weight_grams || 0), 0);
-      const totalPlants = (harvests || []).reduce((sum: number, h: any) => sum + (h.plant_quantity || 0), 0);
-
-      // Tower count
-      const { count: towerCount, status: sT } = await db
-        .from('towers')
-        .select('*', { count: 'exact', head: true })
-        .eq('teacher_id', cls.teacher_id);
-
-      ensureNo406(sT);
+      const harvestStats = harvestsByTeacher.get(cls.teacher_id) || { totalWeight: 0, totalPlants: 0 };
+      const towerCount = towerCountByTeacher.get(cls.teacher_id) || 0;
 
       leaderboardEntries.push({
         classroom_id: classroom.classroom_id,
         classroom_name: cls.name,
         display_name: classroom.display_name,
-        total_harvest_weight: totalWeight,
-        total_harvest_plants: totalPlants,
-        tower_count: towerCount || 0,
+        total_harvest_weight: harvestStats.totalWeight,
+        total_harvest_plants: harvestStats.totalPlants,
+        tower_count: towerCount,
         region: classroom.region,
         grade_level: classroom.grade_level,
         school_name: cls.teacher?.schools?.name || null,
