@@ -27,7 +27,8 @@ function createAnonymousSupabaseClient() {
     auth: {
       persistSession: false, // Don't persist any session
       autoRefreshToken: false, // Don't auto-refresh tokens
-      storageKey: 'sb-anonymous-auth-token', // Use a different storage key
+      storageKey: 'sb-anonymous-auth-token', // Use a different storage key to avoid conflicts
+      lock: <T>(name: string, _acquireTimeout: number, fn: () => Promise<T>) => fn(), // Disable lock to prevent multi-instance warning
       storage: {
         getItem: () => null,
         setItem: () => {},
