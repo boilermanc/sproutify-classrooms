@@ -8,12 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { anonymousSupabase } from "@/integrations/supabase/anonymous-client";
 import { findClassroomByPin } from "@/utils/kiosk-login";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import { sendRegistrationWebhook } from "@/utils/webhooks";
 
 /**
@@ -198,6 +206,9 @@ const Index = () => {
     loading: false,
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   // Student login
   const [studentForm, setStudentForm] = useState({
@@ -284,6 +295,48 @@ const Index = () => {
       toast({ title: "Sign in failed", description: err.message ?? "Check your email/password", variant: "destructive" });
     } finally {
       setLoginForm((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = resetEmail.trim();
+
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingReset(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for instructions to reset your password.",
+      });
+
+      setResetDialogOpen(false);
+      setResetEmail("");
+    } catch (err: any) {
+      toast({
+        title: "Reset failed",
+        description: err.message || "Unable to send the reset email. Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -764,6 +817,42 @@ const Index = () => {
                       </Button>
                     </div>
                   </form>
+                  <div className="mt-3 text-right text-sm">
+                    <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="link" className="text-sm p-0 h-auto">
+                          Forgot your password?
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5" />
+                            Reset Password
+                          </DialogTitle>
+                          <DialogDescription>
+                            We'll send a secure reset link to your teacher email. No student access is needed.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handlePasswordReset} className="space-y-4 pt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="resetEmailTop">Email</Label>
+                            <Input
+                              id="resetEmailTop"
+                              type="email"
+                              required
+                              value={resetEmail}
+                              onChange={(e) => setResetEmail(e.target.value)}
+                              placeholder="teacher@school.edu"
+                            />
+                          </div>
+                          <Button type="submit" className="w-full" disabled={sendingReset || !resetEmail.trim()}>
+                            {sendingReset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Send Reset Link"}
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </CardContent>
               </Card>
             </div>

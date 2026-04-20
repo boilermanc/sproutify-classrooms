@@ -112,19 +112,17 @@ export const useClassroomPlants = (teacherId: string | null) => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (success, { plantId, isActive }) => {
-      if (success) {
-        const plant = classroomPlants?.find(p => p.id === plantId);
-        toast({
-          title: isActive ? "Plant Activated 🌿" : "Plant Deactivated",
-          description: `${plant?.name || 'Plant'} is now ${isActive ? 'active' : 'inactive'} in your catalog.`
-        });
-        
-        // Invalidate related queries
-        queryClient.invalidateQueries({ queryKey: ['classroom-plants', teacherId] });
-        queryClient.invalidateQueries({ queryKey: ['active-classroom-plants', teacherId] });
-        queryClient.invalidateQueries({ queryKey: ['global-plants-status', teacherId] });
-      }
+    onSuccess: (_success, { plantId, isActive }) => {
+      const plant = classroomPlants?.find(p => p.id === plantId);
+      toast({
+        title: isActive ? "Plant Activated 🌿" : "Plant Deactivated",
+        description: `${plant?.name || "Plant"} is now ${isActive ? "active" : "inactive"} in your catalog.`
+      });
+
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ["classroom-plants", teacherId] });
+      queryClient.invalidateQueries({ queryKey: ["active-classroom-plants", teacherId] });
+      queryClient.invalidateQueries({ queryKey: ["global-plants-status", teacherId] });
     },
     onError: (error: any) => {
       toast({

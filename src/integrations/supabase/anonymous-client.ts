@@ -13,17 +13,19 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error('Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
 }
 
-// Singleton pattern to prevent multiple client instances
-let anonymousSupabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+type AnonymousSupabaseClientInstance = ReturnType<typeof createClient<Database>>;
+const anonymousGlobalCache = globalThis as typeof globalThis & {
+  __sproutifyAnonymousSupabase?: AnonymousSupabaseClientInstance;
+};
 
 function createAnonymousSupabaseClient() {
-  if (anonymousSupabaseInstance) {
-    return anonymousSupabaseInstance;
+  if (anonymousGlobalCache.__sproutifyAnonymousSupabase) {
+    return anonymousGlobalCache.__sproutifyAnonymousSupabase;
   }
   
   // Create an anonymous client specifically for kiosk login
   // This client will not store or use any authentication state
-  anonymousSupabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       persistSession: false, // Don't persist any session
       autoRefreshToken: false, // Don't auto-refresh tokens
@@ -49,7 +51,8 @@ function createAnonymousSupabaseClient() {
     }
   });
   
-  return anonymousSupabaseInstance;
+  anonymousGlobalCache.__sproutifyAnonymousSupabase = client;
+  return client;
 }
 
 export const anonymousSupabase = createAnonymousSupabaseClient();

@@ -335,17 +335,15 @@ export default function TeacherPestDiseaseGuide() {
         {features.map((feature, index) => (
           <Card key={index}>
             <CardContent className="p-6">
-              <div className="flex items-start space-x-4">
+              <div className="flex items-start gap-4 mb-3">
                 <div className="bg-primary/10 p-3 rounded-lg">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {feature.description}
-                  </p>
-                </div>
+                <h3 className="font-semibold leading-tight pr-2 max-w-[12rem]">{feature.title}</h3>
               </div>
+              <p className="text-sm text-muted-foreground">
+                {feature.description}
+              </p>
             </CardContent>
           </Card>
         ))}

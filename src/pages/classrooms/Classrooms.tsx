@@ -156,6 +156,14 @@ export default function Classrooms() {
     loadClassrooms();
   };
 
+  const classroomListSection = (
+    <section className="grid gap-4 mb-8">
+      {classrooms.map((classroom) => (
+        <ClassroomRow key={classroom.id} classroom={classroom} onReload={loadClassrooms} userId={userId} />
+      ))}
+    </section>
+  );
+
   return (
     <div className="container max-w-5xl py-8">
       <SEO title="Classrooms | Sproutify School" description="Manage classrooms and students." canonical="/app/classrooms" />
@@ -177,6 +185,8 @@ export default function Classrooms() {
           </CardContent>
         </Card>
       )}
+
+      {classrooms.length > 0 && classroomListSection}
 
       <section className="grid md:grid-cols-2 gap-8 mb-8">
         <Card>
@@ -305,14 +315,9 @@ export default function Classrooms() {
 
       <Separator className="my-8" />
 
-      <section className="grid gap-4">
-        {classrooms.map((classroom) => (
-          <ClassroomRow key={classroom.id} classroom={classroom} onReload={loadClassrooms} userId={userId} />
-        ))}
-        {classrooms.length === 0 && (
-          <p className="text-muted-foreground">No classrooms yet. Create one above.</p>
-        )}
-      </section>
+      {classrooms.length === 0 && (
+        <p className="text-muted-foreground my-4">No classrooms yet. Create one above.</p>
+      )}
     </div>
   );
 }

@@ -210,9 +210,9 @@ export default function ClassSeedingOverview({ classroomId, onActionClick }: Cla
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-muted transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto !p-6 flex flex-col items-center gap-3 rounded-lg hover:bg-muted transition-colors text-center whitespace-normal break-words"
               onClick={() => onActionClick?.('start-seeding')}
             >
               <Sprout className="h-8 w-8 text-primary" />
@@ -223,9 +223,9 @@ export default function ClassSeedingOverview({ classroomId, onActionClick }: Cla
                 </p>
               </div>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-muted transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto !p-6 flex flex-col items-center gap-3 rounded-lg hover:bg-muted transition-colors text-center whitespace-normal break-words"
               onClick={() => onActionClick?.('check-germination')}
             >
               <Calendar className="h-8 w-8 text-blue-600" />
@@ -236,9 +236,9 @@ export default function ClassSeedingOverview({ classroomId, onActionClick }: Cla
                 </p>
               </div>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-muted transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto !p-6 flex flex-col items-center gap-3 rounded-lg hover:bg-muted transition-colors text-center whitespace-normal break-words"
               onClick={() => onActionClick?.('transfer-towers')}
             >
               <TrendingUp className="h-8 w-8 text-green-600" />

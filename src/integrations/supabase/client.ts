@@ -15,15 +15,17 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 // Extract project ref from URL for scoped storage key
 const projectRef = SUPABASE_URL.split('//')[1]?.split('.')[0] || 'unknown';
 
-// Singleton pattern to prevent multiple client instances
-let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+type SupabaseClientInstance = ReturnType<typeof createClient<Database>>;
+const globalCache = globalThis as typeof globalThis & {
+  __sproutifyMainSupabase?: SupabaseClientInstance;
+};
 
 function createSupabaseClient() {
-  if (supabaseInstance) {
-    return supabaseInstance;
+  if (globalCache.__sproutifyMainSupabase) {
+    return globalCache.__sproutifyMainSupabase;
   }
-  
-  supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+
+  const supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       storage: localStorage,
       persistSession: true,
@@ -39,8 +41,9 @@ function createSupabaseClient() {
       enabled: true
     }
   });
-  
-  return supabaseInstance;
+
+  globalCache.__sproutifyMainSupabase = supabaseClient;
+  return supabaseClient;
 }
 
 export const supabase = createSupabaseClient();
